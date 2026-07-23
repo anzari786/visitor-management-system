@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../config/prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import {
    NotFoundError,

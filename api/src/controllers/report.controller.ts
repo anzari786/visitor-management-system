@@ -1,7 +1,7 @@
 import { format as formatCsvRow } from '@fast-csv/format';
 import { differenceInCalendarDays, format, startOfMonth } from 'date-fns';
 import type { Request, Response } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../config/prisma.js';
 import {
    buildCsvFilename,
    formatDuration,

@@ -1,5 +1,5 @@
 import { Prisma, Setting } from '../generated/prisma/client.js';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../config/prisma.js';
 
 export const visitInclude = {
    visitor: true,

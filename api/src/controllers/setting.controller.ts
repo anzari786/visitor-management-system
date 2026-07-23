@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../config/prisma.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { APP_INFO } from '../config/app.js';
 import { NotFoundError } from '../lib/errors.js';

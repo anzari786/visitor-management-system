@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { format, getISOWeek, startOfMonth, subMonths } from 'date-fns';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '../config/prisma.js';
 import { Prisma, VisitStatus } from '../generated/prisma/client.js';
 import {
    GROWTH_MONTHS,

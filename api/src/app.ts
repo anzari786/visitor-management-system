@@ -24,7 +24,7 @@ app.get('/api/health', (req: Request, res: Response) => {
    });
 });
 
-app.use('/api', routes);
+app.use('/api/v1', routes);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
    console.error(err);

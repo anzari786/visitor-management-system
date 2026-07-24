@@ -6,6 +6,7 @@ type RequestSchemaShape = {
    query?: unknown;
    params?: unknown;
 };
+
 export function validate<T extends ZodType<RequestSchemaShape>>(schema: T) {
    return (req: Request, res: Response, next: NextFunction) => {
       const result = schema.safeParse({

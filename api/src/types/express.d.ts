@@ -3,15 +3,15 @@ import 'express-session';
 declare module 'express-session' {
    interface SessionData {
       userId: number;
-      roles: string[];
+      roleCodes: string[];
    }
 }
 
 declare global {
    namespace Express {
       interface Request {
-         validatedQuery?: unknown;
          validatedBody?: unknown;
+         validatedQuery?: unknown;
          validatedParams?: unknown;
       }
    }

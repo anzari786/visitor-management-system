@@ -27,12 +27,6 @@ datasource db {
 // ENUMS
 // ----------------------------------------------------------------------------
 
-/// How a visit was initiated.
-enum VisitOrigin {
-  VISITOR_REQUEST
-  HOST_INVITATION
-}
-
 /// Number of visitors in a visit.
 enum VisitorGroupType {
   SINGLE
@@ -52,12 +46,22 @@ enum VisitStatus {
   REJECTED
   RESCHEDULED
   COMPLETED
-  EXPIRED
   CANCELLED
+  EXPIRED
+}
+
+/// Overall lifecycle of a host invitation.
+enum InvitationStatus {
+  SENT
+  APPROVED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  CONVERTED
 }
 
 /// Attendance status for a visitor on a scheduled day.
-enum AttendanceStatus {
+enum VisitAttendanceStatus {
   SCHEDULED
   CHECKED_IN
   CHECKED_OUT
@@ -88,15 +92,24 @@ enum NotificationChannel {
   DASHBOARD
 }
 
-/// Notification event type.
+/// Event that triggered a notification.
 enum NotificationType {
+  // Visit workflow
   VISIT_SUBMITTED
   VISIT_APPROVED
   VISIT_REJECTED
   VISIT_RESCHEDULED
-  VISITOR_ARRIVED
-  CHECK_OUT_COMPLETED
+  VISITOR_CHECKED_IN
+  VISITOR_CHECKED_OUT
   OVERDUE_CHECKOUT
+
+  // Invitation workflow
+  INVITATION_SENT
+  INVITATION_APPROVED
+  INVITATION_REJECTED
+  INVITATION_CANCELLED
+  INVITATION_EXPIRED
+  INVITATION_CONVERTED
 }
 
 /// Dashboard user authenticated through SSO.
@@ -116,11 +129,15 @@ model User {
 
   createdVisits         Visit[]              @relation("VisitCreatedBy")
   decidedVisits         Visit[]              @relation("VisitDecidedBy")
-  attendancesCheckedIn  Attendance[]         @relation("AttendanceCheckedInBy")
-  attendancesCheckedOut Attendance[]         @relation("AttendanceCheckedOutBy")
+  attendancesCheckedIn  VisitAttendance[]    @relation("AttendanceCheckedInBy")
+  attendancesCheckedOut VisitAttendance[]    @relation("AttendanceCheckedOutBy")
   statusChangesMade     VisitStatusHistory[]
   notifications         Notification[]       @relation("NotificationRecipientUser")
   settingsUpdated       SystemSetting[]
+
+  createdInvitations      Invitation[]              @relation("InvitationCreatedBy")
+  decidedInvitations      Invitation[]              @relation("InvitationDecidedBy")
+  invitationStatusChanges InvitationStatusHistory[]
 
   @@map("users")
 }
@@ -173,8 +190,9 @@ model Employee {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  user         User?
-  visitsAsHost Visit[]
+  user              User?
+  visitsAsHost      Visit[]
+  invitationsAsHost Invitation[]
 
   @@index([departmentName])
   @@index([isActive])
@@ -204,13 +222,73 @@ model Visitor {
   @@map("visitors")
 }
 
+/// Host-created invitation before a visit exists.
+model Invitation {
+  id             Int    @id @default(autoincrement())
+  invitationCode String @unique
+  qrToken        String @unique
+
+  groupType    VisitorGroupType
+  durationType VisitDurationType
+  status       InvitationStatus
+
+  expectedVisitorCount Int     @default(1) @map("expected_visitor_count") /// Number of visitors expected by the host.
+  organization         String?
+  purpose              String  @db.Text
+
+  hostEmployeeId Int      @map("host_employee_id")
+  hostEmployee   Employee @relation(fields: [hostEmployeeId], references: [id])
+
+  departmentNameSnapshot String?
+  departmentCodeSnapshot String?
+
+  plannedStartDate DateTime @map("planned_start_date") @db.Date
+  plannedEndDate   DateTime @map("planned_end_date") @db.Date
+
+  createdById Int?  @map("created_by_id")
+  createdBy   User? @relation("InvitationCreatedBy", fields: [createdById], references: [id])
+
+  sentAt    DateTime? @map("sent_at")
+  arrivedAt DateTime? @map("arrived_at")
+
+  decidedById  Int?    @map("decided_by_id")
+  decidedBy    User?   @relation("InvitationDecidedBy", fields: [decidedById], references: [id])
+  decisionNote String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  visit         Visit?
+  statusHistory InvitationStatusHistory[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([hostEmployeeId])
+  @@map("invitations")
+}
+
+/// Audit log of invitation status changes.
+model InvitationStatusHistory {
+  id           Int               @id @default(autoincrement())
+  invitationId Int               @map("invitation_id")
+  invitation   Invitation        @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  fromStatus   InvitationStatus?
+  toStatus     InvitationStatus
+  changedById  Int?              @map("changed_by_id")
+  changedBy    User?             @relation(fields: [changedById], references: [id])
+  note         String?
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@index([invitationId])
+  @@map("invitation_status_history")
+}
+
 /// Central record representing a visit request or invitation.
 model Visit {
   id        Int    @id @default(autoincrement())
   visitCode String @unique // Human-readable visit code
   qrToken   String @unique // QR token
 
-  origin       VisitOrigin
   groupType    VisitorGroupType
   durationType VisitDurationType
   status       VisitStatus
@@ -226,6 +304,9 @@ model Visit {
   departmentCodeSnapshot String?
 
   isAssisted Boolean @default(false) // Created by staff on behalf of the visitor.
+
+  invitationId Int?        @unique @map("invitation_id")
+  invitation   Invitation? @relation(fields: [invitationId], references: [id])
 
   createdById Int?  @map("created_by_id")
   createdBy   User? @relation("VisitCreatedBy", fields: [createdById], references: [id])
@@ -259,7 +340,7 @@ model VisitSchedule {
   expectedEndTime   DateTime? @map("expected_end_time")
   createdAt         DateTime  @default(now()) @map("created_at")
 
-  attendances Attendance[]
+  attendances VisitAttendance[]
 
   @@unique([visitId, date])
   @@map("visit_schedules")
@@ -274,7 +355,7 @@ model VisitParticipant {
   visitor   Visitor  @relation(fields: [visitorId], references: [id])
   createdAt DateTime @default(now()) @map("created_at")
 
-  attendances Attendance[]
+  attendances VisitAttendance[]
 
   @@unique([visitId, visitorId])
   @@map("visit_participants")
@@ -290,14 +371,14 @@ model Badge {
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  attendances Attendance[]
+  attendances VisitAttendance[]
 
   @@index([status])
   @@map("badges")
 }
 
 /// Attendance record for one visitor on one scheduled day.
-model Attendance {
+model VisitAttendance {
   id Int @id @default(autoincrement())
 
   visitParticipantId Int              @map("visit_participant_id")
@@ -309,9 +390,8 @@ model Attendance {
   badge           Badge?    @relation(fields: [badgeId], references: [id])
   badgeAssignedAt DateTime? @map("badge_assigned_at") // Time the badge was assigned.
 
-  status AttendanceStatus @default(SCHEDULED)
+  status VisitAttendanceStatus @default(SCHEDULED)
 
-  checkInPhotoUrl      String? // taken with reception webcam at check-in
   personalIdRetained   Boolean   @default(false) // Indicates whether the visitor's ID is retained.
   personalIdReturnedAt DateTime? @map("personal_id_returned_at") // Time the retained ID was returned.
 
@@ -328,7 +408,7 @@ model Attendance {
 
   @@unique([visitParticipantId, visitScheduleId])
   @@index([status])
-  @@map("attendances")
+  @@map("visit_attendances")
 }
 
 /// Audit log of visit status changes.
@@ -356,6 +436,9 @@ model Notification {
   visitId Int?   @map("visit_id")
   visit   Visit? @relation(fields: [visitId], references: [id])
 
+  invitationId Int?        @map("invitation_id")
+  invitation   Invitation? @relation(fields: [invitationId], references: [id])
+
   recipientUserId Int?    @map("recipient_user_id")
   recipientUser   User?   @relation("NotificationRecipientUser", fields: [recipientUserId], references: [id])
   recipientEmail  String? /// Supports both internal users and external email recipients.
@@ -367,6 +450,7 @@ model Notification {
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@index([visitId])
+  @@index([invitationId])
   @@index([recipientUserId])
   @@map("notifications")
 }

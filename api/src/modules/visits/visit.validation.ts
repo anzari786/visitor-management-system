@@ -64,7 +64,7 @@ export const createVisitRequestSchema = z.object({
    body: visitRequestBodySchema,
 });
 
-/** Reception-assisted registration — same body shape, different actor/meta. */
+/** Guard-assisted registration — same body shape, different actor/meta. */
 export const createWalkInVisitSchema = z.object({
    body: visitRequestBodySchema,
 });

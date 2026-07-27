@@ -33,7 +33,7 @@ router.post(
 router.post(
    '/walk-in',
    requireAuth,
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(createWalkInVisitSchema),
    submitWalkInVisit,
 );
@@ -60,7 +60,7 @@ router.post(
 router.post(
    '/:id/reschedule',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN', 'RECEPTION'),
+   requireRole('HOST', 'MANAGER', 'ADMIN', 'GUARD'),
    validate(rescheduleVisitSchema),
    rescheduleVisitHandler,
 );
@@ -68,7 +68,7 @@ router.post(
 router.post(
    '/:id/cancel',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN', 'RECEPTION'),
+   requireRole('HOST', 'MANAGER', 'ADMIN', 'GUARD'),
    validate(visitDecisionSchema),
    cancelVisitHandler,
 );

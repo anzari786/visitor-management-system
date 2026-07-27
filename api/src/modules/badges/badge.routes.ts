@@ -28,7 +28,7 @@ router.use(requireAuth);
 
 router.post(
    '/',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(createBadgeSchema),
    postBadge,
 );
@@ -36,32 +36,32 @@ router.get('/', validate(listBadgesSchema), getBadges);
 router.get('/:id', validate(badgeIdParamSchema), getBadge);
 router.patch(
    '/:id',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(updateBadgeSchema),
    patchBadge,
 );
 
 router.post(
    '/:id/assign',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(badgeIdParamSchema),
    postAssignBadge,
 );
 router.post(
    '/:id/release',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(badgeIdParamSchema),
    postReleaseBadge,
 );
 router.post(
    '/:id/lost',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(badgeActionSchema),
    postBadgeLost,
 );
 router.post(
    '/:id/damaged',
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(badgeActionSchema),
    postBadgeDamaged,
 );

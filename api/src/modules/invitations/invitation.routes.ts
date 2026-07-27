@@ -24,7 +24,7 @@ const router = Router();
 router.post(
    '/',
    requireAuth,
-   requireRole('HOST', 'RECEPTION', 'ADMIN'),
+   requireRole('HOST', 'GUARD', 'ADMIN'),
    validate(createInvitationSchema),
    submitInvitation,
 );
@@ -40,7 +40,7 @@ router.get(
 router.post(
    '/:id/arrival',
    requireAuth,
-   requireRole('RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(invitationIdParamSchema),
    markInvitationArrived,
 );
@@ -48,7 +48,7 @@ router.post(
 router.post(
    '/:id/convert',
    requireAuth,
-   requireRole('RECEPTION', 'HOST', 'MANAGER', 'ADMIN'),
+   requireRole('GUARD', 'HOST', 'MANAGER', 'ADMIN'),
    validate(convertInvitationSchema),
    convertInvitationHandler,
 );
@@ -56,7 +56,7 @@ router.post(
 router.post(
    '/:id/reject',
    requireAuth,
-   requireRole('RECEPTION', 'HOST', 'MANAGER', 'ADMIN'),
+   requireRole('GUARD', 'HOST', 'MANAGER', 'ADMIN'),
    validate(invitationDecisionSchema),
    rejectInvitationHandler,
 );
@@ -64,7 +64,7 @@ router.post(
 router.post(
    '/:id/cancel',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN', 'RECEPTION'),
+   requireRole('HOST', 'MANAGER', 'ADMIN', 'GUARD'),
    validate(invitationDecisionSchema),
    cancelInvitationHandler,
 );

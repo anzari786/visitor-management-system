@@ -77,7 +77,7 @@ const assertTransition = (
 };
 
 /**
- * A host (or reception/admin on a host's behalf) generates an
+ * A host (or guard/admin on a host's behalf) generates an
  * invitation ahead of the visitor's arrival. No visitor identity exists
  * yet at this point — just an expected headcount — the invitationCode/
  * qrToken are what gets shared with the invitee so they can be looked
@@ -182,7 +182,7 @@ export const getInvitationById = async (
 /**
  * Marks that the invited guest has physically shown up. This does not
  * change status — SENT covers both "not yet arrived" and "arrived,
- * awaiting a decision" — it only stamps arrivedAt so reception can see
+ * awaiting a decision" — it only stamps arrivedAt so guard can see
  * who's actually present versus who never showed.
  */
 export const recordInvitationArrival = async (
@@ -206,7 +206,7 @@ export const recordInvitationArrival = async (
 };
 
 /**
- * Reception/host declines to admit the arrived guest — e.g. identity
+ * Guard/host declines to admit the arrived guest — e.g. identity
  * doesn't match, or the visit no longer needs to happen.
  */
 export const rejectInvitation = async (

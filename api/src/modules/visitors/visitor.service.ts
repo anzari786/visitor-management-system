@@ -24,7 +24,7 @@ interface ListVisitorsFilters extends PaginationParams {
  */
 type VisitorDbClient = Pick<typeof prisma, 'visitor'>;
 
-/** Powers reception's "search by name" / "search by phone" lookups. */
+/** Powers guard's "search by name" / "search by phone" lookups. */
 export const listVisitors = async (filters: ListVisitorsFilters) => {
    const where: Prisma.VisitorWhereInput = {
       ...(filters.phone && { phone: { contains: filters.phone } }),
@@ -109,7 +109,7 @@ export const findOrCreateVisitor = async (
 };
 
 /**
- * Explicit correction of a visitor's contact details (e.g. reception
+ * Explicit correction of a visitor's contact details (e.g. guard
  * fixing a mistyped phone number). idType/idNumber are intentionally
  * not editable here — they're the dedup key handled by findOrCreateVisitor.
  */

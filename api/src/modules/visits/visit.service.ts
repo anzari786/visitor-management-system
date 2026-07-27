@@ -64,7 +64,7 @@ const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
 };
 
 /**
- * Shared core for both the public visitor-request and reception
+ * Shared core for both the public visitor-request and guard
  * walk-in paths — they differ only in isAssisted/createdById, everything
  * else about building the Visit aggregate is identical.
  *

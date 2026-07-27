@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 
 // Excludes visually ambiguous characters (0/O, 1/I/L) for reliable reading
-// off a printed badge or a reception screen.
+// off a printed badge or a guard screen.
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 6;
 

@@ -145,7 +145,7 @@ model User {
 /// Permission role assigned to dashboard users.
 model Role {
   id          Int      @id @default(autoincrement())
-  code        String   @unique // stable machine key, e.g. "ADMIN", "RECEPTION"
+  code        String   @unique // stable machine key, e.g. "ADMIN", "GUARD"
   name        String // human-readable label shown in the UI
   description String?
   isActive    Boolean  @default(true)
@@ -218,7 +218,7 @@ model Visitor {
 
   @@unique([idType, idNumber])
   @@index([phone])
-  @@index([lastName, firstName]) // supports reception's "search by name" lookup
+  @@index([lastName, firstName]) // supports guard's "search by name" lookup
   @@map("visitors")
 }
 

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 
 import authRoutes from '../modules/auth/auth.routes.js';
+// TODO: Remove after SSO integration
+import localAuthRoutes from '../modules/local-auth/local-auth.routes.js';
 
 import dashboardRoutes from './dashboard.routes.js';
 import reportRoutes from './report.routes.js';
@@ -21,6 +23,11 @@ const router = Router();
 
 // Authentication
 router.use('/auth', authRoutes);
+// TODO: Remove after SSO integration
+// Temporary local username/password auth, used only until SSO is wired up.
+// Logout and "current user" stay on the routes above — this only adds
+// /auth/local/login and /auth/local/change-password.
+router.use('/auth/local', localAuthRoutes);
 
 // Dashboard & Reports
 router.use('/dashboard', dashboardRoutes);

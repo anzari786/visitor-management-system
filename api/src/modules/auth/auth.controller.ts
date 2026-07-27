@@ -59,7 +59,7 @@ export const logout = (req: Request, res: Response) => {
 export const getCurrentUser = async (req: Request, res: Response) => {
    const userId = req.session.userId;
 
-   const user = await getAuthUserById(userId);
+   const user = await getAuthUserById(userId!);
 
    if (!user) {
       throw new NotFoundError('User not found');

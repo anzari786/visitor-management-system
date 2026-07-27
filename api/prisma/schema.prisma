@@ -115,10 +115,17 @@ enum NotificationType {
 /// Dashboard user authenticated through SSO.
 model User {
   id              Int      @id @default(autoincrement())
-  externalSubject String   @unique @map("external_subject") // SSO subject ID
+  externalSubject String?  @unique @map("external_subject") // SSO subject ID - nullable so local-only accounts can exist during the transition
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // ─── TODO: Remove after SSO integration ───────────────────────────
+  username           String?   @unique // TODO: Remove after SSO integration
+  passwordHash       String? // TODO: Remove after SSO integration
+  mustChangePassword Boolean   @default(false) // TODO: Remove after SSO integration
+  passwordChangedAt  DateTime? // TODO: Remove after SSO integration
+  // ────────────────────────────────────────────────────────────────
 
   // A User whose roles include HOST is linked to their directory record.
   employeeId Int?      @unique @map("employee_id")

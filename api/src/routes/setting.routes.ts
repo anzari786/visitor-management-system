@@ -3,9 +3,9 @@ import {
    getSettings,
    updateGeneralSettings,
 } from '../controllers/setting.controller.js';
-import { requireAuth } from '../middlewares/require-auth.js';
-import { requireRole } from '../middlewares/require-role.js';
-import { validate } from '../middlewares/validate.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/permission.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { updateGeneralSettingsSchema } from '../validations/setting.validation.js';
 
 const router = Router();

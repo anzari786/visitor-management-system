@@ -10,9 +10,9 @@ const settingSelect = {
    overstayEnabled: true,
    overstayAfterMins: true,
    createdAt: true,
-} satisfies Prisma.SettingSelect;
+} satisfies Prisma.SystemSettingSelect;
 
-type SettingWithBase = Prisma.SettingGetPayload<{
+type SettingWithBase = Prisma.SystemSettingGetPayload<{
    select: typeof settingSelect;
 }>;
 
@@ -31,7 +31,7 @@ const formatSettings = (setting: SettingWithBase, totalUsers: number) => ({
 
 export async function getSettings(_req: Request, res: Response) {
    const [settings, totalUsers] = await Promise.all([
-      prisma.setting.findUnique({
+      prisma.systemSetting.findUnique({
          where: { id: 1 },
          select: settingSelect,
       }),
@@ -53,7 +53,7 @@ export async function updateGeneralSettings(req: Request, res: Response) {
       req.body;
 
    const [settings, totalUsers] = await Promise.all([
-      prisma.setting.update({
+      prisma.systemSetting.update({
          where: { id: 1 },
          data: { orgName, badgePrefix, overstayEnabled, overstayAfterMins },
          select: settingSelect,

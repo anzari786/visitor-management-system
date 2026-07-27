@@ -1,11 +1,16 @@
 export const env = {
-   // App
+   // Application
    NODE_ENV: process.env.NODE_ENV ?? 'development',
    PORT: Number(process.env.PORT ?? 5000),
    CLIENT_URL: process.env.CLIENT_URL!,
 
    // Prisma Database
    DATABASE_URL: process.env.DATABASE_URL!,
+   DATABASE_HOST: process.env.DATABASE_HOST!,
+   DATABASE_PORT: Number(process.env.DATABASE_PORT),
+   DATABASE_USER: process.env.DATABASE_USER!,
+   DATABASE_PASSWORD: process.env.DATABASE_PASSWORD!,
+   DATABASE_NAME: process.env.DATABASE_NAME!,
 
    // Session Database
    SESSION_DB_HOST: process.env.SESSION_DB_HOST!,
@@ -16,4 +21,4 @@ export const env = {
 
    // Session
    SESSION_SECRET: process.env.SESSION_SECRET!,
-};
+} as const;

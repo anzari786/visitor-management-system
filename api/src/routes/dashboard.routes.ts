@@ -4,8 +4,8 @@ import {
    getVisitGrowth,
    getDepartmentVisits,
 } from '../controllers/dashboard.controller.js';
-import { requireAuth } from '../middlewares/require-auth.js';
-import { validate } from '../middlewares/validate.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import {
    dashboardStatsSchema,
    visitGrowthSchema,

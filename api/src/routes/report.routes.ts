@@ -3,9 +3,9 @@ import {
    exportVisitLog,
    getReportStats,
 } from '../controllers/report.controller.js';
-import { requireAuth } from '../middlewares/require-auth.js';
-import { requireRole } from '../middlewares/require-role.js';
-import { validate } from '../middlewares/validate.js';
+import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/permission.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { exportVisitLogSchema } from '../validations/report.validation.js';
 
 const router = Router();

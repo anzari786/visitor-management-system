@@ -221,7 +221,8 @@ model Visitor {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  visitLinks VisitParticipant[]
+  visitLinks                 VisitParticipant[]
+  invitationParticipantLinks InvitationParticipant[]
 
   @@unique([idType, idNumber])
   @@index([phone])
@@ -266,12 +267,37 @@ model Invitation {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   visit         Visit?
+  participants  InvitationParticipant[]
   statusHistory InvitationStatusHistory[]
   notifications Notification[]
 
   @@index([status])
   @@index([hostEmployeeId])
   @@map("invitations")
+}
+
+model InvitationParticipant {
+  id           Int        @id @default(autoincrement())
+  invitationId Int        @map("invitation_id")
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  firstName    String
+  lastName     String
+  phone        String?
+  email        String?
+  organization String?
+
+  // Set once this invited person is matched to an actual arriving
+  // visitor during conversion. Null until then — there is no Visitor
+  // to link to before that point.
+  visitorId Int?     @map("visitor_id")
+  visitor   Visitor? @relation(fields: [visitorId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([invitationId])
+  @@map("invitation_participants")
 }
 
 /// Audit log of invitation status changes.

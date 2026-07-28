@@ -20,6 +20,15 @@ const invitationStatusSchema = z.enum([
    'CONVERTED',
 ]);
 
+/** A person the host already knows and expects — collected at invitation creation, no ID document yet. */
+const invitedPersonInputSchema = z.object({
+   firstName: z.string().trim().min(1).max(100),
+   lastName: z.string().trim().min(1).max(100),
+   phone: z.string().trim().min(7).max(20).optional(),
+   email: z.string().trim().email().optional(),
+   organization: z.string().trim().min(1).max(150).optional(),
+});
+
 const visitorInputSchema = z.object({
    firstName: z.string().trim().min(1).max(100),
    lastName: z.string().trim().min(1).max(100),
@@ -28,6 +37,10 @@ const visitorInputSchema = z.object({
    organization: z.string().trim().min(1).max(150).optional(),
    idType: identificationTypeSchema,
    idNumber: z.string().trim().min(1).max(50),
+   // Links this arriving visitor back to one of the invitation's
+   // pre-registered invited persons, if applicable. Omit for a walk-in
+   // guest who wasn't on the original invited-persons list.
+   invitationParticipantId: z.coerce.number().int().positive().optional(),
 });
 
 const scheduleDateInputSchema = z.object({
@@ -43,15 +56,19 @@ export const createInvitationSchema = z.object({
          durationType: durationTypeSchema,
          purpose: z.string().trim().min(1).max(2000),
          hostEmployeeId: z.coerce.number().int().positive(),
+         // No default here — when omitted, the service derives it from
+         // invitedPersons.length (falling back to 1), so an explicit
+         // value only needs to be sent when it should override that.
          expectedVisitorCount: z.coerce
             .number()
             .int()
             .positive()
             .max(50)
-            .default(1),
+            .optional(),
          organization: z.string().trim().min(1).max(150).optional(),
          plannedStartDate: z.coerce.date(),
          plannedEndDate: z.coerce.date(),
+         invitedPersons: z.array(invitedPersonInputSchema).max(50).optional(),
       })
       .refine((body) => body.plannedEndDate >= body.plannedStartDate, {
          message: 'plannedEndDate cannot be before plannedStartDate',
@@ -102,9 +119,23 @@ export const convertInvitationSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),
    }),
-   body: z.object({
-      visitors: z.array(visitorInputSchema).min(1).max(50),
-      scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
-      note: z.string().trim().max(1000).optional(),
-   }),
+   body: z
+      .object({
+         visitors: z.array(visitorInputSchema).min(1).max(50),
+         scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
+         note: z.string().trim().max(1000).optional(),
+      })
+      .refine(
+         (body) => {
+            const ids = body.visitors
+               .map((visitor) => visitor.invitationParticipantId)
+               .filter((id): id is number => id !== undefined);
+            return new Set(ids).size === ids.length;
+         },
+         {
+            message:
+               'Each invitationParticipantId can only be referenced once per conversion',
+            path: ['visitors'],
+         },
+      ),
 });

@@ -48,6 +48,18 @@ export const invitationDetailSelect = {
          status: true,
       },
    },
+   participants: {
+      select: {
+         id: true,
+         firstName: true,
+         lastName: true,
+         phone: true,
+         email: true,
+         organization: true,
+         visitorId: true,
+      },
+      orderBy: { id: 'asc' },
+   },
    statusHistory: {
       select: {
          id: true,
@@ -92,21 +104,35 @@ export const invitationSummarySelect = {
          departmentName: true,
       },
    },
+   _count: {
+      select: { participants: true },
+   },
 } satisfies Prisma.InvitationSelect;
 
 export type InvitationSummary = Prisma.InvitationGetPayload<{
    select: typeof invitationSummarySelect;
 }>;
 
+/** A person the host already knows and expects — no ID document yet, just contact info. */
+export interface InvitationParticipantInput {
+   firstName: string;
+   lastName: string;
+   phone?: string;
+   email?: string;
+   organization?: string;
+}
+
 export interface CreateInvitationInput {
    groupType: VisitorGroupType;
    durationType: VisitDurationType;
    purpose: string;
    hostEmployeeId: number;
-   expectedVisitorCount: number;
+   /** Optional — falls back to invitedPersons.length, then to 1, when omitted. */
+   expectedVisitorCount?: number;
    organization?: string;
    plannedStartDate: Date;
    plannedEndDate: Date;
+   invitedPersons?: InvitationParticipantInput[];
 }
 
 export interface CreateInvitationMeta {

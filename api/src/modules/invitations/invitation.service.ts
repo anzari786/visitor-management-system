@@ -77,11 +77,66 @@ const assertTransition = (
 };
 
 /**
- * A host (or guard/admin on a host's behalf) generates an
- * invitation ahead of the visitor's arrival. No visitor identity exists
- * yet at this point — just an expected headcount — the invitationCode/
- * qrToken are what gets shared with the invitee so they can be looked
- * up on arrival.
+ * Conversion-time visitor input — the same shape Visits' createVisit
+ * expects, plus an optional link back to one of this invitation's
+ * pre-registered invited persons. Kept local to this module rather
+ * than added to Visits' own VisitorInputForVisit, since "which invited
+ * person is this" is an invitation-specific concern Visits shouldn't
+ * need to know about.
+ */
+type ConvertVisitorInput = VisitorInputForVisit & {
+   invitationParticipantId?: number;
+};
+
+/**
+ * Links each matched/created Visitor back to the InvitationParticipant
+ * they correspond to — this link *is* the "match invited persons to
+ * Visitor records" step. Validates every referenced id actually
+ * belongs to this invitation and isn't referenced more than once
+ * (the request schema already checks the latter, but that's a
+ * shape-level check; this confirms it against the database).
+ */
+const linkInvitationParticipants = async (
+   invitationId: number,
+   links: Array<{ invitationParticipantId: number; visitorId: number }>,
+) => {
+   if (links.length === 0) {
+      return;
+   }
+
+   const participantIds = links.map((link) => link.invitationParticipantId);
+
+   const owned = await prisma.invitationParticipant.findMany({
+      where: { id: { in: participantIds }, invitationId },
+   });
+
+   if (owned.length !== new Set(participantIds).size) {
+      throw new NotFoundError(
+         'One or more invitationParticipantId values do not belong to this invitation',
+      );
+   }
+
+   await prisma.$transaction(
+      links.map((link) =>
+         prisma.invitationParticipant.update({
+            where: { id: link.invitationParticipantId },
+            data: { visitorId: link.visitorId },
+         }),
+      ),
+   );
+};
+
+/**
+ * A host (or reception/admin on a host's behalf) generates an
+ * invitation ahead of the visitor's arrival. No Visitor record exists
+ * yet at this point — that's only ever created (or matched) once the
+ * guest actually arrives, in convertInvitation below. What can exist
+ * now, optionally, is a list of invited persons the host already knows
+ * (name/contact info, no ID document) — purely informational until
+ * conversion links each one to a real Visitor.
+ *
+ * The invitationCode/qrToken are what gets shared with the invitee so
+ * the invitation can be looked up on arrival.
  */
 export const createInvitation = async (
    input: CreateInvitationInput,
@@ -95,11 +150,16 @@ export const createInvitation = async (
       throw new NotFoundError('Host employee not found');
    }
 
+   // Falls back to the invited-persons headcount, then to a single
+   // visitor, when the caller doesn't specify one explicitly.
+   const expectedVisitorCount =
+      input.expectedVisitorCount ?? input.invitedPersons?.length ?? 1;
+
    return createInvitationWithUniqueCode({
       groupType: input.groupType,
       durationType: input.durationType,
       status: 'SENT',
-      expectedVisitorCount: input.expectedVisitorCount,
+      expectedVisitorCount,
       organization: input.organization,
       purpose: input.purpose,
       hostEmployeeId: hostEmployee.id,
@@ -109,6 +169,17 @@ export const createInvitation = async (
       plannedEndDate: input.plannedEndDate,
       createdById: meta.createdById,
       sentAt: new Date(),
+      participants: input.invitedPersons?.length
+         ? {
+              create: input.invitedPersons.map((person) => ({
+                 firstName: person.firstName,
+                 lastName: person.lastName,
+                 phone: person.phone,
+                 email: person.email,
+                 organization: person.organization,
+              })),
+           }
+         : undefined,
       statusHistory: {
          create: [
             {
@@ -182,7 +253,7 @@ export const getInvitationById = async (
 /**
  * Marks that the invited guest has physically shown up. This does not
  * change status — SENT covers both "not yet arrived" and "arrived,
- * awaiting a decision" — it only stamps arrivedAt so guard can see
+ * awaiting a decision" — it only stamps arrivedAt so reception can see
  * who's actually present versus who never showed.
  */
 export const recordInvitationArrival = async (
@@ -206,7 +277,7 @@ export const recordInvitationArrival = async (
 };
 
 /**
- * Guard/host declines to admit the arrived guest — e.g. identity
+ * Reception/host declines to admit the arrived guest — e.g. identity
  * doesn't match, or the visit no longer needs to happen.
  */
 export const rejectInvitation = async (
@@ -267,15 +338,24 @@ export const cancelInvitation = async (
 /**
  * Approves the arrived guest's actual details and converts the
  * invitation into a real Visit — the invitation only ever carried an
- * expected headcount, so the visitor records collected here are what
- * becomes the Visit's participant list.
+ * expected headcount (plus, optionally, a list of invited persons the
+ * host already knew of), so the visitor records collected here are
+ * still what becomes the Visit's participant list. This is unchanged
+ * from before invited persons existed — Visitor records are only ever
+ * created or matched at this point, never at invitation creation time.
  *
- * This is three separate writes (visit create, visit-invitation link,
- * invitation status update) rather than one atomic transaction, since
- * Visit creation is owned by the Visits module's own service function.
- * A failure between steps would need manual reconciliation — an
- * acceptable trade-off for now, but worth revisiting if this becomes a
- * high-volume path.
+ * When a submitted visitor references an invitationParticipantId, the
+ * resulting Visitor is linked back onto that InvitationParticipant —
+ * that link is the "match invited persons to Visitor records" step.
+ * Invitations with no invited persons on file simply have nothing to
+ * link, and behave exactly as before.
+ *
+ * This is four separate writes (visit create, visit-invitation link,
+ * invited-person linking, invitation status update) rather than one
+ * atomic transaction, since Visit creation is owned by the Visits
+ * module's own service function. A failure between steps would need
+ * manual reconciliation — an acceptable trade-off for now, but worth
+ * revisiting if this becomes a high-volume path.
  *
  * TODO: the resulting Visit's initial status is hardcoded to
  * PENDING_APPROVAL. Once the Settings module exists, this should honor
@@ -283,7 +363,7 @@ export const cancelInvitation = async (
  */
 export const convertInvitation = async (
    id: number,
-   visitors: VisitorInputForVisit[],
+   visitors: ConvertVisitorInput[],
    scheduleDates: ScheduleDateInput[],
    actorId: number,
    note?: string,
@@ -302,13 +382,22 @@ export const convertInvitation = async (
       );
    }
 
+   // Visits' createVisit only knows about VisitorInputForVisit — strip
+   // the invitation-specific link before handing the array over.
+   const visitorInputs: VisitorInputForVisit[] = visitors.map(
+      ({
+         invitationParticipantId: _invitationParticipantId,
+         ...visitorInput
+      }) => visitorInput,
+   );
+
    const visit = await createVisit(
       {
          groupType: invitation.groupType,
          durationType: invitation.durationType,
          purpose: invitation.purpose,
          hostEmployeeId: invitation.hostEmployeeId,
-         visitors,
+         visitors: visitorInputs,
          scheduleDates,
       },
       { isAssisted: true, createdById: actorId },
@@ -318,6 +407,25 @@ export const convertInvitation = async (
       where: { id: visit.id },
       data: { invitationId: invitation.id },
    });
+
+   // createVisit's nested participant create preserves submission
+   // order, so the Nth returned participant corresponds to the Nth
+   // submitted visitor — safe to zip them by index to recover which
+   // invitationParticipantId (if any) each resulting Visitor matches.
+   const participantLinks = visitors
+      .map((input, index) => ({
+         invitationParticipantId: input.invitationParticipantId,
+         visitorId: visit.participants[index]?.visitor.id,
+      }))
+      .filter(
+         (
+            link,
+         ): link is { invitationParticipantId: number; visitorId: number } =>
+            link.invitationParticipantId !== undefined &&
+            link.visitorId !== undefined,
+      );
+
+   await linkInvitationParticipants(invitation.id, participantLinks);
 
    return prisma.invitation.update({
       where: { id },
@@ -384,6 +492,19 @@ export const formatInvitationDetail = (invitation: InvitationDetail) => ({
            status: invitation.visit.status,
         }
       : undefined,
+   invitedPersons: invitation.participants.map((participant) => ({
+      id: String(participant.id),
+      firstName: participant.firstName,
+      lastName: participant.lastName,
+      phone: participant.phone ?? undefined,
+      email: participant.email ?? undefined,
+      organization: participant.organization ?? undefined,
+      // Set once conversion has matched/created their Visitor record.
+      visitorId: participant.visitorId
+         ? String(participant.visitorId)
+         : undefined,
+      isMatched: participant.visitorId !== null,
+   })),
    statusHistory: invitation.statusHistory.map((entry) => ({
       id: String(entry.id),
       fromStatus: entry.fromStatus ?? undefined,
@@ -419,5 +540,6 @@ export const formatInvitationSummary = (invitation: InvitationSummary) => ({
            departmentName: invitation.hostEmployee.departmentName,
         }
       : undefined,
+   invitedPersonCount: invitation._count.participants,
    createdAt: invitation.createdAt,
 });

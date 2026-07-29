@@ -1,132 +1,31 @@
-import Login from '@/components/auth/login';
+import Login from "@/components/auth/login";
 
 export default function LoginPage() {
-   return (
-      // <div className="min-h-screen w-full bg-white relative">
-      //    {/* Emerald Glow Background */}
-      //    <div
-      //       className="absolute inset-0 z-0"
-      //       style={{
-      //          backgroundImage: `
-      //   radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #8FFFB0 100%)
-      // `,
-      //          backgroundSize: '100% 100%',
-      //       }}
-      //    />
-      //    <div className="relative z-10">
-      //       <Login />
-      //    </div>
-      // </div>
-      // <div className="min-h-screen w-full bg-white relative">
-      //    {/* Combined dot pattern + emerald glow */}
-      //    <div
-      //       className="absolute inset-0 z-0"
-      //       style={{
-      //          backgroundImage: `
-      //   radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.35) 1px, transparent 0),
-      //   radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #8FFFB0 100%)
-      // `,
-      //          backgroundSize: '20px 20px, 100% 100%',
-      //       }}
-      //    />
-      //    <div className="relative z-10">
-      //       <Login />
-      //    </div>
-      // </div>
-      // <div className="min-h-screen w-full bg-white relative">
-      //    {/* Emerald Glow Background — always fully visible */}
-      //    <div
-      //       className="absolute inset-0 z-0"
-      //       style={{
-      //          backgroundImage: `radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #8FFFB0 100%)`,
-      //          backgroundSize: '100% 100%',
-      //       }}
-      //    />
-
-      //    {/* Diagonal Grid — fades out toward the top via mask */}
-      //    <div
-      //       className="absolute inset-0 z-0"
-      //       style={{
-      //          backgroundImage: `
-      //   linear-gradient(45deg, transparent 49%, #e5e7eb 49%, #e5e7eb 51%, transparent 51%),
-      //   linear-gradient(-45deg, transparent 49%, #e5e7eb 49%, #e5e7eb 51%, transparent 51%)
-      // `,
-      //          backgroundSize: '40px 40px',
-      //          WebkitMaskImage:
-      //             'radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)',
-      //          maskImage:
-      //             'radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)',
-      //       }}
-      //    />
-
-      //    <div className="relative z-10">
-      //       <Login />
-      //    </div>
-      // </div>
-
-      <div className="min-h-screen w-full relative">
-         {/* Layer 1: Emerald Glow */}
-         <div
-            className="absolute inset-0 z-0"
-            style={{
-               backgroundImage: `radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #8FFFB0 100%)`,
-               backgroundSize: '100% 100%',
-            }}
-         />
-
-         {/* Layer 2: Dashed Grid */}
-         <div
-            className="absolute inset-0 z-0"
-            style={{
-               backgroundImage: `
-        linear-gradient(to right, #e7e5e4 1px, transparent 1px),
-        linear-gradient(to bottom, #e7e5e4 1px, transparent 1px)
-      `,
-               backgroundSize: '20px 20px',
-               backgroundPosition: '0 0, 0 0',
-               maskImage: `
-         repeating-linear-gradient(
-              to right,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            repeating-linear-gradient(
-              to bottom,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)
-      `,
-               WebkitMaskImage: `
-  repeating-linear-gradient(
-              to right,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            repeating-linear-gradient(
-              to bottom,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)
-      `,
-               maskComposite: 'intersect',
-               WebkitMaskComposite: 'source-in',
-            }}
-         />
-
-         {/* Content */}
-         <div className="relative z-10">
-            <Login />
-         </div>
+  return (
+    <main className="min-h-screen w-full relative overflow-hidden bg-[#e0f2f1] flex flex-col items-center justify-start pt-6 pb-12 px-4">
+      {/* Mesh Blur Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-15%] w-[65vw] h-[120vh] bg-gradient-to-r from-[#6dbf58]/70 via-[#8bc34a]/60 to-transparent rounded-full blur-[100px]" />
+        <div className="absolute top-[-10%] right-[-15%] w-[65vw] h-[120vh] bg-gradient-to-l from-[#b2ebf2]/80 via-[#e0f7fa]/70 to-transparent rounded-full blur-[100px]" />
       </div>
-   );
+
+      {/* Navigation Pill */}
+      <div className="mb-6 z-10 flex items-center bg-white/90 backdrop-blur-md p-1.5 rounded-full shadow-sm border border-slate-200/60">
+        <button className="px-5 py-2 text-sm font-semibold rounded-full bg-[#00a859] text-white shadow-sm transition-all">
+          Login
+        </button>
+        <button className="px-5 py-2 text-sm font-semibold rounded-full text-slate-700 hover:text-emerald-700 transition-all">
+          Dashboard
+        </button>
+        <button className="px-5 py-2 text-sm font-semibold rounded-full text-slate-700 hover:text-emerald-700 transition-all">
+          New Visit Request
+        </button>
+      </div>
+
+      {/* Login Form Wrapper */}
+      <div className="w-full max-w-[460px] z-10">
+        <Login />
+      </div>
+    </main>
+  );
 }

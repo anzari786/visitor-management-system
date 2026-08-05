@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { Role, IdType, VisitStatus } from '../src/generated/prisma/client.js';
+import { IdType, VisitStatus } from '../src/generated/prisma/client.js';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 import {
@@ -22,6 +22,9 @@ const OVERSTAY_AFTER_MINS = 120;
 const BADGE_PREFIX = 'ATI';
 const ORG_NAME = 'Ethiopian Agricultural Transformation Institute';
 
+// ── Roles ─────────────────────────────────────
+const ROLE_NAMES = ['admin', 'front_desk'] as const;
+
 // ── Departments ───────────────────────────────
 const DEPARTMENTS = [
    { name: 'Human Resources', shortName: 'HR', color: '#35B9E9' },
@@ -37,35 +40,35 @@ const USERS: Array<{
    firstName: string;
    lastName: string;
    username: string;
-   role: Role;
+   role: (typeof ROLE_NAMES)[number];
    phone: string;
 }> = [
    {
       firstName: 'System',
       lastName: 'Administrator',
       username: 'admin',
-      role: Role.admin,
+      role: 'admin',
       phone: '+251 911 223 344',
    },
    {
       firstName: 'Operations',
       lastName: 'Manager',
       username: 'manager',
-      role: Role.admin,
+      role: 'admin',
       phone: '+251 911 556 677',
    },
    {
       firstName: 'Abel',
       lastName: 'Tesfaye',
       username: 'reception1',
-      role: Role.front_desk,
+      role: 'front_desk',
       phone: '+251 922 334 455',
    },
    {
       firstName: 'Sara',
       lastName: 'Bekele',
       username: 'reception2',
-      role: Role.front_desk,
+      role: 'front_desk',
       phone: '+251 933 445 566',
    },
 ];
@@ -118,7 +121,9 @@ async function main() {
    await prisma.visit.deleteMany();
    await prisma.visitor.deleteMany();
    await prisma.department.deleteMany();
+   await prisma.userRole.deleteMany();
    await prisma.user.deleteMany();
+   await prisma.role.deleteMany();
    await prisma.setting.deleteMany();
 
    // ── Settings ──
@@ -132,6 +137,15 @@ async function main() {
       },
    });
    console.log('Created settings');
+
+   // ── Roles ──
+   const roles = await Promise.all(
+      ROLE_NAMES.map((name) => prisma.role.create({ data: { name } })),
+   );
+   const roleByName = Object.fromEntries(
+      roles.map((role) => [role.name, role]),
+   ) as Record<(typeof ROLE_NAMES)[number], (typeof roles)[number]>;
+   console.log(`Created ${roles.length} roles (${ROLE_NAMES.join(', ')})`);
 
    // ── Departments ──
    const departments = await Promise.all(
@@ -151,7 +165,7 @@ async function main() {
    // ── Users ──
    const passwordHash = await hashPassword(DEFAULT_PASSWORD);
    const users = await Promise.all(
-      USERS.map((u, i) =>
+      USERS.map((u) =>
          prisma.user.create({
             data: {
                firstName: u.firstName,
@@ -159,7 +173,6 @@ async function main() {
                username: u.username,
                passwordHash,
                phone: u.phone,
-               role: u.role,
                isActive: true,
                mustChangePassword: false,
                lastLoginAt: faker.date.recent({ days: 3 }),
@@ -167,8 +180,21 @@ async function main() {
          }),
       ),
    );
-   const frontDeskUsers = users.filter((u) => u.role === Role.front_desk);
-   const adminUsers = users.filter((u) => u.role === Role.admin);
+
+   // ── UserRoles ──
+   await Promise.all(
+      USERS.map((u, i) =>
+         prisma.userRole.create({
+            data: {
+               userId: users[i].id,
+               roleId: roleByName[u.role].id,
+            },
+         }),
+      ),
+   );
+
+   const adminUsers = users.filter((_, i) => USERS[i].role === 'admin');
+   const frontDeskUsers = users.filter((_, i) => USERS[i].role === 'front_desk');
    console.log(`Created ${users.length} users (2 admin, 2 front desk)`);
    console.log(`Default password for all users: ${DEFAULT_PASSWORD}\n`);
 

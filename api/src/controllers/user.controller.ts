@@ -15,11 +15,19 @@ const userSelect = {
    lastName: true,
    username: true,
    phone: true,
-   role: true,
    isActive: true,
    mustChangePassword: true,
    lastLoginAt: true, // add this
    createdAt: true,
+   userRoles: {
+      select: {
+         role: {
+            select: {
+               name: true,
+            },
+         },
+      },
+   },
    _count: {
       select: {
          checkedInVisits: true,
@@ -31,14 +39,14 @@ const userSelect = {
 type UserWithCounts = Prisma.UserGetPayload<{ select: typeof userSelect }>;
 
 // Maps the Prisma shape onto the frontend `User` type
-// (stringified id, checkIns/checkOuts flattened out of _count).
+// (checkIns/checkOuts flattened out of _count; roles from UserRole).
 const formatUser = (user: UserWithCounts) => ({
    id: user.id,
    firstName: user.firstName,
    lastName: user.lastName,
    username: user.username,
    phone: user.phone ?? undefined,
-   role: user.role,
+   roles: user.userRoles.map((userRole) => userRole.role.name),
    isActive: user.isActive,
    mustChangePassword: user.mustChangePassword,
    lastLoginAt: user.lastLoginAt ?? undefined, // add this
@@ -90,6 +98,14 @@ export const createUser = async (req: Request, res: Response) => {
       throw new ConflictError('Username already exists');
    }
 
+   const roleRecord = await prisma.role.findUnique({
+      where: { name: role },
+   });
+
+   if (!roleRecord) {
+      throw new BadRequestError('Invalid role');
+   }
+
    const passwordHash = await bcrypt.hash(password, 12);
 
    const user = await prisma.user.create({
@@ -98,8 +114,12 @@ export const createUser = async (req: Request, res: Response) => {
          lastName,
          username,
          phone,
-         role,
          passwordHash,
+         userRoles: {
+            create: {
+               roleId: roleRecord.id,
+            },
+         },
          // mustChangePassword defaults to true in the schema
       },
       select: userSelect,
@@ -153,6 +173,14 @@ export const changeUserRole = async (req: Request, res: Response) => {
       throw new NotFoundError('User not found');
    }
 
+   const roleRecord = await prisma.role.findUnique({
+      where: { name: role },
+   });
+
+   if (!roleRecord) {
+      throw new BadRequestError('Invalid role');
+   }
+
    // Prevent an admin from demoting themselves out of admin
    if (req.session.userId === id && role !== 'admin') {
       throw new BadRequestError('You cannot change your own role');
@@ -160,7 +188,14 @@ export const changeUserRole = async (req: Request, res: Response) => {
 
    const updatedUser = await prisma.user.update({
       where: { id },
-      data: { role },
+      data: {
+         userRoles: {
+            deleteMany: {},
+            create: {
+               roleId: roleRecord.id,
+            },
+         },
+      },
       select: userSelect,
    });
 

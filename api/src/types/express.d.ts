@@ -1,10 +1,9 @@
 import 'express-session';
-import { Role } from '../generated/prisma/enums.ts';
 
 declare module 'express-session' {
    interface SessionData {
       userId: number;
-      role: Role;
+      roles: string[];
    }
 }
 

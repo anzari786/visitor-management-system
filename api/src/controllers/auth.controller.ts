@@ -16,10 +16,18 @@ const userSelect = {
    lastName: true,
    username: true,
    phone: true,
-   role: true,
    isActive: true,
    mustChangePassword: true,
    createdAt: true,
+   userRoles: {
+      select: {
+         role: {
+            select: {
+               name: true,
+            },
+         },
+      },
+   },
    _count: {
       select: {
          checkedInVisits: true,
@@ -36,7 +44,7 @@ const formatUser = (user: UserWithCounts) => ({
    lastName: user.lastName,
    username: user.username,
    phone: user.phone ?? undefined,
-   role: user.role,
+   roles: user.userRoles.map((userRole) => userRole.role.name),
    isActive: user.isActive,
    mustChangePassword: user.mustChangePassword,
    createdAt: user.createdAt,
@@ -66,6 +74,8 @@ export const login = async (req: Request, res: Response) => {
       throw new ForbiddenError('Account disabled');
    }
 
+   const roles = user.userRoles.map((userRole) => userRole.role.name);
+
    req.session.regenerate(async (error) => {
       if (error) {
          return res.status(500).json({
@@ -75,7 +85,7 @@ export const login = async (req: Request, res: Response) => {
       }
 
       req.session.userId = user.id;
-      req.session.role = user.role;
+      req.session.roles = roles;
 
       await prisma.user.update({
          where: { id: user.id },
@@ -157,7 +167,22 @@ export const changePassword = async (req: Request, res: Response) => {
    const userId = req.session.userId;
    const { currentPassword, newPassword } = req.body;
 
-   const user = await prisma.user.findUnique({ where: { id: userId } });
+   const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+         id: true,
+         passwordHash: true,
+         userRoles: {
+            select: {
+               role: {
+                  select: {
+                     name: true,
+                  },
+               },
+            },
+         },
+      },
+   });
 
    if (!user) {
       throw new NotFoundError('User not found');
@@ -187,6 +212,8 @@ export const changePassword = async (req: Request, res: Response) => {
       data: { passwordHash },
    });
 
+   const roles = user.userRoles.map((userRole) => userRole.role.name);
+
    req.session.regenerate((error) => {
       if (error) {
          return res.status(500).json({
@@ -196,7 +223,7 @@ export const changePassword = async (req: Request, res: Response) => {
       }
 
       req.session.userId = user.id;
-      req.session.role = user.role;
+      req.session.roles = roles;
 
       return res.status(200).json({
          success: true,
@@ -232,6 +259,8 @@ export const forceChangePassword = async (req: Request, res: Response) => {
       select: userSelect,
    });
 
+   const roles = updatedUser.userRoles.map((userRole) => userRole.role.name);
+
    req.session.regenerate((error) => {
       if (error) {
          return res.status(500).json({
@@ -241,7 +270,7 @@ export const forceChangePassword = async (req: Request, res: Response) => {
       }
 
       req.session.userId = updatedUser.id;
-      req.session.role = updatedUser.role;
+      req.session.roles = roles;
 
       return res.status(200).json({
          success: true,

@@ -13,14 +13,7 @@ import { navigation } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import {
-   Download,
-   FileText,
-   LogOut,
-   ShieldAlert,
-   UserCircle,
-   UserPlus,
-} from 'lucide-react';
+import { LogOut, UserCircle } from 'lucide-react';
 import { useLogout } from '@/hooks/use-auth';
 
 type AppCommandProps = {
@@ -63,8 +56,6 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    );
    const adminItems = filteredNav.filter((i) => i.group === 'Administration');
 
-   const isFrontDesk = user?.role === 'front_desk';
-
    return (
       <CommandDialog open={open} onOpenChange={onOpenChange}>
          <CommandInput placeholder="Search pages and actions..." />
@@ -103,26 +94,6 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                   </CommandGroup>
                </>
             )}
-
-            <CommandSeparator />
-            <CommandGroup heading="Quick Actions">
-               <CommandItem
-                  value="check in visitor"
-                  onSelect={() => go('/check-in')}
-               >
-                  <UserPlus />
-                  <span>Check In Visitor</span>
-               </CommandItem>
-               {!isFrontDesk && (
-                  <CommandItem
-                     value="export csv"
-                     onSelect={() => go('/reports')}
-                  >
-                     <Download />
-                     <span>Export Visit Log (CSV)</span>
-                  </CommandItem>
-               )}
-            </CommandGroup>
 
             <CommandSeparator />
             <CommandGroup heading="Account">

@@ -1,14 +1,14 @@
+import type { NavItem } from '@/components/layout/nav-main';
 import { UserRole } from '@/types/user.types';
 import {
    Briefcase,
-   ChartColumn,
    ClipboardList,
+   IdCard,
+   Inbox,
    LayoutGrid,
    LucideIcon,
    Settings,
-   UserCheck,
    UserCircle,
-   UserPlus,
    Users,
 } from 'lucide-react';
 
@@ -22,6 +22,8 @@ type NavigationItem = {
    isRoot?: boolean;
    hidden?: boolean; // excluded from sidebar rendering, still resolvable by getNavigationItem
 };
+
+const SIDEBAR_GROUPS = ['Workspace', 'Administration'] as const;
 
 export const navigation: NavigationItem[] = [
    {
@@ -40,16 +42,16 @@ export const navigation: NavigationItem[] = [
       roles: ['admin', 'front_desk'],
    },
    {
-      title: 'Check In',
-      icon: UserPlus,
-      href: '/check-in',
+      title: 'Badge',
+      icon: IdCard,
+      href: '/badge',
       group: 'Workspace',
       roles: ['admin', 'front_desk'],
    },
    {
-      title: 'Check Out',
-      icon: UserCheck,
-      href: '/check-out',
+      title: 'Visit Requests',
+      icon: Inbox,
+      href: '/visit-requests',
       group: 'Workspace',
       roles: ['admin', 'front_desk'],
    },
@@ -57,14 +59,7 @@ export const navigation: NavigationItem[] = [
       title: 'Departments',
       icon: Briefcase,
       href: '/departments',
-      group: 'Workspace',
-      roles: ['admin', 'front_desk'],
-   },
-   {
-      title: 'Reports',
-      icon: ChartColumn,
-      href: '/reports',
-      group: 'Workspace',
+      group: 'Administration',
       roles: ['admin', 'front_desk'],
    },
    {
@@ -96,3 +91,23 @@ export const getNavigationItem = (pathname: string) => {
       (item) => item.href === pathname || pathname.startsWith(`${item.href}/`),
    );
 };
+
+export function getSidebarNavItems(role: UserRole): NavItem[] {
+   const visible = navigation.filter(
+      (item) => item.roles.includes(role) && !item.hidden,
+   );
+
+   return SIDEBAR_GROUPS.flatMap((group) => {
+      const items = visible.filter((item) => item.group === group);
+      if (items.length === 0) return [];
+
+      return [
+         { label: group, isSection: true },
+         ...items.map((item) => ({
+            title: item.title,
+            icon: item.icon,
+            href: item.href,
+         })),
+      ];
+   });
+}

@@ -2,61 +2,112 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-   DropdownMenu,
-   DropdownMenuContent,
-   DropdownMenuItem,
-   DropdownMenuSeparator,
-   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
-import {
    Sidebar,
    SidebarContent,
    SidebarFooter,
-   SidebarGroup,
-   SidebarGroupContent,
-   SidebarGroupLabel,
    SidebarHeader,
    SidebarMenu,
    SidebarMenuButton,
    SidebarMenuItem,
+   useSidebar,
 } from '@/components/ui/sidebar';
-import { navigation } from '@/lib/navigation';
+import { getSidebarNavItems } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
-import { useLogout } from '@/hooks/use-auth';
-import { ChevronRight, ChevronsUpDown, LogOut, UserCircle } from 'lucide-react';
+import { ChevronsUpDown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import * as React from 'react';
-import {
-   AlertDialog,
-   AlertDialogAction,
-   AlertDialogCancel,
-   AlertDialogContent,
-   AlertDialogDescription,
-   AlertDialogFooter,
-   AlertDialogHeader,
-   AlertDialogTitle,
-   AlertDialogTrigger,
-} from '../ui/alert-dialog';
-import { SidebarExportMenu } from './sidebar-export-menu';
 import { AppSidebarSkeleton } from './app-sidebar-skeleton';
+import { NavMain } from './nav-main';
+import ProfileDropdown from './profile-dropdown';
 import { getUserFullName } from '../users/user-card-menu';
-import type { UserRole } from '@/types/user.types';
+import type { User, UserRole } from '@/types/user.types';
 
 const avatarMap: Record<UserRole, string> = {
    admin: '/admin.svg',
    front_desk: '/front_desk.svg',
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-   const pathname = usePathname();
+function SidebarBrand() {
+   return (
+      <SidebarMenu>
+         <SidebarMenuItem>
+            <SidebarMenuButton
+               asChild
+               className="h-auto! items-center gap-3 overflow-visible! px-2.5 py-3 hover:bg-transparent active:bg-transparent data-[active=true]:bg-transparent data-[active=true]:font-normal"
+            >
+               <Link href="/dashboard">
+                  <div className="flex aspect-square size-11 items-center justify-center rounded-xl border bg-card p-1 shrink-0">
+                     <Image
+                        src="/logo.jpeg"
+                        alt="Ethiopian Agricultural Transformation Institute logo"
+                        width={44}
+                        height={44}
+                        priority
+                        className="size-full object-contain"
+                     />
+                  </div>
+                  <div className="grid min-w-0 flex-1 gap-0 text-left leading-none group-data-[collapsible=icon]:hidden">
+                     <span className="text-lg font-bold tracking-tight text-primary">
+                        ATI
+                     </span>
+                     <span className="mt-0.5 text-sm text-muted-foreground whitespace-nowrap leading-snug">
+                        Visitor Management System
+                     </span>
+                  </div>
+               </Link>
+            </SidebarMenuButton>
+         </SidebarMenuItem>
+      </SidebarMenu>
+   );
+}
 
+function NavUser({ user }: { user: User }) {
+   const { isMobile } = useSidebar();
+   const fullName = getUserFullName(user);
+
+   return (
+      <SidebarMenu>
+         <SidebarMenuItem>
+            <ProfileDropdown
+               side={isMobile ? 'bottom' : 'top'}
+               align="start"
+               sideOffset={8}
+               trigger={
+                  <SidebarMenuButton
+                     size="lg"
+                     className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
+                     <Avatar className="size-8 rounded-full">
+                        <AvatarImage
+                           src={avatarMap[user.role]}
+                           alt={fullName}
+                        />
+                        <AvatarFallback className="rounded-full">
+                           {user.firstName[0]}
+                           {user.lastName[0]}
+                        </AvatarFallback>
+                     </Avatar>
+                     <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                        <span className="truncate font-semibold">
+                           {fullName}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                           {user.username}
+                        </span>
+                     </div>
+                     <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
+                  </SidebarMenuButton>
+               }
+            />
+         </SidebarMenuItem>
+      </SidebarMenu>
+   );
+}
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
    const user = useAuthStore((state) => state.user);
    const isLoading = useAuthStore((state) => !state.isHydrated);
-
-   const { mutate: logout, isPending: loggingOut } = useLogout();
 
    if (isLoading) {
       return <AppSidebarSkeleton {...props} />;
@@ -66,147 +117,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       return null;
    }
 
-   const filteredNavigation = navigation.filter(
-      (item) => item.roles.includes(user.role) && !item.hidden,
-   );
-
-   const groupedNavigation = {
-      Workspace: filteredNavigation.filter(
-         (item) => item.group === 'Workspace',
-      ),
-      Administration: filteredNavigation.filter(
-         (item) => item.group === 'Administration',
-      ),
-   };
+   const navItems = getSidebarNavItems(user.role);
 
    return (
-      <Sidebar collapsible="offcanvas" className="lg:border-r-0!" {...props}>
-         <SidebarHeader className="p-3 sm:p-4 lg:p-5 pb-0">
-            <div className="flex flex-col items-center gap-2">
-               <Image
-                  src="/logo.png"
-                  alt="Ethiopian Agricultural Transformation Institution Logo"
-                  width={370}
-                  height={136}
-                  className="h-7 w-auto"
-               />
-               <span className="text-muted-foreground text-xs">
-                  Visitor Management System
-               </span>
-            </div>
-            <div className="mt-4">
-               <SidebarExportMenu />
-            </div>
-         </SidebarHeader>
+      <Sidebar
+         variant="floating"
+         collapsible="offcanvas"
+         className="p-4 h-full [&_[data-slot=sidebar-inner]]:h-full"
+         {...props}
+      >
+         <div className="flex h-full flex-col gap-4 overflow-hidden">
+            <SidebarHeader className="px-2 pt-3 pb-1">
+               <SidebarBrand />
+            </SidebarHeader>
 
-         <SidebarContent className="px-3 py-4 pt-0 sm:px-4 lg:px-5">
-            {Object.entries(groupedNavigation)
-               .filter(([_, items]) => items.length > 0)
-               .map(([group, items]) => (
-                  <SidebarGroup key={group} className="p-0">
-                     <SidebarGroupLabel className="text-[11px] text-muted-foreground uppercase tracking-wider">
-                        {group}
-                     </SidebarGroupLabel>
-                     <SidebarGroupContent>
-                        <SidebarMenu>
-                           {items.map((item) => (
-                              <SidebarMenuItem key={item.title}>
-                                 <SidebarMenuButton
-                                    asChild
-                                    isActive={pathname.startsWith(item.href)}
-                                    className="h-9 sm:h-9.5"
-                                 >
-                                    <Link href={item.href}>
-                                       <item.icon className="size-4 sm:size-5" />
-                                       <span className="text-sm">
-                                          {item.title}
-                                       </span>
-                                       {pathname.startsWith(item.href) && (
-                                          <ChevronRight className="ml-auto size-4 text-muted-foreground opacity-60" />
-                                       )}
-                                    </Link>
-                                 </SidebarMenuButton>
-                              </SidebarMenuItem>
-                           ))}
-                        </SidebarMenu>
-                     </SidebarGroupContent>
-                  </SidebarGroup>
-               ))}
-         </SidebarContent>
+            <SidebarContent className="overflow-hidden px-2">
+               <NavMain items={navItems} />
+            </SidebarContent>
 
-         <SidebarFooter className="px-3 sm:px-4 lg:px-5 pb-3 sm:pb-4 lg:pb-5">
-            <Separator />
-            <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                  <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors">
-                     <Avatar className="size-7 sm:size-8">
-                        <AvatarImage
-                           src={avatarMap[user.role]}
-                           alt="Profile picture"
-                        />
-                        <AvatarFallback>
-                           {user.firstName[0]}
-                           {user.lastName[0]}
-                        </AvatarFallback>
-                     </Avatar>
-                     <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs sm:text-sm">
-                           {getUserFullName(user)}
-                        </p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
-                           {user.username}
-                        </p>
-                     </div>
-                     <ChevronsUpDown className="size-4 text-muted-foreground shrink-0" />
-                  </div>
-               </DropdownMenuTrigger>
-
-               <DropdownMenuContent align="end" className="w-50">
-                  <DropdownMenuItem asChild>
-                     <Link href="/profile">
-                        <UserCircle className="size-4 mr-2" />
-                        Profile
-                     </Link>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <AlertDialog>
-                     <AlertDialogTrigger asChild>
-                        <DropdownMenuItem
-                           variant="destructive"
-                           onSelect={(e) => e.preventDefault()}
-                        >
-                           <LogOut className="size-4 mr-2" />
-                           Log out
-                        </DropdownMenuItem>
-                     </AlertDialogTrigger>
-                     <AlertDialogContent>
-                        <AlertDialogHeader>
-                           <AlertDialogTitle>Logout Account</AlertDialogTitle>
-                           <AlertDialogDescription>
-                              You will need to log in again to access your
-                              account.
-                           </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                           <AlertDialogCancel variant="outline">
-                              Cancel
-                           </AlertDialogCancel>
-                           <AlertDialogAction
-                              disabled={loggingOut}
-                              onClick={() => logout()}
-                              variant="ghost"
-                              className="border border-destructive/20 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:border-destructive/30"
-                           >
-                              {loggingOut ? 'Logging out…' : 'Log out'}
-                           </AlertDialogAction>
-                        </AlertDialogFooter>
-                     </AlertDialogContent>
-                  </AlertDialog>
-               </DropdownMenuContent>
-            </DropdownMenu>
-         </SidebarFooter>
+            <SidebarFooter className="px-2 pb-2">
+               <NavUser user={user} />
+            </SidebarFooter>
+         </div>
       </Sidebar>
    );
 }

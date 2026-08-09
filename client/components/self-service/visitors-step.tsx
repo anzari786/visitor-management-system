@@ -1,0 +1,281 @@
+'use client';
+
+import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
+import { formatEthiopianPhone } from '@/lib/phone';
+import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import {
+   emptyVisitorValues,
+   type VisitRequestFormInput,
+   type VisitRequestFormValues,
+   type VisitorFormValues,
+} from '@/lib/validations/visit-request.schema';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+   Field,
+   FieldDescription,
+   FieldError,
+   FieldGroup,
+   FieldLabel,
+   FieldLegend,
+   FieldSet,
+} from '@/components/ui/field';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
+import { Plus, Trash2 } from 'lucide-react';
+
+type FormType = UseFormReturn<
+   VisitRequestFormInput,
+   unknown,
+   VisitRequestFormValues
+>;
+
+function VisitorFields({
+   form,
+   index,
+}: {
+   form: FormType;
+   index: number;
+}) {
+   const errors = form.formState.errors.visitors?.[index];
+
+   return (
+      <FieldGroup>
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.firstName`}>
+                  First Name <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.firstName`}
+                  autoComplete={index === 0 ? 'given-name' : 'off'}
+                  placeholder="Enter first name"
+                  aria-invalid={!!errors?.firstName}
+                  {...form.register(`visitors.${index}.firstName`)}
+               />
+               <FieldError>{errors?.firstName?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.lastName`}>
+                  Last Name <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.lastName`}
+                  autoComplete={index === 0 ? 'family-name' : 'off'}
+                  placeholder="Enter last name"
+                  aria-invalid={!!errors?.lastName}
+                  {...form.register(`visitors.${index}.lastName`)}
+               />
+               <FieldError>{errors?.lastName?.message}</FieldError>
+            </Field>
+         </div>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.email`}>
+               Email <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Input
+               id={`visitors.${index}.email`}
+               type="email"
+               autoComplete={index === 0 ? 'email' : 'off'}
+               placeholder="Enter email address"
+               aria-invalid={!!errors?.email}
+               {...form.register(`visitors.${index}.email`)}
+            />
+            {index === 0 && (
+               <FieldDescription>
+                  Used to send visit request updates and approval notifications
+               </FieldDescription>
+            )}
+            <FieldError>{errors?.email?.message}</FieldError>
+         </Field>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.phone`}>
+               Phone Number <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+               name={`visitors.${index}.phone`}
+               control={form.control}
+               render={({ field }) => (
+                  <Input
+                     id={`visitors.${index}.phone`}
+                     type="tel"
+                     autoComplete={index === 0 ? 'tel' : 'off'}
+                     placeholder="Enter phone number"
+                     aria-invalid={!!errors?.phone}
+                     value={field.value ?? ''}
+                     onChange={(e) =>
+                        field.onChange(formatEthiopianPhone(e.target.value))
+                     }
+                     onBlur={field.onBlur}
+                  />
+               )}
+            />
+            <FieldError>{errors?.phone?.message}</FieldError>
+         </Field>
+
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.idType`}>
+                  ID Type <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Controller
+                  name={`visitors.${index}.idType`}
+                  control={form.control}
+                  render={({ field }) => (
+                     <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                     >
+                        <SelectTrigger
+                           id={`visitors.${index}.idType`}
+                           className="w-full"
+                           aria-invalid={!!errors?.idType}
+                        >
+                           <SelectValue placeholder="Select ID type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           {ID_TYPE_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                 {opt.label}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                  )}
+               />
+               <FieldError>{errors?.idType?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.idNumber`}>
+                  ID Number <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.idNumber`}
+                  placeholder="Enter identification number"
+                  aria-invalid={!!errors?.idNumber}
+                  {...form.register(`visitors.${index}.idNumber`)}
+               />
+               <FieldError>{errors?.idNumber?.message}</FieldError>
+            </Field>
+         </div>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.organization`}>
+               Organization
+            </FieldLabel>
+            <Input
+               id={`visitors.${index}.organization`}
+               autoComplete="organization"
+               placeholder="Enter your organization (optional)"
+               {...form.register(`visitors.${index}.organization`)}
+            />
+            <FieldDescription>
+               If you are visiting on behalf of a company or organization,
+               enter its name.
+            </FieldDescription>
+            <FieldError>{errors?.organization?.message}</FieldError>
+         </Field>
+      </FieldGroup>
+   );
+}
+
+export function VisitorsStep({ form }: { form: FormType }) {
+   const { fields, append, remove } = useFieldArray({
+      control: form.control,
+      name: 'visitors',
+   });
+
+   return (
+      <div className="space-y-8">
+         <FieldSet className="w-full">
+            <FieldLegend>Primary Visitor Information</FieldLegend>
+            <FieldDescription>
+               Please provide your personal information and identification
+               details to submit a visit request.
+            </FieldDescription>
+            {fields[0] && <VisitorFields form={form} index={0} />}
+         </FieldSet>
+
+         <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+               <div className="space-y-1">
+                  <h3 className="text-base font-medium text-foreground">
+                     Additional Visitors
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                     Add companions who will attend this visit with you. Each
+                     visitor needs their own details.
+                  </p>
+               </div>
+               <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 cursor-pointer"
+                  onClick={() =>
+                     append({
+                        ...emptyVisitorValues,
+                        idType: undefined as unknown as VisitorFormValues['idType'],
+                     })
+                  }
+               >
+                  <Plus className="size-4" />
+                  Add Visitor
+               </Button>
+            </div>
+
+            {fields.length === 1 && (
+               <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                  No additional visitors added. Use &quot;Add Visitor&quot; for
+                  group visits.
+               </p>
+            )}
+
+            {fields.slice(1).map((field, offset) => {
+               const index = offset + 1;
+               return (
+                  <FieldSet
+                     key={field.id}
+                     className="w-full rounded-lg border border-border p-4 sm:p-5"
+                  >
+                     <div className="mb-4 flex items-center justify-between gap-3">
+                        <FieldLegend className="mb-0">
+                           Visitor {index + 1}
+                        </FieldLegend>
+                        <Button
+                           type="button"
+                           variant="ghost"
+                           size="sm"
+                           className="cursor-pointer text-muted-foreground hover:text-destructive"
+                           onClick={() => remove(index)}
+                        >
+                           <Trash2 className="size-4" />
+                           Remove
+                        </Button>
+                     </div>
+                     <VisitorFields form={form} index={index} />
+                  </FieldSet>
+               );
+            })}
+
+            {form.formState.errors.visitors?.root?.message && (
+               <FieldError>
+                  {form.formState.errors.visitors.root.message}
+               </FieldError>
+            )}
+            {typeof form.formState.errors.visitors?.message === 'string' && (
+               <FieldError>{form.formState.errors.visitors.message}</FieldError>
+            )}
+         </div>
+      </div>
+   );
+}

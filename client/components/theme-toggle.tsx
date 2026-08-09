@@ -1,25 +1,94 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useEffect, useId, useState } from 'react';
+import { motion } from 'motion/react';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
-import { Button } from "@/components/ui/button";
+type ThemeToggleProps = {
+   className?: string;
+};
 
-export function ThemeToggle() {
-  const { setTheme, theme } = useTheme();
+export function ThemeToggle({ className }: ThemeToggleProps) {
+   const { resolvedTheme, setTheme } = useTheme();
+   const [mounted, setMounted] = useState(false);
+   const maskId = useId();
 
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-    >
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">Toggle theme</span>
-    </Button>
-  );
+   useEffect(() => {
+      setMounted(true);
+   }, []);
+
+   const isDark = mounted && resolvedTheme === 'dark';
+
+   return (
+      <button
+         type="button"
+         onClick={() => setTheme(isDark ? 'light' : 'dark')}
+         aria-label="Toggle theme"
+         className={cn(
+            'rounded-full p-2 text-foreground hover:bg-accent transition-colors cursor-pointer',
+            className,
+         )}
+      >
+         <motion.svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-4"
+            animate={{
+               rotate: isDark ? 40 : 0,
+            }}
+            transition={{ type: 'spring', stiffness: 220, damping: 15 }}
+         >
+            <mask id={maskId}>
+               <rect x="0" y="0" width="24" height="24" fill="white" />
+               <motion.circle
+                  cx="25"
+                  cy="0"
+                  r="8"
+                  fill="black"
+                  animate={{
+                     cx: isDark ? 18 : 25,
+                     cy: isDark ? 6 : 0,
+                  }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 15 }}
+               />
+            </mask>
+
+            <motion.circle
+               cx="12"
+               cy="12"
+               r="9"
+               fill="currentColor"
+               mask={`url(#${maskId})`}
+               animate={{
+                  r: isDark ? 8 : 5,
+               }}
+               transition={{ type: 'spring', stiffness: 220, damping: 15 }}
+            />
+
+            <motion.g
+               stroke="currentColor"
+               animate={{
+                  opacity: isDark ? 0 : 1,
+                  scale: isDark ? 0.3 : 1,
+               }}
+               transition={{ type: 'spring', stiffness: 220, damping: 15 }}
+            >
+               <line x1="12" y1="1" x2="12" y2="3" />
+               <line x1="12" y1="21" x2="12" y2="23" />
+               <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+               <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+               <line x1="1" y1="12" x2="3" y2="12" />
+               <line x1="21" y1="12" x2="23" y2="12" />
+               <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+               <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </motion.g>
+         </motion.svg>
+      </button>
+   );
 }
-
-

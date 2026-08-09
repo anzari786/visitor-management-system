@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation';
 import { ThemeProvider } from '@/components/theme-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
-import { AppHeader } from '@/components/layout/app-header';
+import Header from '@/components/layout/header';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getServerUser } from '@/lib/auth-server';
+import type { CSSProperties } from 'react';
 
 export default async function RootLayout({
    children,
@@ -16,6 +17,7 @@ export default async function RootLayout({
    if (!user) {
       redirect('/login');
    }
+
    return (
       <div>
          <ThemeProvider
@@ -24,15 +26,16 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
          >
-            <SidebarProvider className="bg-sidebar">
+            <SidebarProvider
+               className="h-svh overflow-hidden bg-muted p-4"
+               style={{ '--sidebar-width': '320px' } as CSSProperties}
+            >
                <AppSidebar />
-               <div className="h-screen overflow-hidden lg:p-2 w-full">
-                  <div className="lg:border lg:rounded-md overflow-hidden flex flex-col items-center justify-start bg-container h-full w-full bg-background">
-                     <AppHeader />
-                     <div className="flex-1 w-full overflow-auto">
-                        <TooltipProvider>{children}</TooltipProvider>
-                     </div>
-                  </div>
+               <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-background border shadow-sm">
+                  <Header />
+                  <main className="flex-1 min-h-0 overflow-auto">
+                     <TooltipProvider>{children}</TooltipProvider>
+                  </main>
                </div>
             </SidebarProvider>
          </ThemeProvider>

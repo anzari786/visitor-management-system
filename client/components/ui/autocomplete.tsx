@@ -10,6 +10,7 @@ import React, {
    type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { RemoveScroll } from 'react-remove-scroll';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { CircleXIcon, SearchIcon } from 'lucide-react';
@@ -35,7 +36,9 @@ interface AutocompleteCtx {
    inputWrapperRef: React.RefObject<HTMLDivElement | null>;
    inputRef: React.RefObject<HTMLInputElement | null>;
    popupRef: React.RefObject<HTMLDivElement | null>;
+   listRef: React.RefObject<HTMLDivElement | null>;
    itemsRef: React.MutableRefObject<ItemMeta[]>;
+   keyboardNavRef: React.MutableRefObject<boolean>;
    registerItem: (item: ItemMeta) => void;
    unregisterItem: (value: string) => void;
    selectItem: (value: string, label: string) => void;
@@ -95,6 +98,8 @@ const Autocomplete = ({
    const inputWrapperRef = useRef<HTMLDivElement | null>(null);
    const inputRef = useRef<HTMLInputElement | null>(null);
    const popupRef = useRef<HTMLDivElement | null>(null);
+   const listRef = useRef<HTMLDivElement | null>(null);
+   const keyboardNavRef = useRef(false);
 
    const isOpen = openProp !== undefined ? openProp : openState;
    const resolvedValue = valueProp !== undefined ? valueProp : selectedValue;
@@ -148,6 +153,7 @@ const Autocomplete = ({
    const highlightNext = useCallback(() => {
       const items = itemsRef.current.filter((i) => !i.disabled);
       if (!items.length) return;
+      keyboardNavRef.current = true;
       const idx = items.findIndex((i) => i.value === highlightedValue);
       setHighlightedValue(items[(idx + 1) % items.length].value);
    }, [highlightedValue]);
@@ -155,6 +161,7 @@ const Autocomplete = ({
    const highlightPrev = useCallback(() => {
       const items = itemsRef.current.filter((i) => !i.disabled);
       if (!items.length) return;
+      keyboardNavRef.current = true;
       const idx = items.findIndex((i) => i.value === highlightedValue);
       setHighlightedValue(
          items[(idx - 1 + items.length) % items.length].value,
@@ -197,7 +204,9 @@ const Autocomplete = ({
             inputWrapperRef,
             inputRef,
             popupRef,
+            listRef,
             itemsRef,
+            keyboardNavRef,
             registerItem,
             unregisterItem,
             selectItem,
@@ -406,7 +415,7 @@ const AutocompletePositioner = ({
    style: styleProp,
    ...props
 }: AutocompletePositionerProps) => {
-   const { inputWrapperRef, open } = useAc();
+   const { inputWrapperRef, open, popupRef } = useAc();
    const [posStyle, setPosStyle] = useState<React.CSSProperties>({});
    const anchorRef = anchorProp ?? inputWrapperRef;
 
@@ -437,18 +446,30 @@ const AutocompletePositioner = ({
    useEffect(() => {
       if (!open) return;
       updatePosition();
+
+      const onScroll = (event: Event) => {
+         const target = event.target;
+         if (
+            target instanceof Node &&
+            popupRef.current?.contains(target)
+         ) {
+            return;
+         }
+         updatePosition();
+      };
+
       window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('scroll', onScroll, true);
       return () => {
          window.removeEventListener('resize', updatePosition);
-         window.removeEventListener('scroll', updatePosition, true);
+         window.removeEventListener('scroll', onScroll, true);
       };
-   }, [open, updatePosition]);
+   }, [open, popupRef, updatePosition]);
 
    return (
       <div
          data-slot="autocomplete-positioner"
-         className={cn('z-50 outline-none', className)}
+         className={cn('z-[60] outline-none', className)}
          style={{ ...posStyle, ...styleProp }}
          {...props}
       >
@@ -486,28 +507,30 @@ const AutocompleteContent = ({
 
    return (
       <AutocompletePortal>
-         <div ref={popupRef}>
-            {showBackdrop && <AutocompleteBackdrop />}
-            <AutocompletePositioner
-               align={align}
-               sideOffset={sideOffset}
-               alignOffset={alignOffset}
-               side={side}
-               anchor={anchor}
-            >
-               <div
-                  data-slot="autocomplete-popup"
-                  className={cn(
-                     'text-popover-foreground bg-popover flex max-h-72 w-full flex-col overflow-hidden rounded-md border py-1 shadow-md',
-                     'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200 ease-out',
-                     className,
-                  )}
-                  {...props}
+         <RemoveScroll allowPinchZoom>
+            <div ref={popupRef} data-slot="autocomplete-popup-root">
+               {showBackdrop && <AutocompleteBackdrop />}
+               <AutocompletePositioner
+                  align={align}
+                  sideOffset={sideOffset}
+                  alignOffset={alignOffset}
+                  side={side}
+                  anchor={anchor}
                >
-                  {children}
-               </div>
-            </AutocompletePositioner>
-         </div>
+                  <div
+                     data-slot="autocomplete-popup"
+                     className={cn(
+                        'text-popover-foreground bg-popover flex max-h-72 w-full flex-col overflow-hidden rounded-md border py-1 shadow-md',
+                        'animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200 ease-out',
+                        className,
+                     )}
+                     {...props}
+                  >
+                     {children}
+                  </div>
+               </AutocompletePositioner>
+            </div>
+         </RemoveScroll>
       </AutocompletePortal>
    );
 };
@@ -517,12 +540,15 @@ const AutocompleteContent = ({
 interface AutocompleteListProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 const AutocompleteList = ({ className, ...props }: AutocompleteListProps) => {
+   const { listRef } = useAc();
+
    return (
       <div
+         ref={listRef}
          data-slot="autocomplete-list"
          role="listbox"
          className={cn(
-            'max-h-72 overflow-y-auto overscroll-contain scroll-py-1 not-empty:px-1 not-empty:py-1',
+            'max-h-72 overflow-y-auto overscroll-contain touch-pan-y scroll-py-1 not-empty:px-1 not-empty:py-1',
             '[scrollbar-width:thin] [scrollbar-color:var(--muted-foreground)_transparent]',
             '[&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent',
             '[&::-webkit-scrollbar-button]:hidden',
@@ -584,6 +610,7 @@ const AutocompleteItem = ({
       selectItem,
       registerItem,
       unregisterItem,
+      keyboardNavRef,
    } = useAc();
    const itemRef = useRef<HTMLDivElement>(null);
 
@@ -599,10 +626,10 @@ const AutocompleteItem = ({
    const isSelected = selectedValue === value;
 
    useEffect(() => {
-      if (isHighlighted) {
-         itemRef.current?.scrollIntoView({ block: 'nearest' });
-      }
-   }, [isHighlighted]);
+      if (!isHighlighted || !keyboardNavRef.current) return;
+      itemRef.current?.scrollIntoView({ block: 'nearest' });
+      keyboardNavRef.current = false;
+   }, [isHighlighted, keyboardNavRef]);
 
    return (
       <div

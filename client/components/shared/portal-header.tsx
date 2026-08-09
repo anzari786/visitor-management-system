@@ -1,14 +1,25 @@
 'use client';
 
-import LanguageDropdown from '@/components/shared/language-dropdown';
 import Image from 'next/image';
 import Link from 'next/link';
+import LanguageDropdown from '@/components/shared/language-dropdown';
 
-const Header = () => {
+type PortalHeaderProps = {
+   homeHref?: string;
+   languageDropdownId?: string;
+};
+
+/**
+ * Shared sticky header for public-facing portals (Self Service, Host Portal).
+ */
+export function PortalHeader({
+   homeHref = '/',
+   languageDropdownId = 'language-dropdown-trigger',
+}: PortalHeaderProps) {
    return (
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 shadow-sm">
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/80">
          <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
-            <Link href="#" className="flex items-center gap-3">
+            <Link href={homeHref} className="flex items-center gap-3">
                <div className="rounded-xl border bg-card p-1">
                   <Image
                      src="/logo.jpeg"
@@ -31,10 +42,8 @@ const Header = () => {
                </div>
             </Link>
 
-            <LanguageDropdown id="language-dropdown-trigger" />
+            <LanguageDropdown id={languageDropdownId} />
          </div>
       </header>
    );
-};
-
-export default Header;
+}

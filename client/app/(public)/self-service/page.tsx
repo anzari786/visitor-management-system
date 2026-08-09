@@ -1,4 +1,4 @@
-import VisitRequestContent from '@/components/self-service/components/content';
+import VisitRequestContent from '@/components/self-service/content';
 
 export default function VisitRequestPage() {
    return <VisitRequestContent />;

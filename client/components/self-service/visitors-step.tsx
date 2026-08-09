@@ -167,6 +167,23 @@ function VisitorFields({
                <FieldError>{errors?.idNumber?.message}</FieldError>
             </Field>
          </div>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.organization`}>
+               Organization
+            </FieldLabel>
+            <Input
+               id={`visitors.${index}.organization`}
+               autoComplete="organization"
+               placeholder="Enter your organization (optional)"
+               {...form.register(`visitors.${index}.organization`)}
+            />
+            <FieldDescription>
+               If you are visiting on behalf of a company or organization,
+               enter its name.
+            </FieldDescription>
+            <FieldError>{errors?.organization?.message}</FieldError>
+         </Field>
       </FieldGroup>
    );
 }

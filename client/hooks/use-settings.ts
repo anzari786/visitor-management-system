@@ -5,7 +5,6 @@ import type {
    Settings,
    SettingsWithStatus,
    UpdateGeneralPayload,
-   UpdateSecurityPayload,
 } from '@/types/setting.types';
 import { useHealth } from '@/hooks/use-health';
 import { Status } from '@/components/shared/status-badge';
@@ -58,20 +57,6 @@ export function useUpdateGeneralSettings() {
    return useMutation<Settings, ApiError, UpdateGeneralPayload>({
       mutationFn: async (payload) => {
          const { data } = await settingsService.updateGeneral(payload);
-         return data.data;
-      },
-      onSuccess: (updated) => {
-         queryClient.setQueryData(settingsKeys.detail(), updated);
-      },
-   });
-}
-
-export function useUpdateSecuritySettings() {
-   const queryClient = useQueryClient();
-
-   return useMutation<Settings, ApiError, UpdateSecurityPayload>({
-      mutationFn: async (payload) => {
-         const { data } = await settingsService.updateSecurity(payload);
          return data.data;
       },
       onSuccess: (updated) => {

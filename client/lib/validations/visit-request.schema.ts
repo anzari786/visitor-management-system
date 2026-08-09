@@ -39,6 +39,14 @@ export const visitorSchema = z.object({
       .string()
       .min(1, 'ID number is required')
       .max(50, 'ID number must be 50 characters or fewer'),
+   organization: z
+      .string()
+      .max(100, 'Organization must be 100 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
 });
 
 const hostIds = HOST_EMPLOYEES.map((h) => h.id) as [string, ...string[]];
@@ -60,6 +68,7 @@ export const emptyVisitorValues: {
    phone: string;
    idType: undefined;
    idNumber: string;
+   organization: string;
 } = {
    firstName: '',
    lastName: '',
@@ -67,6 +76,7 @@ export const emptyVisitorValues: {
    phone: '+251 ',
    idType: undefined,
    idNumber: '',
+   organization: '',
 };
 
 const visitDetailsFieldsSchema = z.object({

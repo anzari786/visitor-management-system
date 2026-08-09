@@ -6,10 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'motion/react';
 import {
    Check,
+   ChevronLeft,
    Loader2,
    User,
    CalendarDays,
    CheckCircle2,
+   Send,
    type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -238,17 +240,18 @@ export default function VisitRequestForm() {
                </AnimatePresence>
             </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                <Button
                   type="button"
                   variant="outline"
                   onClick={handleBack}
                   disabled={activeStep === 0 || isSubmitting}
                   className={cn(
-                     'cursor-pointer',
+                     'cursor-pointer gap-1.5',
                      'disabled:pointer-events-none disabled:opacity-50',
                   )}
                >
+                  <ChevronLeft className="size-4" />
                   Back
                </Button>
 
@@ -258,7 +261,7 @@ export default function VisitRequestForm() {
                         type="button"
                         onClick={handleSubmitRequest}
                         disabled={isSubmitting}
-                        className="cursor-pointer hover:bg-primary/90"
+                        className="w-full cursor-pointer gap-2 hover:bg-primary/90 sm:w-auto"
                      >
                         {isSubmitting ? (
                            <>
@@ -266,14 +269,17 @@ export default function VisitRequestForm() {
                               Submitting...
                            </>
                         ) : (
-                           'Submit Visit Request'
+                           <>
+                              <Send className="size-4" />
+                              Submit Visit Request
+                           </>
                         )}
                      </Button>
                   ) : (
                      <Button
                         type="button"
                         onClick={handleNext}
-                        className="cursor-pointer hover:bg-primary/90"
+                        className="w-full cursor-pointer hover:bg-primary/90 sm:w-auto"
                      >
                         Continue
                      </Button>

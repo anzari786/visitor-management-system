@@ -309,20 +309,41 @@ export const mockBadgesStore = {
       return structuredClone(badge);
    },
 
-   async create(badgeNumber: string): Promise<Badge> {
+   async create(badgeNumber: string, qrToken: string): Promise<Badge> {
       await delay();
-      const normalized = badgeNumber.trim().toUpperCase();
-      if (badges.some((b) => b.badgeNumber.toUpperCase() === normalized)) {
+      const normalizedNumber = badgeNumber.trim().toUpperCase();
+      const normalizedQr = qrToken.trim();
+
+      if (!normalizedQr) {
+         throw Object.assign(new Error('Badge QR code is required'), {
+            status: 400,
+         });
+      }
+
+      if (
+         badges.some((b) => b.badgeNumber.toUpperCase() === normalizedNumber)
+      ) {
          throw Object.assign(
             new Error('A badge with this number already exists'),
             { status: 409 },
          );
       }
 
+      if (
+         badges.some(
+            (b) => b.qrToken.toLowerCase() === normalizedQr.toLowerCase(),
+         )
+      ) {
+         throw Object.assign(
+            new Error('A badge with this QR code already exists'),
+            { status: 409 },
+         );
+      }
+
       const badge: Badge = {
          id: nextId++,
-         badgeNumber: normalized,
-         qrToken: qrToken(normalized),
+         badgeNumber: normalizedNumber,
+         qrToken: normalizedQr,
          status: 'available',
          notes: null,
          assignedTo: null,

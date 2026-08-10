@@ -23,7 +23,10 @@ export const badgesService = {
 
    async create(payload: CreateBadgePayload) {
       try {
-         const data = await mockBadgesStore.create(payload.badgeNumber);
+         const data = await mockBadgesStore.create(
+            payload.badgeNumber,
+            payload.qrToken,
+         );
          return { data: { success: true, data } satisfies ApiResponse<Badge> };
       } catch (error) {
          const message =

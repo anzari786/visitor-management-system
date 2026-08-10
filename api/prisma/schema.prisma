@@ -165,6 +165,31 @@ model Setting {
   @@map("settings")
 }
 
+// ── Badge inventory ───────────────────────────
+// Physical visitor badges. qrToken stores the scanned QR value/token
+// (not an image) for assignment and check-out lookups.
+
+enum BadgeInventoryStatus {
+  available
+  assigned
+  lost
+  inactive
+}
+
+model Badge {
+  id          Int                  @id @default(autoincrement())
+  badgeNumber String               @unique
+  qrToken     String               @unique
+  status      BadgeInventoryStatus @default(available)
+  notes       String?              @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("badges")
+}
+
 model Session {
   session_id String  @id
   expires    Int

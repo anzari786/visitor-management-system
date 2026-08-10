@@ -18,13 +18,15 @@ import {
    FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { QrScannerDialog } from '@/components/shared/qr-scanner-dialog';
 import {
    createBadgeSchema,
    type CreateBadgeFormValues,
 } from '@/lib/validations/badge.schema';
 import { badgesService } from '@/services/badges.service';
+import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ScanLine } from 'lucide-react';
+import { CheckCircle2, ScanLine } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -34,288 +36,193 @@ type CreateBadgeProps = {
    onSubmit?: (values: CreateBadgeFormValues) => void | Promise<void>;
 };
 
-type BarcodeDetectorLike = {
-   detect: (
-      source: ImageBitmapSource,
-   ) => Promise<Array<{ rawValue?: string }>>;
-};
-
-function getBarcodeDetector():
-   | (new (options?: { formats?: string[] }) => BarcodeDetectorLike)
-   | null {
-   if (typeof window === 'undefined') return null;
-   return (
-      (
-         window as Window & {
-            BarcodeDetector?: new (options?: {
-               formats?: string[];
-            }) => BarcodeDetectorLike;
-         }
-      ).BarcodeDetector ?? null
-   );
-}
-
 const CreateBadge = ({ open, onOpenChange, onSubmit }: CreateBadgeProps) => {
-   const [isScanning, setIsScanning] = React.useState(false);
-   const [hasCameraStream, setHasCameraStream] = React.useState(false);
-   const [scanError, setScanError] = React.useState<string | null>(null);
-   const videoRef = React.useRef<HTMLVideoElement>(null);
-   const streamRef = React.useRef<MediaStream | null>(null);
-   const rafRef = React.useRef<number | null>(null);
+   const [scannerOpen, setScannerOpen] = React.useState(false);
+   const [scanSuccess, setScanSuccess] = React.useState(false);
 
    const {
       register,
       handleSubmit,
       reset,
       setValue,
+      setError,
+      clearErrors,
+      watch,
       formState: { errors, isSubmitting },
    } = useForm<CreateBadgeFormValues>({
       resolver: zodResolver(createBadgeSchema),
       defaultValues: {
          badgeNumber: '',
+         qrToken: '',
       },
    });
 
-   const stopScanning = React.useCallback(() => {
-      if (rafRef.current != null) {
-         cancelAnimationFrame(rafRef.current);
-         rafRef.current = null;
-      }
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      if (videoRef.current) {
-         videoRef.current.srcObject = null;
-      }
-      setHasCameraStream(false);
-      setIsScanning(false);
-   }, []);
-
-   const applyScannedValue = React.useCallback(
-      (raw: string) => {
-         const cleaned = raw.trim().toUpperCase();
-         const match = cleaned.match(/[A-Z0-9]+(?:-[A-Z0-9]+)*/);
-         if (!match) return;
-         setValue('badgeNumber', match[0], {
-            shouldDirty: true,
-            shouldValidate: true,
-         });
-         setScanError(null);
-         stopScanning();
-      },
-      [setValue, stopScanning],
-   );
+   const qrToken = watch('qrToken');
 
    React.useEffect(() => {
       if (open) {
-         reset({ badgeNumber: badgesService.suggestNextNumber() });
-         setScanError(null);
-         stopScanning();
+         reset({
+            badgeNumber: badgesService.suggestNextNumber(),
+            qrToken: '',
+         });
+         setScanSuccess(false);
+         setScannerOpen(false);
       } else {
-         stopScanning();
+         setScannerOpen(false);
+         setScanSuccess(false);
       }
-   }, [open, reset, stopScanning]);
+   }, [open, reset]);
 
-   React.useEffect(() => {
-      return () => stopScanning();
-   }, [stopScanning]);
-
-   React.useEffect(() => {
-      if (!hasCameraStream || !streamRef.current || !videoRef.current) {
-         return;
-      }
-
-      const video = videoRef.current;
-      const stream = streamRef.current;
-      const Detector = getBarcodeDetector();
-      let cancelled = false;
-
-      const run = async () => {
-         video.srcObject = stream;
-         try {
-            await video.play();
-         } catch {
-            return;
+   const handleQrScanned = React.useCallback(
+      async (decodedText: string) => {
+         const value = decodedText.trim();
+         if (!value) {
+            throw new Error('Empty QR code. Try scanning again.');
          }
 
-         if (!Detector || cancelled) return;
-
-         const detector = new Detector({ formats: ['qr_code'] });
-
-         const tick = async () => {
-            if (cancelled || !videoRef.current) return;
-            if (videoRef.current.readyState < 2) {
-               rafRef.current = requestAnimationFrame(tick);
-               return;
-            }
-
-            try {
-               const codes = await detector.detect(videoRef.current);
-               const value = codes[0]?.rawValue;
-               if (value) {
-                  applyScannedValue(value);
-                  return;
-               }
-            } catch {
-               // Keep scanning on transient detect errors.
-            }
-
-            rafRef.current = requestAnimationFrame(tick);
-         };
-
-         rafRef.current = requestAnimationFrame(tick);
-      };
-
-      void run();
-
-      return () => {
-         cancelled = true;
-         if (rafRef.current != null) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-         }
-      };
-   }, [hasCameraStream, applyScannedValue]);
-
-   const startScanning = async () => {
-      setScanError(null);
-
-      const Detector = getBarcodeDetector();
-      if (!Detector || !navigator.mediaDevices?.getUserMedia) {
-         setIsScanning(true);
-         requestAnimationFrame(() => {
-            document.getElementById('badgeNumber')?.focus();
+         setValue('qrToken', value, {
+            shouldDirty: true,
+            shouldValidate: true,
          });
-         return;
-      }
-
-      try {
-         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' },
-            audio: false,
-         });
-         streamRef.current = stream;
-         setIsScanning(true);
-         setHasCameraStream(true);
-      } catch {
-         setIsScanning(true);
-         requestAnimationFrame(() => {
-            document.getElementById('badgeNumber')?.focus();
-         });
-         setScanError(
-            'Camera unavailable. Use a handheld scanner or type the number.',
-         );
-      }
-   };
+         clearErrors('qrToken');
+         setScanSuccess(true);
+      },
+      [clearErrors, setValue],
+   );
 
    const handleFormSubmit = handleSubmit(async (values) => {
-      await onSubmit?.(values);
+      try {
+         await onSubmit?.(values);
+      } catch (error) {
+         const message =
+            (error as { response?: { data?: { message?: string } }; message?: string })
+               ?.response?.data?.message ??
+            (error as { message?: string })?.message ??
+            'Failed to create badge';
+
+         if (/qr/i.test(message)) {
+            setError('qrToken', { message });
+         } else if (/number/i.test(message)) {
+            setError('badgeNumber', { message });
+         } else {
+            setError('badgeNumber', { message });
+         }
+         throw error;
+      }
    });
 
    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-               <DialogTitle>Create Badge</DialogTitle>
-               <DialogDescription>
-                  Enter the badge number or scan its QR code.
-               </DialogDescription>
-            </DialogHeader>
+      <>
+         <Dialog
+            open={open}
+            onOpenChange={(next) => {
+               if (!next) setScannerOpen(false);
+               onOpenChange(next);
+            }}
+         >
+            <DialogContent className="sm:max-w-md">
+               <DialogHeader>
+                  <DialogTitle>Create Badge</DialogTitle>
+                  <DialogDescription>
+                     Enter the printed badge number and scan the physical badge
+                     QR code. Both are required and must be unique.
+                  </DialogDescription>
+               </DialogHeader>
 
-            <form onSubmit={handleFormSubmit} className="space-y-4 pt-1">
-               <FieldGroup>
-                  <Field>
-                     <FieldLabel htmlFor="badgeNumber">
-                        Badge Number
+               <form onSubmit={handleFormSubmit} className="space-y-4 pt-1">
+                  <FieldGroup>
+                     <Field>
+                        <FieldLabel htmlFor="badgeNumber">
+                           Badge Number
+                           <span className="text-destructive">*</span>
+                        </FieldLabel>
+                        <Input
+                           id="badgeNumber"
+                           placeholder="B-1039"
+                           autoComplete="off"
+                           aria-invalid={!!errors.badgeNumber}
+                           disabled={isSubmitting}
+                           {...register('badgeNumber')}
+                        />
+                        <FieldDescription>
+                           Printed number on the physical badge. Enter manually.
+                        </FieldDescription>
+                        {errors.badgeNumber && (
+                           <FieldError>{errors.badgeNumber.message}</FieldError>
+                        )}
+                     </Field>
+                  </FieldGroup>
+
+                  <div className="space-y-2">
+                     <p className="text-sm font-medium leading-none">
+                        Badge QR Code
                         <span className="text-destructive">*</span>
-                     </FieldLabel>
-                     <Input
-                        id="badgeNumber"
-                        placeholder="B-1039"
-                        aria-invalid={!!errors.badgeNumber}
-                        {...register('badgeNumber')}
-                     />
-                     <FieldDescription>
-                        Type the printed number, or scan the badge QR.
-                     </FieldDescription>
-                     {errors.badgeNumber && (
-                        <FieldError>{errors.badgeNumber.message}</FieldError>
-                     )}
-                  </Field>
-               </FieldGroup>
+                     </p>
 
-               <div className="space-y-2">
-                  {!isScanning ? (
+                     {scanSuccess && qrToken ? (
+                        <div
+                           className={cn(
+                              'flex items-start gap-2.5 rounded-lg border border-emerald-500/30',
+                              'bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800',
+                              'dark:text-emerald-300',
+                           )}
+                        >
+                           <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                           <div className="min-w-0 flex-1 space-y-0.5">
+                              <p className="font-medium">QR code scanned</p>
+                              <p className="truncate font-mono text-xs opacity-90">
+                                 {qrToken}
+                              </p>
+                           </div>
+                        </div>
+                     ) : (
+                        <p className="text-xs text-muted-foreground">
+                           Scan the physical badge to capture its QR value.
+                        </p>
+                     )}
+
+                     {errors.qrToken && (
+                        <FieldError>{errors.qrToken.message}</FieldError>
+                     )}
+
                      <Button
                         type="button"
                         variant="outline"
-                        className="w-full"
-                        onClick={startScanning}
+                        className="w-full cursor-pointer"
+                        onClick={() => setScannerOpen(true)}
                         disabled={isSubmitting}
                      >
                         <ScanLine className="size-4" />
-                        Scan QR Code
+                        {qrToken ? 'Rescan QR Code' : 'Scan Badge QR'}
                      </Button>
-                  ) : hasCameraStream ? (
-                     <div className="space-y-2">
-                        <div className="relative overflow-hidden rounded-lg border bg-muted/40">
-                           <video
-                              ref={videoRef}
-                              muted
-                              playsInline
-                              className="aspect-video w-full object-cover"
-                           />
-                        </div>
+                  </div>
+
+                  <DialogFooter>
+                     <DialogClose asChild>
                         <Button
                            type="button"
-                           variant="ghost"
-                           size="sm"
-                           className="w-full"
-                           onClick={stopScanning}
+                           variant="outline"
+                           disabled={isSubmitting}
                         >
-                           Cancel scan
+                           Cancel
                         </Button>
-                     </div>
-                  ) : (
-                     <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/30 px-3 py-2.5">
-                        <ScanLine className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1 space-y-1">
-                           <p className="text-xs text-muted-foreground">
-                              Scan ready — use a handheld scanner or type the
-                              badge number above.
-                           </p>
-                           <button
-                              type="button"
-                              className="text-xs font-medium text-primary hover:underline"
-                              onClick={stopScanning}
-                           >
-                              Cancel scan
-                           </button>
-                        </div>
-                     </div>
-                  )}
-
-                  {scanError && (
-                     <p className="text-xs text-muted-foreground">{scanError}</p>
-                  )}
-               </div>
-
-               <DialogFooter>
-                  <DialogClose asChild>
-                     <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isSubmitting}
-                     >
-                        Cancel
+                     </DialogClose>
+                     <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? 'Creating…' : 'Create Badge'}
                      </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isSubmitting}>
-                     {isSubmitting ? 'Creating…' : 'Create Badge'}
-                  </Button>
-               </DialogFooter>
-            </form>
-         </DialogContent>
-      </Dialog>
+                  </DialogFooter>
+               </form>
+            </DialogContent>
+         </Dialog>
+
+         <QrScannerDialog
+            open={scannerOpen}
+            onOpenChange={setScannerOpen}
+            title="Scan Badge QR"
+            description="Point the camera at the physical badge QR code. The scanned value is stored for assignment and check-out."
+            onScan={handleQrScanned}
+         />
+      </>
    );
 };
 

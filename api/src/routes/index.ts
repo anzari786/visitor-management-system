@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import authRoutes from './auth.routes.js';
+import badgeRoutes from './badge.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import departmentRoutes from './department.routes.js';
 import reportRoutes from './report.routes.js';
@@ -15,6 +16,7 @@ router.use('/dashboard', dashboardRoutes);
 
 router.use('/users', userRoutes);
 router.use('/visits', visitRoutes);
+router.use('/badges', badgeRoutes);
 router.use('/departments', departmentRoutes);
 
 router.use('/settings', settingRoutes);

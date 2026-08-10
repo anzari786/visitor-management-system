@@ -32,6 +32,7 @@ export type BadgeStats = {
 
 export type CreateBadgePayload = {
    badgeNumber: string;
+   qrToken: string;
 };
 
 export type UpdateBadgeStatusPayload = {

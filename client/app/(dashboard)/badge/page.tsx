@@ -1,7 +1,11 @@
+import { Content } from '@/components/shared/content';
+
 export default function BadgePage() {
    return (
-      <div className="p-3 sm:p-4 md:p-6 bg-background w-full">
-         <h1 className="text-lg font-semibold tracking-tight">Badge</h1>
-      </div>
+      <Content
+         subtitle={
+            <p>Issue and manage visitor badges for check-in and check-out.</p>
+         }
+      />
    );
 }

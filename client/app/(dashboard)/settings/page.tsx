@@ -1,7 +1,8 @@
-import { redirect } from 'next/navigation';
-import { getServerUser } from '@/lib/auth-server';
-import { canAccess } from '@/lib/access';
+import { Content } from '@/components/shared/content';
 import { SettingsTabs } from '@/components/settings/settings-tabs';
+import { canAccess } from '@/lib/access';
+import { getServerUser } from '@/lib/auth-server';
+import { redirect } from 'next/navigation';
 
 export default async function SettingsPage() {
    const user = await getServerUser();
@@ -11,8 +12,14 @@ export default async function SettingsPage() {
    }
 
    return (
-      <div className="p-3 sm:p-4 md:p-6 bg-background">
+      <Content
+         subtitle={
+            <p>
+               Configure organization-wide visitor settings and preferences.
+            </p>
+         }
+      >
          <SettingsTabs />
-      </div>
+      </Content>
    );
 }

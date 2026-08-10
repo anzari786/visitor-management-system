@@ -4,11 +4,13 @@ import { Plus } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
+import { Content } from '@/components/shared/content';
 import CreateUser from './create-user';
+import { UserCardGrid } from './user-card-grid';
 import { useCreateUser, useUsers } from '@/hooks/use-users';
 import type { CreateUserFormValues } from '@/lib/validations/user.schema';
 
-const UsersToolbar = () => {
+export function UsersContent() {
    const [open, setOpen] = React.useState(false);
    const { data: users = [] } = useUsers();
    const { mutateAsync: createUser } = useCreateUser();
@@ -28,27 +30,33 @@ const UsersToolbar = () => {
    }
 
    return (
-      <div>
-         <div className="flex items-center justify-between">
-            <div>
-               <h1 className="text-base font-semibold">Users</h1>
-               <p className="text-xs text-muted-foreground mt-0.5">
-                  {users.length} users in the system
-               </p>
-            </div>
-            <Button size="sm" onClick={() => setOpen(true)}>
-               <Plus className="size-4" />
-               <span className="hidden sm:inline-flex">Create User</span>
+      <Content
+         subtitle={
+            <p>
+               <span className="text-foreground font-medium">
+                  {users.length} users
+               </span>{' '}
+               in the system
+            </p>
+         }
+         actionButton={
+            <Button
+               size="sm"
+               onClick={() => setOpen(true)}
+               className="gap-2 sm:gap-3 h-8 sm:h-9 text-xs sm:text-sm bg-linear-to-b from-foreground to-foreground/90 text-background"
+            >
+               <Plus className="size-3 sm:size-4" />
+               <span className="hidden sm:inline">Create User</span>
+               <span className="sm:hidden">New</span>
             </Button>
-         </div>
-
+         }
+      >
+         <UserCardGrid />
          <CreateUser
             open={open}
             onOpenChange={setOpen}
             onSubmit={handleCreateUser}
          />
-      </div>
+      </Content>
    );
-};
-
-export default UsersToolbar;
+}

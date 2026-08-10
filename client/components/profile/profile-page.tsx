@@ -17,6 +17,7 @@ import type {
 } from '@/lib/validations/profile.schema';
 import type { UserRole } from '@/types/user.types';
 import { toast } from 'sonner';
+import { Content } from '@/components/shared/content';
 import { SectionCard } from '../shared/section-card';
 
 const roleIconMap: Record<UserRole, React.ReactNode> = {
@@ -69,7 +70,11 @@ export function ProfilePage() {
    }
 
    return (
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 bg-background w-full">
+      <Content
+         subtitle={
+            <p>Manage your account details, preferences, and password.</p>
+         }
+      >
          {/* Identity strip */}
          <div className="flex items-center gap-4 rounded-xl border bg-card p-5 max-w-2xl">
             <Image
@@ -146,7 +151,7 @@ export function ProfilePage() {
                </SectionCard>
             </TabsContent>
          </Tabs>
-      </div>
+      </Content>
    );
 }
 

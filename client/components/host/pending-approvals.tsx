@@ -26,12 +26,17 @@ import {
    SearchX,
    ClipboardCheck,
    XIcon,
+   Mail,
+   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { MEETING_TYPE_OPTIONS } from '@/constants/meeting-types';
-import { sendVisitUpdateEmail } from '@/services/visit-notification.service';
+import {
+   sendPendingApprovalReminderEmail,
+   sendVisitUpdateEmail,
+} from '@/services/visit-notification.service';
 import { formatScheduleSummary } from '@/lib/host-visit-schedule';
 import { ApproveVisitDialog } from './approve-visit-dialog';
 import {
@@ -66,6 +71,7 @@ const PendingApprovals = ({
    );
    const [approveRequest, setApproveRequest] =
       useState<HostVisitCardData | null>(null);
+   const [resendingId, setResendingId] = useState<string | null>(null);
 
    const filteredRequests = useMemo(() => {
       let result = visits;
@@ -91,6 +97,30 @@ const PendingApprovals = ({
    };
 
    const hasFilters = typeFilter.length > 0;
+
+   const handleResendApprovalEmail = async (request: HostVisitCardData) => {
+      if (resendingId) return;
+      setResendingId(request.id);
+      try {
+         await sendPendingApprovalReminderEmail({
+            visitorName: request.visitorName,
+            visitSummary: `${request.meetingType} · ${request.startDate}${
+               request.isMultiDay && request.endDate
+                  ? ` → ${request.endDate}`
+                  : ''
+            }`,
+         });
+         toast.success('Approval email resent', {
+            description: `Reminder sent for ${request.visitorName}'s visit request.`,
+         });
+      } catch {
+         toast.error('Could not resend email', {
+            description: 'Please try again in a moment.',
+         });
+      } finally {
+         setResendingId(null);
+      }
+   };
 
    return (
       <>
@@ -199,6 +229,24 @@ const PendingApprovals = ({
                         statusClassName="bg-orange-200 text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                         actions={
                            <>
+                              <Button
+                                 variant="outline"
+                                 size="sm"
+                                 className="h-8 cursor-pointer gap-1.5 px-2.5 text-xs"
+                                 disabled={resendingId === request.id}
+                                 onClick={() =>
+                                    handleResendApprovalEmail(request)
+                                 }
+                              >
+                                 {resendingId === request.id ? (
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                 ) : (
+                                    <Mail className="size-3.5" />
+                                 )}
+                                 {resendingId === request.id
+                                    ? 'Sending…'
+                                    : 'Resend Approval Email'}
+                              </Button>
                               <Button
                                  variant="outline"
                                  size="sm"

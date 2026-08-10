@@ -1,62 +1,53 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import {
-   DropdownMenu,
-   DropdownMenuCheckboxItem,
-   DropdownMenuContent,
-   DropdownMenuItem,
-   DropdownMenuLabel,
-   DropdownMenuSeparator,
-   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { useDepartments } from '@/hooks/use-departments';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
+import {
+   MEETING_TYPE_OPTIONS,
+   type MeetingTypeValue,
+} from '@/constants/meeting-types';
+import {
+   MANAGED_VISIT_STATUS_LABELS,
+   VISIT_DEPARTMENTS,
+} from '@/data/mock-visits';
 import { useDebounce } from '@/hooks/use-debounce';
+import type { ManagedVisitStatus } from '@/types/visit.types';
+import { ScanLine, Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Calendar, ChevronDown, CircleDot, Search } from 'lucide-react';
 import * as React from 'react';
-import type { DateFilter, VisitStatus } from '@/types/visit.types';
+import { ScanDialog } from './scan-dialog';
 
-const dateFilterLabels: Record<DateFilter, string> = {
-   all: 'All Dates',
-   today: 'Today',
-   yesterday: 'Yesterday',
-   last7days: 'Last 7 days',
-   last30days: 'Last 30 days',
+type VisitsTableFiltersProps = {
+   onScanBadge?: () => void;
+   onScanVisitorQr?: () => void;
 };
 
-export const statusFilterLabels: Record<VisitStatus, string> = {
-   active: 'Active',
-   completed: 'Completed',
-   cancelled: 'Cancelled',
-   overstay: 'Overstay',
-};
-
-const statusFilterColors: Record<VisitStatus, string> = {
-   active: 'text-emerald-600 dark:text-emerald-400',
-   completed: 'text-blue-600 dark:text-blue-400',
-   cancelled: 'text-red-600 dark:text-red-400',
-   overstay: 'text-amber-600 dark:text-amber-400',
-};
-
-export function VisitsTableFilters() {
+export function VisitsTableFilters({
+   onScanBadge,
+   onScanVisitorQr,
+}: VisitsTableFiltersProps) {
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
+   const [scanOpen, setScanOpen] = React.useState(false);
 
    const search = searchParams.get('search') ?? '';
    const statusFilter =
-      (searchParams.get('status') as VisitStatus | 'all') || 'all';
-   const dateFilter = (searchParams.get('dateFilter') as DateFilter) || 'all';
-   const departmentId = searchParams.get('departmentId')
-      ? Number(searchParams.get('departmentId'))
-      : 'all';
+      (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
+   const departmentFilter = searchParams.get('department') || 'all';
+   const meetingTypeFilter =
+      (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
 
    const [searchInput, setSearchInput] = React.useState(search);
-   const debouncedSearch = useDebounce(searchInput, 400);
-
-   const { data: departments = [] } = useDepartments();
+   const debouncedSearch = useDebounce(searchInput, 300);
+   const lastPushedSearch = React.useRef(search);
 
    const updateParams = React.useCallback(
       (updates: Record<string, string | number | null | undefined>) => {
@@ -80,23 +71,6 @@ export function VisitsTableFilters() {
       [pathname, router, searchParams],
    );
 
-   // // Keep the input synced if the URL changes externally (back/forward, clear filters)
-   // React.useEffect(() => {
-   //    setSearchInput(search);
-   //    // eslint-disable-next-line react-hooks/exhaustive-deps
-   // }, [search]);
-
-   // // Push debounced search to the URL
-   // React.useEffect(() => {
-   //    if (debouncedSearch === search) return;
-   //    updateParams({ search: debouncedSearch, page: 1 });
-   //    // eslint-disable-next-line react-hooks/exhaustive-deps
-   // }, [debouncedSearch]);
-
-   const lastPushedSearch = React.useRef(search);
-
-   // Sync FROM the URL only when it changed for a reason other than
-   // our own debounce push (e.g. back/forward nav, clearAllFilters)
    React.useEffect(() => {
       if (search !== lastPushedSearch.current) {
          setSearchInput(search);
@@ -104,148 +78,134 @@ export function VisitsTableFilters() {
       }
    }, [search]);
 
-   // Push debounced search TO the URL
    React.useEffect(() => {
       if (debouncedSearch === search) return;
-      lastPushedSearch.current = debouncedSearch; // mark BEFORE the async push resolves
+      lastPushedSearch.current = debouncedSearch;
       updateParams({ search: debouncedSearch, page: 1 });
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [debouncedSearch]);
+
+   const hasActiveFilters =
+      Boolean(search) ||
+      statusFilter !== 'all' ||
+      departmentFilter !== 'all' ||
+      meetingTypeFilter !== 'all';
 
    const clearAllFilters = () => {
       setSearchInput('');
       updateParams({
          search: null,
          status: null,
-         dateFilter: null,
-         departmentId: null,
+         department: null,
+         meetingType: null,
          page: 1,
       });
    };
 
-   const selectedDepartmentName =
-      departmentId === 'all'
-         ? 'More'
-         : departments.find((d) => d.id === departmentId)?.name || 'More';
-
    return (
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 border-b border-border p-4">
-         <div className="flex flex-wrap items-center gap-2">
-            {/* Search */}
-            <div className="relative w-full md:w-auto">
-               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-               <Input
-                  placeholder="Search visitor..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="pl-8 h-9 w-full md:w-75"
-               />
+      <>
+         <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+               <div className="relative w-full sm:max-w-xs">
+                  <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                     placeholder="Search visitor or visit ID…"
+                     value={searchInput}
+                     onChange={(e) => setSearchInput(e.target.value)}
+                     className="h-9 bg-background pl-8"
+                  />
+               </div>
+
+               <Select
+                  value={departmentFilter}
+                  onValueChange={(value) =>
+                     updateParams({ department: value, page: 1 })
+                  }
+               >
+                  <SelectTrigger className="h-9 w-full bg-background sm:w-[180px]">
+                     <SelectValue placeholder="Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">All departments</SelectItem>
+                     {VISIT_DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                           {dept}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+
+               <Select
+                  value={statusFilter}
+                  onValueChange={(value) =>
+                     updateParams({ status: value, page: 1 })
+                  }
+               >
+                  <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
+                     <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">All statuses</SelectItem>
+                     {(
+                        Object.keys(
+                           MANAGED_VISIT_STATUS_LABELS,
+                        ) as ManagedVisitStatus[]
+                     ).map((status) => (
+                        <SelectItem key={status} value={status}>
+                           {MANAGED_VISIT_STATUS_LABELS[status]}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+
+               <Select
+                  value={meetingTypeFilter}
+                  onValueChange={(value) =>
+                     updateParams({ meetingType: value, page: 1 })
+                  }
+               >
+                  <SelectTrigger className="h-9 w-full bg-background sm:w-[170px]">
+                     <SelectValue placeholder="Meeting type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">All meeting types</SelectItem>
+                     {MEETING_TYPE_OPTIONS.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                           {type.label}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+
+               {hasActiveFilters && (
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     className="h-9 gap-1.5 self-start text-muted-foreground"
+                     onClick={clearAllFilters}
+                  >
+                     <X className="size-3.5" />
+                     Clear
+                  </Button>
+               )}
             </div>
 
-            {/* Date filter */}
-            <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-2">
-                     <Calendar className="size-4" />
-                     {dateFilterLabels[dateFilter]}
-                     <ChevronDown className="size-4 text-muted-foreground" />
-                  </Button>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="start">
-                  {(Object.keys(dateFilterLabels) as DateFilter[]).map(
-                     (key) => (
-                        <DropdownMenuCheckboxItem
-                           key={key}
-                           checked={dateFilter === key}
-                           onCheckedChange={() =>
-                              updateParams({ dateFilter: key, page: 1 })
-                           }
-                        >
-                           {dateFilterLabels[key]}
-                        </DropdownMenuCheckboxItem>
-                     ),
-                  )}
-               </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Status filter */}
-            <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-2">
-                     <CircleDot className="size-4" />
-                     {statusFilter === 'all'
-                        ? 'All Status'
-                        : statusFilterLabels[statusFilter]}
-                     <ChevronDown className="size-4 text-muted-foreground" />
-                  </Button>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="start">
-                  <DropdownMenuCheckboxItem
-                     checked={statusFilter === 'all'}
-                     onCheckedChange={() =>
-                        updateParams({ status: 'all', page: 1 })
-                     }
-                  >
-                     All Status
-                  </DropdownMenuCheckboxItem>
-                  <DropdownMenuSeparator />
-                  {(Object.keys(statusFilterLabels) as VisitStatus[]).map(
-                     (key) => (
-                        <DropdownMenuCheckboxItem
-                           key={key}
-                           checked={statusFilter === key}
-                           onCheckedChange={() =>
-                              updateParams({ status: key, page: 1 })
-                           }
-                        >
-                           <span className={statusFilterColors[key]}>
-                              {statusFilterLabels[key]}
-                           </span>
-                        </DropdownMenuCheckboxItem>
-                     ),
-                  )}
-               </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Department + clear */}
-            <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-2">
-                     {selectedDepartmentName}
-                     <ChevronDown className="size-4 text-muted-foreground" />
-                  </Button>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="start">
-                  <DropdownMenuLabel className="text-xs">
-                     Department
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem
-                     checked={departmentId === 'all'}
-                     onCheckedChange={() =>
-                        updateParams({ departmentId: 'all', page: 1 })
-                     }
-                  >
-                     All Departments
-                  </DropdownMenuCheckboxItem>
-                  {departments.map((dept) => (
-                     <DropdownMenuCheckboxItem
-                        key={dept.id}
-                        checked={departmentId === dept.id}
-                        onCheckedChange={() =>
-                           updateParams({ departmentId: dept.id, page: 1 })
-                        }
-                     >
-                        {dept.name}
-                     </DropdownMenuCheckboxItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={clearAllFilters}>
-                     Clear all filters
-                  </DropdownMenuItem>
-               </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+               size="sm"
+               className="h-9 gap-2 self-start lg:self-auto"
+               onClick={() => setScanOpen(true)}
+            >
+               <ScanLine className="size-4" />
+               Scan
+            </Button>
          </div>
-      </div>
+
+         <ScanDialog
+            open={scanOpen}
+            onOpenChange={setScanOpen}
+            onScanBadge={onScanBadge}
+            onScanVisitorQr={onScanVisitorQr}
+         />
+      </>
    );
 }

@@ -8,31 +8,17 @@ import {
    TableRow,
 } from '@/components/ui/table';
 
-const COLUMN_WIDTHS = [
-   'w-4', // checkbox
-   'w-32', // visitor
-   'w-28', // phone
-   'w-20', // badge
-   'w-28', // host
-   'w-28', // department
-   'w-20', // check in
-   'w-20', // duration
-   'w-20', // status
-   'w-8', // actions
-];
-
 const COLUMN_HEADERS = [
-   null, // checkbox — no label
+   'Visit ID',
    'Visitor',
-   'Phone',
-   'Badge',
+   'Guests',
    'Host',
    'Department',
-   'Check In',
-   'Duration',
+   'Meeting type',
+   'Date & time',
    'Status',
-   null, // actions — no label
-];
+   null,
+] as const;
 
 interface VisitsTableSkeletonProps {
    rows?: number;
@@ -44,84 +30,133 @@ export function VisitsTableSkeleton({
    showFilters = true,
 }: VisitsTableSkeletonProps) {
    return (
-      <div className="rounded-xl border border-border bg-card">
-         {/* Filter bar skeleton */}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
          {showFilters && (
-            <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
-               {/* Search input */}
-               <Skeleton className="h-9 w-64 rounded-md" />
-               {/* Filter buttons */}
-               <Skeleton className="h-9 w-28 rounded-md" />
-               <Skeleton className="h-9 w-24 rounded-md" />
-               <Skeleton className="h-9 w-28 rounded-md" />
+            <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+               <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Skeleton className="h-9 w-full rounded-md sm:max-w-xs" />
+                  <Skeleton className="h-9 w-full rounded-md sm:w-[180px]" />
+                  <Skeleton className="h-9 w-full rounded-md sm:w-[160px]" />
+                  <Skeleton className="h-9 w-full rounded-md sm:w-[170px]" />
+               </div>
+               <Skeleton className="h-9 w-[4.75rem] self-start rounded-md lg:self-auto" />
             </div>
          )}
 
-         {/* Table skeleton */}
          <div className="overflow-x-auto">
             <Table>
                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableRow className="hover:bg-transparent">
                      {COLUMN_HEADERS.map((label, i) => (
                         <TableHead
-                           key={i}
-                           className="text-muted-foreground font-medium"
+                           key={label ?? `actions-${i}`}
+                           className="h-11 bg-muted/40 px-4 text-xs font-medium tracking-wide text-muted-foreground uppercase"
                         >
-                           {label ? (
-                              <div className="flex items-center gap-2">
-                                 <Skeleton className="size-4 rounded" />
-                                 <Skeleton className="h-3.5 w-14 rounded" />
-                              </div>
-                           ) : i === 0 ? (
-                              // Checkbox column header
-                              <Skeleton className="size-4 rounded" />
-                           ) : null}
+                           {label}
                         </TableHead>
                      ))}
                   </TableRow>
                </TableHeader>
                <TableBody>
-                  {Array.from({ length: rows }).map((_, rowIdx) => (
-                     <TableRow key={rowIdx}>
-                        {COLUMN_WIDTHS.map((width, colIdx) => (
-                           <TableCell key={colIdx}>
-                              {colIdx === 0 ? (
-                                 // Checkbox
-                                 <Skeleton className="size-4 rounded" />
-                              ) : colIdx === COLUMN_WIDTHS.length - 1 ? (
-                                 // Actions button
-                                 <Skeleton className="size-8 rounded-md" />
-                              ) : colIdx === 7 || colIdx === 8 ? (
-                                 // Duration / Status — pill shape
-                                 <Skeleton
-                                    className={`h-5 ${width} rounded-full`}
-                                 />
-                              ) : (
-                                 <Skeleton className={`h-4 ${width} rounded`} />
-                              )}
+                  {Array.from({ length: rows }).map((_, rowIdx) => {
+                     const showGroupHint = rowIdx % 3 === 1;
+
+                     return (
+                        <TableRow
+                           key={rowIdx}
+                           className="group/row border-border/70"
+                        >
+                           {/* Visit ID */}
+                           <TableCell className="px-4 py-3.5">
+                              <Skeleton className="h-3.5 w-[7.5rem] rounded" />
                            </TableCell>
-                        ))}
-                     </TableRow>
-                  ))}
+
+                           {/* Visitor */}
+                           <TableCell className="px-4 py-3.5">
+                              <div className="min-w-0 space-y-1.5">
+                                 <Skeleton className="h-4 w-28 rounded" />
+                                 {showGroupHint && (
+                                    <Skeleton className="h-3 w-24 rounded" />
+                                 )}
+                              </div>
+                           </TableCell>
+
+                           {/* Guests */}
+                           <TableCell className="px-4 py-3.5">
+                              <div className="inline-flex items-center gap-1.5">
+                                 <Skeleton className="size-3.5 rounded" />
+                                 <Skeleton className="h-4 w-4 rounded" />
+                              </div>
+                           </TableCell>
+
+                           {/* Host */}
+                           <TableCell className="px-4 py-3.5">
+                              <Skeleton className="h-4 w-24 rounded" />
+                           </TableCell>
+
+                           {/* Department */}
+                           <TableCell className="px-4 py-3.5">
+                              <Skeleton className="h-4 w-28 rounded" />
+                           </TableCell>
+
+                           {/* Meeting type */}
+                           <TableCell className="px-4 py-3.5">
+                              <Skeleton className="h-6 w-24 rounded-md" />
+                           </TableCell>
+
+                           {/* Date & time */}
+                           <TableCell className="px-4 py-3.5">
+                              <div className="space-y-1.5">
+                                 <Skeleton className="h-4 w-32 rounded" />
+                                 <Skeleton className="h-3 w-24 rounded" />
+                              </div>
+                           </TableCell>
+
+                           {/* Status */}
+                           <TableCell className="px-4 py-3.5">
+                              <Skeleton className="h-6 w-28 rounded-md" />
+                           </TableCell>
+
+                           {/* Actions */}
+                           <TableCell className="w-12 px-4 py-3.5">
+                              <div className="flex justify-end">
+                                 <Skeleton className="size-8 rounded-md" />
+                              </div>
+                           </TableCell>
+                        </TableRow>
+                     );
+                  })}
                </TableBody>
             </Table>
          </div>
 
-         {/* Pagination skeleton */}
-         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t">
-            <div className="flex items-center gap-2">
-               <Skeleton className="h-4 w-36 rounded" />
-               <Skeleton className="h-8 w-16 rounded-md" />
-               <Skeleton className="h-4 w-14 rounded" />
+         <div className="flex flex-col items-center justify-between gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
+            <div className="flex w-full flex-col gap-2 sm:w-auto">
+               <div className="flex items-center gap-2">
+                  <Skeleton className="h-2.5 w-12 rounded" />
+                  <Skeleton className="size-1 rounded-full" />
+                  <Skeleton className="h-2.5 w-10 rounded" />
+                  <Skeleton className="h-2.5 w-4 rounded" />
+                  <Skeleton className="h-2.5 w-6 rounded" />
+               </div>
+               <Skeleton className="h-11 w-44 rounded-2xl" />
             </div>
-            <div className="flex items-center gap-1">
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
-               <Skeleton className="size-8 rounded-md" />
+
+            <div className="flex flex-col items-center gap-3">
+               <div className="flex items-center gap-1 rounded-2xl border bg-background/80 p-2">
+                  <Skeleton className="size-10 rounded-xl" />
+                  <div className="mx-2 flex items-center gap-1.5">
+                     {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="size-10 rounded-xl" />
+                     ))}
+                  </div>
+                  <Skeleton className="size-10 rounded-xl" />
+               </div>
+               <div className="flex items-center gap-2">
+                  <Skeleton className="h-2.5 w-8 rounded" />
+                  <Skeleton className="size-1 rounded-full" />
+                  <Skeleton className="h-2.5 w-8 rounded" />
+               </div>
             </div>
          </div>
       </div>

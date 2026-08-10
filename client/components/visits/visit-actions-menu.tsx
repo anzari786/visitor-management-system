@@ -19,179 +19,177 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-   useCancelVisit,
-   useCheckOutVisit,
-   useCheckOutVisitById,
-} from '@/hooks/use-visits';
-import type { Visit } from '@/types/visit.types';
-import { Copy, Eye, LogOut, Trash2 } from 'lucide-react';
+   canCancel,
+   canCheckOut,
+   isGroupVisit,
+} from '@/lib/visit-attendance';
+import { sendPendingApprovalReminderEmail } from '@/services/visit-notification.service';
+import type { ManagedVisit } from '@/types/visit.types';
+import { Eye, Loader2, LogOut, Mail, XCircle } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
+import { CheckOutSuccessDialog } from './check-out-success-dialog';
 
 interface VisitActionsMenuProps {
-   visit: Visit;
+   visit: ManagedVisit;
    trigger: React.ReactNode;
    align?: 'start' | 'end';
-
-   onViewDetails?: (visit: Visit) => void;
-   onCheckOutSuccess?: () => void;
-   onCancelSuccess?: () => void;
+   onView?: (visit: ManagedVisit) => void;
+   onCheckOut?: (visit: ManagedVisit) => void;
+   onCancel?: (visit: ManagedVisit) => void;
+   onOpenAttendance?: (visit: ManagedVisit, mode: 'check_out') => void;
 }
 
 export function VisitActionsMenu({
    visit,
    trigger,
    align = 'end',
-   onViewDetails,
-   onCheckOutSuccess,
-   onCancelSuccess,
+   onView,
+   onCheckOut,
+   onCancel,
+   onOpenAttendance,
 }: VisitActionsMenuProps) {
    const [checkOutOpen, setCheckOutOpen] = React.useState(false);
+   const [successOpen, setSuccessOpen] = React.useState(false);
    const [cancelOpen, setCancelOpen] = React.useState(false);
+   const [isResending, setIsResending] = React.useState(false);
 
-   const { mutate: checkOut, isPending: isCheckingOut } =
-      useCheckOutVisitById();
-   const { mutate: cancelVisit, isPending: isCancelling } = useCancelVisit();
+   const group = isGroupVisit(visit);
+   const showCheckOut = canCheckOut(visit);
+   const showCancel = canCancel(visit.status);
+   const showResendApproval = visit.status === 'requested';
 
-   const isFinal = visit.status === 'completed' || visit.status === 'cancelled';
+   const requestCheckOut = () => {
+      if (group) {
+         onOpenAttendance?.(visit, 'check_out');
+         return;
+      }
+      setCheckOutOpen(true);
+   };
 
-   const handleCheckOut = () => {
-      checkOut(visit.id, {
-         onSuccess: () => {
-            toast.success(`${visit.visitorName} checked out`);
-            setCheckOutOpen(false);
-            onCheckOutSuccess?.();
-         },
-         onError: () =>
-            toast.error('Failed to check out visitor. Please try again.'),
-      });
+   const handleCheckOutConfirm = () => {
+      onCheckOut?.(visit);
+      setSuccessOpen(true);
    };
 
    const handleCancel = () => {
-      cancelVisit(visit.id, {
-         onSuccess: () => {
-            toast.success(`${visit.visitorName}'s visit cancelled`);
-            setCancelOpen(false);
-            onCancelSuccess?.();
-         },
-         onError: () =>
-            toast.error('Failed to cancel visit. Please try again.'),
-      });
+      onCancel?.(visit);
+      toast.success(`Visit ${visit.id} cancelled`);
+      setCancelOpen(false);
    };
+
+   const handleResendApprovalEmail = async () => {
+      if (isResending) return;
+      setIsResending(true);
+      try {
+         await sendPendingApprovalReminderEmail({
+            visitorName: visit.visitorName,
+            visitSummary: `${visit.id} · ${visit.meetingType}`,
+         });
+         toast.success('Approval email resent', {
+            description: `Reminder sent for ${visit.visitorName}'s visit request.`,
+         });
+      } catch {
+         toast.error('Could not resend email', {
+            description: 'Please try again in a moment.',
+         });
+      } finally {
+         setIsResending(false);
+      }
+   };
+
+   const primaryVisitor =
+      visit.visitors.find((v) => v.name === visit.visitorName) ??
+      visit.visitors[0];
 
    return (
       <>
          <DropdownMenu>
-            <DropdownMenuTrigger
-               asChild
-               disabled={isCheckingOut || isCancelling}
-            >
-               {trigger}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align={align}>
+            <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+            <DropdownMenuContent align={align} className="w-52">
                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+               <DropdownMenuSeparator />
 
-               <DropdownMenuItem
-                  onClick={() => {
-                     const badgeNumber = visit.badge.split('-').pop();
-                     navigator.clipboard.writeText(badgeNumber ?? visit.badge);
-                  }}
-               >
-                  <Copy className="size-4 mr-2" />
-                  Copy Badge
+               <DropdownMenuItem onClick={() => onView?.(visit)}>
+                  <Eye className="size-4" />
+                  View
                </DropdownMenuItem>
 
-               {onViewDetails && (
-                  <>
-                     <DropdownMenuSeparator />
-                     <DropdownMenuItem onClick={() => onViewDetails(visit)}>
-                        <Eye className="size-4 mr-2" />
-                        View Details
-                     </DropdownMenuItem>
-                  </>
+               {showResendApproval && (
+                  <DropdownMenuItem
+                     disabled={isResending}
+                     onSelect={(event) => {
+                        event.preventDefault();
+                        void handleResendApprovalEmail();
+                     }}
+                  >
+                     {isResending ? (
+                        <Loader2 className="size-4 animate-spin" />
+                     ) : (
+                        <Mail className="size-4" />
+                     )}
+                     {isResending ? 'Sending…' : 'Resend Approval Email'}
+                  </DropdownMenuItem>
                )}
 
-               {!isFinal && (
+               {showCheckOut && (
+                  <DropdownMenuItem onClick={requestCheckOut}>
+                     <LogOut className="size-4" />
+                     Check Out
+                  </DropdownMenuItem>
+               )}
+
+               {showCancel && (
                   <>
                      <DropdownMenuSeparator />
                      <DropdownMenuItem
-                        onSelect={(e) => e.preventDefault()}
-                        asChild
-                     >
-                        <button
-                           className="flex w-full items-center px-2 py-1.5 text-sm"
-                           onClick={() => setCheckOutOpen(true)}
-                        >
-                           <LogOut className="size-4 mr-2" />
-                           Check Out
-                        </button>
-                     </DropdownMenuItem>
-                     <DropdownMenuItem
                         variant="destructive"
-                        onSelect={(e) => e.preventDefault()}
-                        asChild
+                        onClick={() => setCancelOpen(true)}
                      >
-                        <button
-                           className="flex w-full items-center px-2 py-1.5 text-sm"
-                           onClick={() => setCancelOpen(true)}
-                        >
-                           <Trash2 className="size-4 mr-2" />
-                           Cancel Visit
-                        </button>
+                        <XCircle className="size-4" />
+                        Cancel
                      </DropdownMenuItem>
                   </>
                )}
             </DropdownMenuContent>
          </DropdownMenu>
 
-         {/* Check Out confirmation */}
-         <AlertDialog open={checkOutOpen} onOpenChange={setCheckOutOpen}>
-            <AlertDialogContent>
-               <AlertDialogHeader>
-                  <AlertDialogTitle>Confirm Visitor Check-Out</AlertDialogTitle>
-                  <AlertDialogDescription>
-                     Are you sure you want to check out{' '}
-                     <span className="font-semibold text-foreground">
-                        {visit.visitorName}
-                     </span>
-                     ? The visit will be marked as completed, and the visitor
-                     will be removed from the active visitor list.
-                  </AlertDialogDescription>
-               </AlertDialogHeader>
-               <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Visit Active</AlertDialogCancel>
-                  <AlertDialogAction
-                     onClick={handleCheckOut}
-                     disabled={isCheckingOut}
-                  >
-                     {isCheckingOut ? 'Checking out…' : 'Check Out'}
-                  </AlertDialogAction>
-               </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
+         <CheckOutConfirmDialog
+            open={checkOutOpen}
+            onOpenChange={setCheckOutOpen}
+            visit={visit}
+            visitors={primaryVisitor ? [primaryVisitor] : []}
+            onConfirm={handleCheckOutConfirm}
+         />
 
-         {/* Cancel confirmation */}
+         <CheckOutSuccessDialog
+            open={successOpen}
+            onOpenChange={setSuccessOpen}
+            visitorLabel={visit.visitorName}
+            visitId={visit.id}
+         />
+
          <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
             <AlertDialogContent>
                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                     Confirm Visit Cancellation
-                  </AlertDialogTitle>
+                  <AlertDialogTitle>Cancel visit</AlertDialogTitle>
                   <AlertDialogDescription>
-                     Are you sure you want to cancel{' '}
+                     Cancel visit{' '}
+                     <span className="font-mono text-foreground">
+                        {visit.id}
+                     </span>{' '}
+                     for{' '}
                      <span className="font-semibold text-foreground">
                         {visit.visitorName}
                      </span>
-                     's visit? This action cannot be undone.
+                     ? This cannot be undone.
                   </AlertDialogDescription>
                </AlertDialogHeader>
                <AlertDialogFooter>
-                  <AlertDialogCancel>Go Back</AlertDialogCancel>
-                  <AlertDialogAction
-                     onClick={handleCancel}
-                     disabled={isCancelling}
-                  >
-                     {isCancelling ? 'Cancelling…' : 'Cancel Visit'}
+                  <AlertDialogCancel>Go back</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancel}>
+                     Cancel visit
                   </AlertDialogAction>
                </AlertDialogFooter>
             </AlertDialogContent>

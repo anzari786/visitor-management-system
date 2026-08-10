@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 
 export default function VisitsPage() {
    return (
-      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 bg-background w-full">
+      <div className="w-full space-y-5 bg-background p-3 sm:space-y-6 sm:p-4 md:p-6">
          <VisitsToolbar />
          <Suspense fallback={<VisitsTableSkeleton rows={10} />}>
             <VisitsTable />

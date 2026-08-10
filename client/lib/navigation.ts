@@ -8,7 +8,6 @@ import {
    LayoutGrid,
    LucideIcon,
    Settings,
-   UserCircle,
    Users,
 } from 'lucide-react';
 
@@ -75,14 +74,6 @@ export const navigation: NavigationItem[] = [
       href: '/settings',
       group: 'Administration',
       roles: ['admin'],
-   },
-   {
-      title: 'Profile',
-      icon: UserCircle,
-      href: '/profile',
-      group: 'Workspace',
-      roles: ['admin', 'front_desk'],
-      hidden: true,
    },
 ];
 

@@ -15,6 +15,7 @@ const userSelect = {
    lastName: true,
    username: true,
    phone: true,
+   avatar: true,
    isActive: true,
    mustChangePassword: true,
    lastLoginAt: true, // add this
@@ -30,8 +31,8 @@ const userSelect = {
    },
    _count: {
       select: {
-         checkedInVisits: true,
-         checkedOutVisits: true,
+         attendancesCheckedIn: true,
+         attendancesCheckedOut: true,
       },
    },
 } satisfies Prisma.UserSelect;
@@ -46,13 +47,14 @@ const formatUser = (user: UserWithCounts) => ({
    lastName: user.lastName,
    username: user.username,
    phone: user.phone ?? undefined,
+   avatar: user.avatar ?? undefined,
    roles: user.userRoles.map((userRole) => userRole.role.name),
    isActive: user.isActive,
    mustChangePassword: user.mustChangePassword,
    lastLoginAt: user.lastLoginAt ?? undefined, // add this
    createdAt: user.createdAt,
-   checkIns: user._count.checkedInVisits,
-   checkOuts: user._count.checkedOutVisits,
+   checkIns: user._count.attendancesCheckedIn,
+   checkOuts: user._count.attendancesCheckedOut,
 });
 
 const generateTempPassword = () => crypto.randomBytes(6).toString('base64url');

@@ -16,6 +16,7 @@ const userSelect = {
    lastName: true,
    username: true,
    phone: true,
+   avatar: true,
    isActive: true,
    mustChangePassword: true,
    createdAt: true,
@@ -30,8 +31,8 @@ const userSelect = {
    },
    _count: {
       select: {
-         checkedInVisits: true,
-         checkedOutVisits: true,
+         attendancesCheckedIn: true,
+         attendancesCheckedOut: true,
       },
    },
 } satisfies Prisma.UserSelect;
@@ -44,12 +45,13 @@ const formatUser = (user: UserWithCounts) => ({
    lastName: user.lastName,
    username: user.username,
    phone: user.phone ?? undefined,
+   avatar: user.avatar ?? undefined,
    roles: user.userRoles.map((userRole) => userRole.role.name),
    isActive: user.isActive,
    mustChangePassword: user.mustChangePassword,
    createdAt: user.createdAt,
-   checkIns: user._count.checkedInVisits,
-   checkOuts: user._count.checkedOutVisits,
+   checkIns: user._count.attendancesCheckedIn,
+   checkOuts: user._count.attendancesCheckedOut,
 });
 
 export const login = async (req: Request, res: Response) => {
@@ -60,7 +62,7 @@ export const login = async (req: Request, res: Response) => {
       select: { ...userSelect, passwordHash: true },
    });
 
-   if (!user) {
+   if (!user || !user.passwordHash) {
       throw new UnauthorizedError('Invalid credentials', 'INVALID_USERNAME');
    }
 
@@ -137,10 +139,9 @@ export const getCurrentUser = async (req: Request, res: Response) => {
    });
 };
 
-// New — matches authService.updateProfile() / PATCH /auth/me
 export const updateProfile = async (req: Request, res: Response) => {
    const userId = req.session.userId;
-   const { username, phone } = req.body;
+   const { firstName, lastName, username, phone, avatar } = req.body;
 
    const usernameTaken = await prisma.user.findFirst({
       where: { username, NOT: { id: userId } },
@@ -152,7 +153,15 @@ export const updateProfile = async (req: Request, res: Response) => {
 
    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { username, phone },
+      data: {
+         firstName,
+         lastName,
+         username,
+         phone,
+         ...(avatar !== undefined
+            ? { avatar: avatar === '' || avatar === null ? null : avatar }
+            : {}),
+      },
       select: userSelect,
    });
 
@@ -184,7 +193,7 @@ export const changePassword = async (req: Request, res: Response) => {
       },
    });
 
-   if (!user) {
+   if (!user || !user.passwordHash) {
       throw new NotFoundError('User not found');
    }
 
@@ -209,26 +218,12 @@ export const changePassword = async (req: Request, res: Response) => {
 
    await prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: false },
    });
 
-   const roles = user.userRoles.map((userRole) => userRole.role.name);
-
-   req.session.regenerate((error) => {
-      if (error) {
-         return res.status(500).json({
-            success: false,
-            message: 'Session regeneration failed',
-         });
-      }
-
-      req.session.userId = user.id;
-      req.session.roles = roles;
-
-      return res.status(200).json({
-         success: true,
-         message: 'Password changed successfully',
-      });
+   return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
    });
 };
 
@@ -236,15 +231,28 @@ export const forceChangePassword = async (req: Request, res: Response) => {
    const userId = req.session.userId;
    const { newPassword } = req.body;
 
-   const user = await prisma.user.findUnique({ where: { id: userId } });
+   const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+         id: true,
+         passwordHash: true,
+         mustChangePassword: true,
+      },
+   });
 
-   if (!user) {
+   if (!user || !user.passwordHash) {
       throw new NotFoundError('User not found');
    }
 
    if (!user.mustChangePassword) {
+      throw new BadRequestError('Password change is not required');
+   }
+
+   const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash);
+
+   if (isSamePassword) {
       throw new BadRequestError(
-         'Password change is not required for this account',
+         'New password must be different from current password',
       );
    }
 
@@ -252,43 +260,31 @@ export const forceChangePassword = async (req: Request, res: Response) => {
 
    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-         passwordHash,
-         mustChangePassword: false,
-      },
+      data: { passwordHash, mustChangePassword: false },
       select: userSelect,
-   });
-
-   const roles = updatedUser.userRoles.map((userRole) => userRole.role.name);
-
-   req.session.regenerate((error) => {
-      if (error) {
-         return res.status(500).json({
-            success: false,
-            message: 'Session regeneration failed',
-         });
-      }
-
-      req.session.userId = updatedUser.id;
-      req.session.roles = roles;
-
-      return res.status(200).json({
-         success: true,
-         message: 'Password updated successfully',
-         data: formatUser(updatedUser),
-      });
-   });
-};
-
-export const checkUsername = async (req: Request, res: Response) => {
-   const { username } = req.query as { username: string };
-
-   const existingUser = await prisma.user.findUnique({
-      where: { username },
    });
 
    return res.status(200).json({
       success: true,
-      data: { available: !existingUser },
+      message: 'Password updated successfully',
+      data: formatUser(updatedUser),
+   });
+};
+
+export const checkUsername = async (req: Request, res: Response) => {
+   const username = String(req.query.username ?? '');
+   const currentUserId = req.session.userId;
+
+   const existing = await prisma.user.findFirst({
+      where: {
+         username,
+         ...(currentUserId ? { NOT: { id: currentUserId } } : {}),
+      },
+      select: { id: true },
+   });
+
+   return res.status(200).json({
+      success: true,
+      data: { available: !existing },
    });
 };

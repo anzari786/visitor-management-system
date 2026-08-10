@@ -1,11 +1,33 @@
 import { z } from 'zod';
 import { isValidEthiopianPhone } from '../phone';
 
+export function splitFullName(fullName: string) {
+   const parts = fullName.trim().split(/\s+/).filter(Boolean);
+   return {
+      firstName: parts[0] ?? '',
+      lastName: parts.slice(1).join(' '),
+   };
+}
+
 export const profileSchema = z.object({
+   fullName: z
+      .string()
+      .trim()
+      .min(1, 'Full name is required')
+      .refine((value) => value.split(/\s+/).filter(Boolean).length >= 2, {
+         message: 'Enter your first and last name',
+      })
+      .refine(
+         (value) => {
+            const { firstName, lastName } = splitFullName(value);
+            return firstName.length <= 50 && lastName.length <= 50;
+         },
+         { message: 'Name must be 50 characters or fewer per part' },
+      ),
    username: z
       .string()
       .min(3, 'Username must be at least 3 characters')
-      .max(50, 'Username must be 30 characters or fewer')
+      .max(50, 'Username must be 50 characters or fewer')
       .regex(
          /^[a-zA-Z0-9_]+$/,
          'Username may only contain letters, numbers, and underscores',

@@ -1,18 +1,18 @@
-import { redirect } from 'next/navigation';
-import { getServerUser } from '@/lib/auth-server';
-import { canAccess } from '@/lib/access';
-import { SettingsTabs } from '@/components/settings/settings-tabs';
+'use client';
 
-export default async function SettingsPage() {
-   const user = await getServerUser();
+import { useSettingsDialogStore } from '@/store/settings-dialog-store';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-   if (!user || !canAccess(user.role, 'settings')) {
-      redirect('/');
-   }
+/** Settings is a dialog; open it and return to the dashboard. */
+export default function SettingsPage() {
+   const router = useRouter();
+   const setOpen = useSettingsDialogStore((s) => s.setOpen);
 
-   return (
-      <div className="p-3 sm:p-4 md:p-6 bg-background">
-         <SettingsTabs />
-      </div>
-   );
+   useEffect(() => {
+      setOpen(true);
+      router.replace('/dashboard');
+   }, [router, setOpen]);
+
+   return null;
 }

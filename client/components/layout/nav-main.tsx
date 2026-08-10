@@ -20,6 +20,8 @@ import {
    SidebarMenuSubButton,
    SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
+import type { NavigationAction } from '@/lib/navigation';
+import { useSettingsDialogStore } from '@/store/settings-dialog-store';
 
 export type NavItem = {
    label?: string;
@@ -27,6 +29,7 @@ export type NavItem = {
    title?: string;
    icon?: LucideIcon;
    href?: string;
+   action?: NavigationAction;
    children?: NavItem[];
 };
 
@@ -122,6 +125,30 @@ function NavMainItem({
                      </CollapsibleContent>
                   </SidebarMenuItem>
                </Collapsible>
+            </SidebarMenu>
+         </SidebarGroup>
+      );
+   }
+
+   if (item.title && item.action) {
+      return (
+         <SidebarGroup className="p-0">
+            <SidebarMenu>
+               <SidebarMenuItem>
+                  <SidebarMenuButton
+                     id={`nav-main-button-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                     tooltip={item.title}
+                     className="h-9 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-colors"
+                     onClick={() => {
+                        if (item.action === 'open-settings') {
+                           useSettingsDialogStore.getState().setOpen(true);
+                        }
+                     }}
+                  >
+                     {item.icon && <item.icon size={16} />}
+                     <span>{item.title}</span>
+                  </SidebarMenuButton>
+               </SidebarMenuItem>
             </SidebarMenu>
          </SidebarGroup>
       );

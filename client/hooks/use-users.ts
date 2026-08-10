@@ -1,52 +1,112 @@
-import { usersService } from '@/services/users.service';
-import type { ApiErrorResponse } from '@/types/api.types';
-import {
+'use client';
+
+import { getUserFullName } from '@/lib/user';
+import { useMockUsersStore } from '@/store/mock-users-store';
+import type {
    ChangeUserRolePayload,
    CreateUserPayload,
    ToggleUserStatusPayload,
    UpdateUserPayload,
    User,
+   UsersPaginatedData,
+   UsersParams,
 } from '@/types/user.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AxiosError } from 'axios';
+import * as React from 'react';
 
+/**
+ * Query keys mirror the future API-backed shape so list/detail caching
+ * can move to `usersService` without rewriting consumers.
+ */
 export const userQueryKeys = {
    all: ['users'] as const,
    lists: () => [...userQueryKeys.all, 'list'] as const,
+   list: (params: UsersParams) => [...userQueryKeys.lists(), params] as const,
    detail: (id: number) => [...userQueryKeys.all, 'detail', id] as const,
 };
 
-type ApiError = AxiosError<ApiErrorResponse>;
+function filterUsers(users: User[], params: UsersParams): UsersPaginatedData {
+   const search = params.search?.trim().toLowerCase();
+   let filtered = users;
 
-export function useUsers() {
+   if (search) {
+      filtered = filtered.filter((user) => {
+         const fullName = getUserFullName(user).toLowerCase();
+         return (
+            fullName.includes(search) ||
+            user.username.toLowerCase().includes(search) ||
+            (user.phone?.toLowerCase().includes(search) ?? false)
+         );
+      });
+   }
+
+   if (params.role && params.role !== 'all') {
+      filtered = filtered.filter((user) => user.role === params.role);
+   }
+
+   if (params.status && params.status !== 'all') {
+      const isActive = params.status === 'active';
+      filtered = filtered.filter((user) => user.isActive === isActive);
+   }
+
+   const total = filtered.length;
+   const pageCount = Math.max(1, Math.ceil(total / params.pageSize));
+   const page = Math.min(params.page, pageCount);
+   const start = (page - 1) * params.pageSize;
+   const data = filtered.slice(start, start + params.pageSize);
+
+   return {
+      data,
+      total,
+      page,
+      pageSize: params.pageSize,
+      pageCount: total === 0 ? 0 : pageCount,
+   };
+}
+
+function useMockUsersVersion() {
+   const users = useMockUsersStore((state) => state.users);
+   return users;
+}
+
+/** Paginated users list — currently filtered from mock store data. */
+export function useUsers(params: UsersParams) {
+   const users = useMockUsersVersion();
+
    return useQuery({
-      queryKey: userQueryKeys.lists(),
-      queryFn: async () => {
-         const { data } = await usersService.getAll();
-         return data.data;
-      },
+      queryKey: [...userQueryKeys.list(params), users],
+      queryFn: async () => filterUsers(users, params),
+      placeholderData: (previous) => previous,
    });
 }
 
-export function useUser(id: number) {
+export function useUsersCount() {
+   const users = useMockUsersVersion();
+   return users.length;
+}
+
+export function useUser(id: number | null) {
+   const users = useMockUsersVersion();
+
    return useQuery({
-      queryKey: userQueryKeys.detail(id),
+      queryKey: [...userQueryKeys.detail(id ?? 0), users],
       queryFn: async () => {
-         const { data } = await usersService.getById(id);
-         return data.data;
+         const user = users.find((item) => item.id === id);
+         if (!user) {
+            throw new Error('User not found');
+         }
+         return user;
       },
       enabled: !!id,
    });
 }
 
 export function useCreateUser() {
+   const createUser = useMockUsersStore((state) => state.createUser);
    const queryClient = useQueryClient();
 
-   return useMutation<User, ApiError, CreateUserPayload>({
-      mutationFn: async (values) => {
-         const { data } = await usersService.create(values);
-         return data.data;
-      },
+   return useMutation({
+      mutationFn: async (payload: CreateUserPayload) => createUser(payload),
       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       },
@@ -54,77 +114,61 @@ export function useCreateUser() {
 }
 
 export function useUpdateUser() {
+   const updateUser = useMockUsersStore((state) => state.updateUser);
    const queryClient = useQueryClient();
 
-   return useMutation<User, ApiError, UpdateUserPayload>({
-      mutationFn: async (payload) => {
-         const { data } = await usersService.update(payload);
-         return data.data;
-      },
-      onSuccess(updatedUser) {
-         queryClient.setQueryData(
-            userQueryKeys.detail(updatedUser.id),
-            updatedUser,
-         );
-         queryClient.setQueryData<User[]>(userQueryKeys.lists(), (prev) =>
-            prev?.map((u) => (u.id === updatedUser.id ? updatedUser : u)),
-         );
-      },
-   });
-}
-
-export function useDeleteUser() {
-   const queryClient = useQueryClient();
-
-   return useMutation<void, ApiError, number>({
-      mutationFn: async (id) => {
-         await usersService.delete(id);
-      },
-      onSuccess: () => {
+   return useMutation({
+      mutationFn: async (payload: UpdateUserPayload) => updateUser(payload),
+      onSuccess: (updated) => {
+         queryClient.setQueryData(userQueryKeys.detail(updated.id), updated);
          queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       },
    });
 }
 
 export function useResetPassword() {
-   return useMutation<{ tempPassword: string }, ApiError, number>({
-      mutationFn: async (id) => {
-         const { data } = await usersService.resetPassword(id);
-         return data.data;
-      },
+   const resetPassword = useMockUsersStore((state) => state.resetPassword);
+
+   return useMutation({
+      mutationFn: async (id: number) => resetPassword(id),
    });
 }
 
 export function useChangeRole() {
+   const changeRole = useMockUsersStore((state) => state.changeRole);
    const queryClient = useQueryClient();
 
-   return useMutation<User, ApiError, ChangeUserRolePayload>({
-      mutationFn: async (payload) => {
-         const { data } = await usersService.changeRole(payload);
-         return data.data;
-      },
+   return useMutation({
+      mutationFn: async ({ id, role }: ChangeUserRolePayload) =>
+         changeRole(id, role),
       onSuccess: (updated) => {
          queryClient.setQueryData(userQueryKeys.detail(updated.id), updated);
-         queryClient.setQueryData<User[]>(userQueryKeys.lists(), (prev) =>
-            prev?.map((u) => (u.id === updated.id ? updated : u)),
-         );
+         queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       },
    });
 }
 
 export function useToggleUserStatus() {
+   const toggleStatus = useMockUsersStore((state) => state.toggleStatus);
    const queryClient = useQueryClient();
 
-   return useMutation<User, ApiError, ToggleUserStatusPayload>({
-      mutationFn: async (payload) => {
-         const { data } = await usersService.toggleStatus(payload);
-         return data.data;
-      },
+   return useMutation({
+      mutationFn: async ({ id, isActive }: ToggleUserStatusPayload) =>
+         toggleStatus(id, isActive),
       onSuccess: (updated) => {
          queryClient.setQueryData(userQueryKeys.detail(updated.id), updated);
-         queryClient.setQueryData<User[]>(userQueryKeys.lists(), (prev) =>
-            prev?.map((u) => (u.id === updated.id ? updated : u)),
-         );
+         queryClient.invalidateQueries({ queryKey: userQueryKeys.lists() });
       },
    });
+}
+
+/** Small helper for optimistic role UI in menus. */
+export function useSyncedRole(user: User) {
+   const [role, setRole] = React.useState(user.role);
+
+   React.useEffect(() => {
+      setRole(user.role);
+   }, [user.role]);
+
+   return [role, setRole] as const;
 }

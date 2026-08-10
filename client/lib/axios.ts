@@ -9,15 +9,15 @@ export const api = axios.create({
    },
 });
 
-const PUBLIC_AUTH_PATHS = ['/auth/login'];
+const PUBLIC_API_PATHS = ['/auth/login', '/public/'];
 
 api.interceptors.response.use(
    (response) => response,
    (error) => {
       const url = error.config?.url ?? '';
-      const isPublicAuthCall = PUBLIC_AUTH_PATHS.some((p) => url.includes(p));
+      const isPublicApiCall = PUBLIC_API_PATHS.some((p) => url.includes(p));
 
-      if (error.response?.status === 401 && !isPublicAuthCall) {
+      if (error.response?.status === 401 && !isPublicApiCall) {
          useAuthStore.getState().clearAuth();
          if (window.location.pathname !== '/login') {
             window.location.href = '/login';

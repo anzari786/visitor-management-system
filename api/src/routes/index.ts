@@ -4,6 +4,7 @@ import authRoutes from './auth.routes.js';
 import badgeRoutes from './badge.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import departmentRoutes from './department.routes.js';
+import publicRoutes from './public.routes.js';
 import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 import userRoutes from './user.routes.js';
@@ -13,6 +14,8 @@ const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/dashboard', dashboardRoutes);
+
+router.use('/public', publicRoutes);
 
 router.use('/users', userRoutes);
 router.use('/visits', visitRoutes);

@@ -21,7 +21,6 @@ import {
 
 const router = Router();
 
-// Account and role management is an administrative function throughout.
 router.use(requireAuth, requireRole('ADMIN'));
 
 router.post('/', validate(createUserSchema), postUser);
@@ -31,7 +30,7 @@ router.patch('/:id', validate(updateUserSchema), patchUser);
 
 router.post('/:id/roles', validate(assignRoleSchema), postUserRole);
 router.delete(
-   '/:id/roles/:roleCode',
+   '/:id/roles/:role',
    validate(removeRoleParamSchema),
    deleteUserRole,
 );

@@ -1,33 +1,98 @@
 import {
    Prisma,
+   type RoleName,
    type VisitDurationType,
+   type VisitPurpose,
    type VisitorGroupType,
    type VisitStatus,
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
-import { BadRequestError, NotFoundError } from '../../lib/errors.js';
+import {
+   BadRequestError,
+   ForbiddenError,
+   NotFoundError,
+} from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
 import type { PaginationParams } from '../../utils/pagination.js';
 import { generateVisitCode } from '../../utils/visit-code.js';
 import { generateQrToken } from '../../services/qr.service.js';
+import {
+   notifyHostInvitation,
+   notifyVisitApproved,
+   notifyVisitCancelled,
+   notifyVisitRejected,
+   notifyVisitRescheduled,
+   notifyVisitSubmitted,
+} from '../../services/visit-notifications.service.js';
 import { findOrCreateVisitor } from '../visitors/visitor.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
 import type {
+   ApproveVisitInput,
    CreateVisitInput,
    CreateVisitMeta,
+   RescheduleVisitInput,
    ScheduleDateInput,
    VisitDetail,
    VisitSummary,
 } from './visit.types.js';
 
+const HOST_DECISION_ROLES: RoleName[] = ['MANAGER', 'ADMIN', 'RECEPTION'];
+const HOST_MODIFY_ROLES: RoleName[] = [
+   'MANAGER',
+   'ADMIN',
+   'RECEPTION',
+   'GUARD',
+];
+
 const MAX_CODE_GENERATION_ATTEMPTS = 5;
 
-/**
- * Creates the Visit row with a fresh visitCode/qrToken pair, retrying on
- * the rare chance of a collision against the unique constraints.
- */
+const PURPOSE_VALUES = new Set<VisitPurpose>([
+   'MEETING',
+   'INTERVIEW',
+   'DELIVERY',
+   'OFFICIAL_VISIT',
+   'MAINTENANCE',
+   'OTHER',
+]);
+
+const toVisitPurpose = (purpose: string): VisitPurpose => {
+   const normalized = purpose.trim().toUpperCase().replace(/\s+/g, '_');
+   if (PURPOSE_VALUES.has(normalized as VisitPurpose)) {
+      return normalized as VisitPurpose;
+   }
+   return 'OTHER';
+};
+
+const formatHhMm = (value?: Date): string => {
+   if (!value) return '09:00';
+   const hours = String(value.getHours()).padStart(2, '0');
+   const minutes = String(value.getMinutes()).padStart(2, '0');
+   return `${hours}:${minutes}`;
+};
+
+const uniqueDates = (scheduleDates: ScheduleDateInput[]): Date[] => {
+   const seen = new Set<string>();
+   const dates: Date[] = [];
+
+   for (const schedule of scheduleDates) {
+      const day = new Date(schedule.date);
+      day.setHours(0, 0, 0, 0);
+      const key = day.toISOString().slice(0, 10);
+      if (!seen.has(key)) {
+         seen.add(key);
+         dates.push(day);
+      }
+   }
+
+   return dates.sort((a, b) => a.getTime() - b.getTime());
+};
+
 const createVisitWithUniqueCode = async (
-   data: Omit<Prisma.VisitUncheckedCreateInput, 'visitCode' | 'qrToken'>,
+   data: Omit<Prisma.VisitUncheckedCreateInput, 'visitCode' | 'qrToken'> & {
+      days?: { create: Array<{ date: Date }> };
+      participants?: { create: Array<{ visitorId: number }> };
+      statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
+   },
 ): Promise<VisitDetail> => {
    for (let attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt += 1) {
       try {
@@ -51,7 +116,6 @@ const createVisitWithUniqueCode = async (
       }
    }
 
-   // Unreachable — the loop above always returns or throws.
    throw new Error('Failed to generate a unique visit code');
 };
 
@@ -64,16 +128,67 @@ const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
 };
 
 /**
- * Shared core for both the public visitor-request and guard
- * walk-in paths — they differ only in isAssisted/createdById, everything
- * else about building the Visit aggregate is identical.
- *
- * Department/host details are snapshotted onto the visit at creation
- * time so historical reporting survives later HR re-organizations.
- *
- * NOTE: this does not pre-generate VisitAttendance rows for each
- * participant/schedule pairing — that belongs to the Attendance module,
- * which should create them once a visit reaches APPROVED.
+ * Hosts are Employees (optionally linked to a User). Staff roles can act on
+ * any visit; a linked host user may only act on their own visits.
+ */
+export const assertVisitActorAccess = async (
+   visitHostEmployeeId: number | null,
+   actorId: number,
+   actorRoles: RoleName[],
+   allowedStaffRoles: RoleName[],
+) => {
+   if (actorRoles.some((role) => allowedStaffRoles.includes(role))) {
+      return;
+   }
+
+   const actor = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: { employeeId: true },
+   });
+
+   if (
+      actor?.employeeId &&
+      visitHostEmployeeId &&
+      actor.employeeId === visitHostEmployeeId
+   ) {
+      return;
+   }
+
+   throw new ForbiddenError(
+      'You do not have permission to manage this visit',
+   );
+};
+
+const seedExpectedAttendances = async (visitId: number) => {
+   const [participants, days] = await Promise.all([
+      prisma.visitParticipant.findMany({
+         where: { visitId },
+         select: { id: true },
+      }),
+      prisma.visitDay.findMany({
+         where: { visitId },
+         select: { id: true },
+      }),
+   ]);
+
+   if (!participants.length || !days.length) {
+      return;
+   }
+
+   await prisma.visitAttendance.createMany({
+      data: participants.flatMap((participant) =>
+         days.map((day) => ({
+            participantId: participant.id,
+            visitDayId: day.id,
+            status: 'EXPECTED' as const,
+         })),
+      ),
+      skipDuplicates: true,
+   });
+};
+
+/**
+ * Shared core for public request, walk-in, and host-invitation paths.
  */
 export const createVisit = async (
    input: CreateVisitInput,
@@ -87,43 +202,69 @@ export const createVisit = async (
       throw new NotFoundError('Host employee not found');
    }
 
-   // Visitors are deduplicated on their ID document by the visitors
-   // module — reused here rather than re-implementing that lookup.
    const visitorRecords = await Promise.all(
       input.visitors.map((visitor) => findOrCreateVisitor(visitor)),
    );
 
-   return createVisitWithUniqueCode({
+   const days = uniqueDates(input.scheduleDates);
+   if (!days.length) {
+      throw new BadRequestError('At least one visit date is required');
+   }
+
+   const firstSchedule = input.scheduleDates[0];
+   const isHostInvitation = meta.source === 'HOST_INVITATION';
+   const initialStatus: VisitStatus = isHostInvitation
+      ? 'APPROVED'
+      : 'PENDING_APPROVAL';
+
+   const visit = await createVisitWithUniqueCode({
+      source: meta.source,
       groupType: input.groupType,
       durationType: input.durationType,
-      status: 'PENDING_APPROVAL',
-      purpose: input.purpose,
+      status: initialStatus,
+      purpose: toVisitPurpose(String(input.purpose)),
       hostEmployeeId: hostEmployee.id,
+      hostNameSnapshot: `${hostEmployee.firstName} ${hostEmployee.lastName}`,
       hostEmailSnapshot: hostEmployee.email,
       departmentNameSnapshot: hostEmployee.departmentName,
       departmentCodeSnapshot: hostEmployee.departmentCode,
-      isAssisted: meta.isAssisted,
+      floor: input.floor,
+      room: input.room,
+      startDate: days[0],
+      endDate: days[days.length - 1],
+      startTime: formatHhMm(firstSchedule?.expectedStartTime),
+      endTime: formatHhMm(firstSchedule?.expectedEndTime) || '17:00',
+      expectedVisitorCount: visitorRecords.length,
       createdById: meta.createdById,
+      ...(isHostInvitation && {
+         decidedById: meta.createdById,
+         decisionAt: new Date(),
+      }),
       participants: {
          create: visitorRecords.map((visitor) => ({ visitorId: visitor.id })),
       },
-      schedules: {
-         create: input.scheduleDates.map((schedule) => ({
-            date: schedule.date,
-            expectedStartTime: schedule.expectedStartTime,
-            expectedEndTime: schedule.expectedEndTime,
-         })),
+      days: {
+         create: days.map((date) => ({ date })),
       },
       statusHistory: {
          create: [
             {
                fromStatus: null,
-               toStatus: 'PENDING_APPROVAL',
+               toStatus: initialStatus,
                changedById: meta.createdById,
             },
          ],
       },
    });
+
+   if (isHostInvitation) {
+      await seedExpectedAttendances(visit.id);
+      await notifyHostInvitation(visit);
+   } else {
+      await notifyVisitSubmitted(visit);
+   }
+
+   return visit;
 };
 
 interface ListVisitsFilters extends PaginationParams {
@@ -153,6 +294,7 @@ export const listVisits = async (filters: ListVisitsFilters) => {
                            { firstName: { contains: filters.search } },
                            { lastName: { contains: filters.search } },
                            { phone: { contains: filters.search } },
+                           { email: { contains: filters.search } },
                         ],
                      },
                   },
@@ -161,7 +303,7 @@ export const listVisits = async (filters: ListVisitsFilters) => {
          ],
       }),
       ...((filters.dateFrom || filters.dateTo) && {
-         schedules: {
+         days: {
             some: {
                date: {
                   ...(filters.dateFrom && { gte: filters.dateFrom }),
@@ -204,42 +346,65 @@ export const getVisitById = async (id: number): Promise<VisitDetail> => {
 export const approveVisit = async (
    id: number,
    decidedById: number,
-   note?: string,
+   actorRoles: RoleName[],
+   input: ApproveVisitInput,
 ): Promise<VisitDetail> => {
    const visit = await getVisitById(id);
 
-   assertTransition(visit.status, ['PENDING_APPROVAL']);
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      decidedById,
+      actorRoles,
+      HOST_DECISION_ROLES,
+   );
 
-   return prisma.visit.update({
+   assertTransition(visit.status, ['PENDING_APPROVAL', 'RESCHEDULED']);
+
+   const updated = await prisma.visit.update({
       where: { id },
       data: {
          status: 'APPROVED',
+         floor: input.floor,
+         room: input.room,
          decidedById,
          decisionAt: new Date(),
-         decisionNote: note,
+         decisionNote: input.note,
          statusHistory: {
             create: {
                fromStatus: visit.status,
                toStatus: 'APPROVED',
                changedById: decidedById,
-               note,
+               note: input.note,
             },
          },
       },
       select: visitDetailSelect,
    });
+
+   await seedExpectedAttendances(updated.id);
+   await notifyVisitApproved(updated);
+
+   return updated;
 };
 
 export const rejectVisit = async (
    id: number,
    decidedById: number,
+   actorRoles: RoleName[],
    note?: string,
 ): Promise<VisitDetail> => {
    const visit = await getVisitById(id);
 
-   assertTransition(visit.status, ['PENDING_APPROVAL']);
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      decidedById,
+      actorRoles,
+      HOST_DECISION_ROLES,
+   );
 
-   return prisma.visit.update({
+   assertTransition(visit.status, ['PENDING_APPROVAL', 'RESCHEDULED']);
+
+   const updated = await prisma.visit.update({
       where: { id },
       data: {
          status: 'REJECTED',
@@ -257,61 +422,30 @@ export const rejectVisit = async (
       },
       select: visitDetailSelect,
    });
+
+   await notifyVisitRejected(updated);
+
+   return updated;
 };
 
 /**
- * Replaces the visit's scheduled dates and logs the transition through
- * RESCHEDULED before landing back on PENDING_APPROVAL, per the workflow
- * spec — the host gets a fresh chance to approve the new dates.
+ * Updates schedule/location. Rescheduled visits are treated as approved
+ * with the new details (per VMS workflow).
  */
 export const rescheduleVisit = async (
    id: number,
-   scheduleDates: ScheduleDateInput[],
+   input: RescheduleVisitInput,
    actorId: number,
-   note?: string,
+   actorRoles: RoleName[],
 ): Promise<VisitDetail> => {
    const visit = await getVisitById(id);
 
-   assertTransition(visit.status, ['PENDING_APPROVAL', 'APPROVED']);
-
-   return prisma.visit.update({
-      where: { id },
-      data: {
-         status: 'PENDING_APPROVAL',
-         schedules: {
-            deleteMany: {},
-            create: scheduleDates.map((schedule) => ({
-               date: schedule.date,
-               expectedStartTime: schedule.expectedStartTime,
-               expectedEndTime: schedule.expectedEndTime,
-            })),
-         },
-         statusHistory: {
-            create: [
-               {
-                  fromStatus: visit.status,
-                  toStatus: 'RESCHEDULED',
-                  changedById: actorId,
-                  note,
-               },
-               {
-                  fromStatus: 'RESCHEDULED',
-                  toStatus: 'PENDING_APPROVAL',
-                  changedById: actorId,
-               },
-            ],
-         },
-      },
-      select: visitDetailSelect,
-   });
-};
-
-export const cancelVisit = async (
-   id: number,
-   actorId: number,
-   note?: string,
-): Promise<VisitDetail> => {
-   const visit = await getVisitById(id);
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      actorId,
+      actorRoles,
+      HOST_MODIFY_ROLES,
+   );
 
    assertTransition(visit.status, [
       'PENDING_APPROVAL',
@@ -319,7 +453,71 @@ export const cancelVisit = async (
       'RESCHEDULED',
    ]);
 
-   return prisma.visit.update({
+   const days = uniqueDates(input.scheduleDates);
+   if (!days.length) {
+      throw new BadRequestError('At least one visit date is required');
+   }
+
+   const firstSchedule = input.scheduleDates[0];
+
+   const updated = await prisma.visit.update({
+      where: { id },
+      data: {
+         status: 'RESCHEDULED',
+         startDate: days[0],
+         endDate: days[days.length - 1],
+         startTime: formatHhMm(firstSchedule?.expectedStartTime),
+         endTime: formatHhMm(firstSchedule?.expectedEndTime) || visit.endTime,
+         ...(input.floor !== undefined && { floor: input.floor }),
+         ...(input.room !== undefined && { room: input.room }),
+         decisionNote: input.note,
+         days: {
+            deleteMany: {},
+            create: days.map((date) => ({ date })),
+         },
+         statusHistory: {
+            create: {
+               fromStatus: visit.status,
+               toStatus: 'RESCHEDULED',
+               changedById: actorId,
+               note: input.note,
+            },
+         },
+      },
+      select: visitDetailSelect,
+   });
+
+   await notifyVisitRescheduled(updated);
+
+   if (updated.status === 'RESCHEDULED' || updated.status === 'APPROVED') {
+      await seedExpectedAttendances(updated.id);
+   }
+
+   return updated;
+};
+
+export const cancelVisit = async (
+   id: number,
+   actorId: number,
+   actorRoles: RoleName[],
+   note?: string,
+): Promise<VisitDetail> => {
+   const visit = await getVisitById(id);
+
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      actorId,
+      actorRoles,
+      HOST_MODIFY_ROLES,
+   );
+
+   assertTransition(visit.status, [
+      'PENDING_APPROVAL',
+      'APPROVED',
+      'RESCHEDULED',
+   ]);
+
+   const updated = await prisma.visit.update({
       where: { id },
       data: {
          status: 'CANCELLED',
@@ -334,17 +532,27 @@ export const cancelVisit = async (
       },
       select: visitDetailSelect,
    });
+
+   await notifyVisitCancelled(updated);
+
+   return updated;
 };
 
 export const formatVisitDetail = (visit: VisitDetail) => ({
    id: String(visit.id),
    visitCode: visit.visitCode,
    qrToken: visit.qrToken,
+   source: visit.source,
    groupType: visit.groupType,
    durationType: visit.durationType,
    status: visit.status,
    purpose: visit.purpose,
-   isAssisted: visit.isAssisted,
+   floor: visit.floor ?? undefined,
+   room: visit.room ?? undefined,
+   startDate: visit.startDate,
+   endDate: visit.endDate,
+   startTime: visit.startTime,
+   endTime: visit.endTime,
    host: visit.hostEmployee
       ? {
            id: String(visit.hostEmployee.id),
@@ -359,25 +567,22 @@ export const formatVisitDetail = (visit: VisitDetail) => ({
    departmentCodeSnapshot: visit.departmentCodeSnapshot ?? undefined,
    decisionAt: visit.decisionAt ?? undefined,
    decisionNote: visit.decisionNote ?? undefined,
-   visitExpiresAt: visit.visitExpiresAt ?? undefined,
    participants: visit.participants.map((participant) => ({
       participantId: String(participant.id),
       visitor: {
          id: String(participant.visitor.id),
          firstName: participant.visitor.firstName,
          lastName: participant.visitor.lastName,
-         phone: participant.visitor.phone,
+         phone: participant.visitor.phone ?? undefined,
          email: participant.visitor.email ?? undefined,
          organization: participant.visitor.organization ?? undefined,
-         idType: participant.visitor.idType,
-         idNumber: participant.visitor.idNumber,
+         idType: participant.visitor.idType ?? undefined,
+         idNumber: participant.visitor.idNumber ?? undefined,
       },
    })),
-   schedules: visit.schedules.map((schedule) => ({
-      id: String(schedule.id),
-      date: schedule.date,
-      expectedStartTime: schedule.expectedStartTime ?? undefined,
-      expectedEndTime: schedule.expectedEndTime ?? undefined,
+   days: visit.days.map((day) => ({
+      id: String(day.id),
+      date: day.date,
    })),
    statusHistory: visit.statusHistory.map((entry) => ({
       id: String(entry.id),
@@ -385,10 +590,10 @@ export const formatVisitDetail = (visit: VisitDetail) => ({
       toStatus: entry.toStatus,
       note: entry.note ?? undefined,
       createdAt: entry.createdAt,
-      changedBy: entry.changedBy?.employee
+      changedBy: entry.changedBy
          ? {
-              firstName: entry.changedBy.employee.firstName,
-              lastName: entry.changedBy.employee.lastName,
+              firstName: entry.changedBy.firstName,
+              lastName: entry.changedBy.lastName,
            }
          : undefined,
    })),
@@ -399,11 +604,17 @@ export const formatVisitDetail = (visit: VisitDetail) => ({
 export const formatVisitSummary = (visit: VisitSummary) => ({
    id: String(visit.id),
    visitCode: visit.visitCode,
+   source: visit.source,
    groupType: visit.groupType,
    durationType: visit.durationType,
    status: visit.status,
    purpose: visit.purpose,
-   isAssisted: visit.isAssisted,
+   floor: visit.floor ?? undefined,
+   room: visit.room ?? undefined,
+   startDate: visit.startDate,
+   endDate: visit.endDate,
+   startTime: visit.startTime,
+   endTime: visit.endTime,
    host: visit.hostEmployee
       ? {
            id: String(visit.hostEmployee.id),
@@ -416,6 +627,6 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       (participant) =>
          `${participant.visitor.firstName} ${participant.visitor.lastName}`,
    ),
-   scheduleDates: visit.schedules.map((schedule) => schedule.date),
+   scheduleDates: visit.days.map((day) => day.date),
    createdAt: visit.createdAt,
 });

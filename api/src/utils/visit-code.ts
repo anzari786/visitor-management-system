@@ -17,7 +17,3 @@ const generateCodeSuffix = (): string => {
 
 /** Generates a short, human-readable visit code, e.g. "VIS-7K4QXP". */
 export const generateVisitCode = (): string => `VIS-${generateCodeSuffix()}`;
-
-/** Generates a short, human-readable invitation code, e.g. "INV-4M8QZT". */
-export const generateInvitationCode = (): string =>
-   `INV-${generateCodeSuffix()}`;

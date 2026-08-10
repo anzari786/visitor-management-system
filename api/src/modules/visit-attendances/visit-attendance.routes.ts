@@ -3,6 +3,8 @@ import {
    getAttendances,
    getDailyAttendances,
    getAttendance,
+   lookupVisitForCheckIn,
+   lookupVisitorForCheckOut,
    postCheckIn,
    postCheckOut,
    postNoShow,
@@ -15,9 +17,13 @@ import {
    listAttendancesSchema,
    dailyAttendanceSchema,
    attendanceIdParamSchema,
+   lookupVisitByCodeSchema,
+   lookupBadgeByCodeSchema,
 } from './visit-attendance.validation.js';
 
 const router = Router();
+
+const deskStaff = requireRole('GUARD', 'RECEPTION', 'ADMIN');
 
 // Static segments declared before ':id' so they aren't swallowed by it.
 router.get('/', requireAuth, validate(listAttendancesSchema), getAttendances);
@@ -27,6 +33,31 @@ router.get(
    validate(dailyAttendanceSchema),
    getDailyAttendances,
 );
+
+// QR / code lookups (scan → verify → then call check-in / check-out)
+router.get(
+   '/lookup/visit',
+   requireAuth,
+   deskStaff,
+   validate(lookupVisitByCodeSchema),
+   lookupVisitForCheckIn,
+);
+router.get(
+   '/lookup/badge',
+   requireAuth,
+   deskStaff,
+   validate(lookupBadgeByCodeSchema),
+   lookupVisitorForCheckOut,
+);
+
+router.post(
+   '/check-in',
+   requireAuth,
+   deskStaff,
+   validate(checkInSchema),
+   postCheckIn,
+);
+
 router.get(
    '/:id',
    requireAuth,
@@ -35,17 +66,9 @@ router.get(
 );
 
 router.post(
-   '/check-in',
-   requireAuth,
-   requireRole('Guard', 'ADMIN'),
-   validate(checkInSchema),
-   postCheckIn,
-);
-
-router.post(
    '/:id/check-out',
    requireAuth,
-   requireRole('Guard', 'ADMIN'),
+   deskStaff,
    validate(attendanceIdParamSchema),
    postCheckOut,
 );
@@ -53,7 +76,7 @@ router.post(
 router.post(
    '/:id/no-show',
    requireAuth,
-   requireRole('Guard', 'ADMIN'),
+   deskStaff,
    validate(attendanceIdParamSchema),
    postNoShow,
 );

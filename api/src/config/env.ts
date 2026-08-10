@@ -21,4 +21,14 @@ export const env = {
 
    // Session
    SESSION_SECRET: process.env.SESSION_SECRET!,
+
+   // SMTP / transactional email
+   SMTP_HOST: process.env.SMTP_HOST,
+   SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
+   SMTP_SECURE: process.env.SMTP_SECURE === 'true',
+   SMTP_USER: process.env.SMTP_USER,
+   SMTP_PASS: process.env.SMTP_PASS,
+   SMTP_FROM:
+      process.env.SMTP_FROM ??
+      '"ATI VMS" <noreply@ati.gov.et>',
 } as const;

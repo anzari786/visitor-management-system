@@ -4,6 +4,8 @@ import {
    listAttendances,
    listDailyAttendances,
    getAttendanceById,
+   findVisitForCheckIn,
+   findVisitorForCheckOut,
    checkInVisitor,
    checkOutVisitor,
    markNoShow,
@@ -15,32 +17,26 @@ import type {
    listAttendancesSchema,
    dailyAttendanceSchema,
    attendanceIdParamSchema,
+   lookupVisitByCodeSchema,
+   lookupBadgeByCodeSchema,
 } from './visit-attendance.validation.js';
 
 type CheckInBody = z.infer<typeof checkInSchema>['body'];
 type ListAttendancesQuery = z.infer<typeof listAttendancesSchema>['query'];
 type DailyAttendanceQuery = z.infer<typeof dailyAttendanceSchema>['query'];
 type AttendanceIdParams = z.infer<typeof attendanceIdParamSchema>['params'];
+type LookupVisitQuery = z.infer<typeof lookupVisitByCodeSchema>['query'];
+type LookupBadgeQuery = z.infer<typeof lookupBadgeByCodeSchema>['query'];
 
 export const getAttendances = async (req: Request, res: Response) => {
-   const {
-      visitId,
-      visitScheduleId,
-      visitParticipantId,
-      status,
-      badgeId,
-      date,
-      page,
-      limit,
-   } = req.validatedQuery as ListAttendancesQuery;
+   const { visitId, status, date, search, page, limit } =
+      req.validatedQuery as ListAttendancesQuery;
 
    const { attendances, meta } = await listAttendances({
       visitId,
-      visitScheduleId,
-      visitParticipantId,
       status,
-      badgeId,
       date,
+      search,
       page,
       limit,
    });
@@ -55,15 +51,37 @@ export const getAttendances = async (req: Request, res: Response) => {
 export const getDailyAttendances = async (req: Request, res: Response) => {
    const { date, page, limit } = req.validatedQuery as DailyAttendanceQuery;
 
-   const { attendances, meta } = await listDailyAttendances(date, {
-      page,
-      limit,
-   });
+   const { attendances, meta } = await listDailyAttendances(
+      { page, limit },
+      date,
+   );
 
    return res.status(200).json({
       success: true,
       data: attendances.map(formatAttendanceSummary),
       pagination: meta,
+   });
+};
+
+/** QR / code lookup for check-in — does not mutate attendance. */
+export const lookupVisitForCheckIn = async (req: Request, res: Response) => {
+   const { code, date } = req.validatedQuery as LookupVisitQuery;
+   const data = await findVisitForCheckIn(code, date);
+
+   return res.status(200).json({
+      success: true,
+      data,
+   });
+};
+
+/** Badge QR / code lookup for check-out — does not mutate attendance. */
+export const lookupVisitorForCheckOut = async (req: Request, res: Response) => {
+   const { code } = req.validatedQuery as LookupBadgeQuery;
+   const data = await findVisitorForCheckOut(code);
+
+   return res.status(200).json({
+      success: true,
+      data,
    });
 };
 

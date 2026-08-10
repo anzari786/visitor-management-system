@@ -1,7 +1,4 @@
-import type {
-   IdentificationType,
-   Prisma,
-} from '../../generated/prisma/client.js';
+import type { IdType, Prisma } from '../../generated/prisma/client.js';
 
 export const visitorSelect = {
    id: true,
@@ -29,7 +26,7 @@ export const visitorHistorySelect = {
          id: true,
          visitCode: true,
          status: true,
-         isAssisted: true,
+         source: true,
          purpose: true,
          createdAt: true,
          hostEmployee: {
@@ -53,6 +50,6 @@ export interface VisitorInput {
    phone: string;
    email?: string;
    organization?: string;
-   idType: IdentificationType;
+   idType: IdType;
    idNumber: string;
 }

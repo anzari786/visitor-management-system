@@ -1,21 +1,21 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { RoleName } from '../generated/prisma/client.js';
 
 /**
- * Role is a data model (Role.code) in this schema, not an enum, and a
- * user can hold more than one role via UserRoleAssignment — so this
- * takes role codes as strings and checks against the session's array.
+ * Role-based access control using RoleName enum values stored on the
+ * session after login (GUARD | RECEPTION | ADMIN | MANAGER).
  */
-export function requireRole(...roleCodes: string[]) {
+export function requireRole(...roles: RoleName[]) {
    return (req: Request, res: Response, next: NextFunction) => {
-      if (!req.session.roleCodes) {
+      if (!req.session.userId || !req.session.roleCodes) {
          return res.status(401).json({
             success: false,
             message: 'Unauthorized',
          });
       }
 
-      const hasRole = req.session.roleCodes.some((code) =>
-         roleCodes.includes(code),
+      const hasRole = req.session.roleCodes.some((role) =>
+         roles.includes(role as RoleName),
       );
 
       if (!hasRole) {

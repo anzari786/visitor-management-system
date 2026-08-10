@@ -31,7 +31,7 @@ type RemoveRoleParams = z.infer<typeof removeRoleParamSchema>['params'];
 export const postUser = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateUserBody;
 
-   const user = await createUser(input, req.session.userId!);
+   const user = await createUser(input);
 
    return res.status(201).json({
       success: true,
@@ -41,13 +41,13 @@ export const postUser = async (req: Request, res: Response) => {
 };
 
 export const getUsers = async (req: Request, res: Response) => {
-   const { search, isActive, roleCode, page, limit } =
+   const { search, isActive, role, page, limit } =
       req.validatedQuery as ListUsersQuery;
 
    const { users, meta } = await listUsers({
       search,
       isActive: isActive === undefined ? undefined : isActive === 'true',
-      roleCode,
+      role,
       page,
       limit,
    });
@@ -85,9 +85,9 @@ export const patchUser = async (req: Request, res: Response) => {
 
 export const postUserRole = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as AssignRoleParams;
-   const { roleCode } = req.validatedBody as AssignRoleBody;
+   const { role } = req.validatedBody as AssignRoleBody;
 
-   const user = await assignRole(id, roleCode, req.session.userId!);
+   const user = await assignRole(id, role);
 
    return res.status(200).json({
       success: true,
@@ -97,9 +97,9 @@ export const postUserRole = async (req: Request, res: Response) => {
 };
 
 export const deleteUserRole = async (req: Request, res: Response) => {
-   const { id, roleCode } = req.validatedParams as RemoveRoleParams;
+   const { id, role } = req.validatedParams as RemoveRoleParams;
 
-   const user = await removeRole(id, roleCode);
+   const user = await removeRole(id, role);
 
    return res.status(200).json({
       success: true,

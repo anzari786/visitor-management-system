@@ -11,7 +11,7 @@ export const attendanceDetailSelect = {
    checkOutAt: true,
    createdAt: true,
    updatedAt: true,
-   visitParticipant: {
+   participant: {
       select: {
          id: true,
          visitId: true,
@@ -21,6 +21,7 @@ export const attendanceDetailSelect = {
                firstName: true,
                lastName: true,
                phone: true,
+               email: true,
             },
          },
          visit: {
@@ -28,26 +29,49 @@ export const attendanceDetailSelect = {
                id: true,
                visitCode: true,
                status: true,
+               purpose: true,
+               floor: true,
+               room: true,
+               startDate: true,
+               endDate: true,
+               startTime: true,
+               endTime: true,
+               hostNameSnapshot: true,
                hostEmailSnapshot: true,
+               departmentNameSnapshot: true,
                hostEmployee: {
                   select: {
                      id: true,
                      firstName: true,
                      lastName: true,
                      email: true,
+                     departmentName: true,
                      user: { select: { id: true } },
                   },
+               },
+               participants: {
+                  select: {
+                     visitor: {
+                        select: {
+                           firstName: true,
+                           lastName: true,
+                           email: true,
+                        },
+                     },
+                  },
+               },
+               days: {
+                  select: { date: true },
+                  orderBy: { date: 'asc' },
                },
             },
          },
       },
    },
-   visitSchedule: {
+   visitDay: {
       select: {
          id: true,
          date: true,
-         expectedStartTime: true,
-         expectedEndTime: true,
       },
    },
    badge: {
@@ -60,13 +84,15 @@ export const attendanceDetailSelect = {
    checkedInBy: {
       select: {
          id: true,
-         employee: { select: { firstName: true, lastName: true } },
+         firstName: true,
+         lastName: true,
       },
    },
    checkedOutBy: {
       select: {
          id: true,
-         employee: { select: { firstName: true, lastName: true } },
+         firstName: true,
+         lastName: true,
       },
    },
 } satisfies Prisma.VisitAttendanceSelect;
@@ -81,7 +107,7 @@ export const attendanceSummarySelect = {
    status: true,
    checkInAt: true,
    checkOutAt: true,
-   visitParticipant: {
+   participant: {
       select: {
          visitor: {
             select: { firstName: true, lastName: true, phone: true },
@@ -91,7 +117,7 @@ export const attendanceSummarySelect = {
          },
       },
    },
-   visitSchedule: {
+   visitDay: {
       select: { date: true },
    },
    badge: {
@@ -105,7 +131,7 @@ export type AttendanceSummary = Prisma.VisitAttendanceGetPayload<{
 
 export interface CheckInInput {
    visitParticipantId: number;
-   visitScheduleId: number;
+   visitDayId: number;
    badgeId?: number;
    retainPersonalId: boolean;
 }

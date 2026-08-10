@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
    submitVisitorRequest,
    submitWalkInVisit,
+   submitHostInvitation,
    getVisits,
    getVisit,
    decideApproveVisit,
@@ -15,9 +16,11 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
    createVisitRequestSchema,
    createWalkInVisitSchema,
+   createHostInvitationSchema,
    listVisitsSchema,
    visitIdParamSchema,
    visitDecisionSchema,
+   approveVisitSchema,
    rescheduleVisitSchema,
 } from './visit.validation.js';
 
@@ -33,26 +36,32 @@ router.post(
 router.post(
    '/walk-in',
    requireAuth,
-   requireRole('GUARD', 'ADMIN'),
+   requireRole('GUARD', 'RECEPTION', 'ADMIN'),
    validate(createWalkInVisitSchema),
    submitWalkInVisit,
+);
+
+router.post(
+   '/invite',
+   requireAuth,
+   validate(createHostInvitationSchema),
+   submitHostInvitation,
 );
 
 router.get('/', requireAuth, validate(listVisitsSchema), getVisits);
 router.get('/:id', requireAuth, validate(visitIdParamSchema), getVisit);
 
+// Host (linked employee) or decision staff — enforced in the service layer.
 router.post(
    '/:id/approve',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN'),
-   validate(visitDecisionSchema),
+   validate(approveVisitSchema),
    decideApproveVisit,
 );
 
 router.post(
    '/:id/reject',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN'),
    validate(visitDecisionSchema),
    decideRejectVisit,
 );
@@ -60,7 +69,6 @@ router.post(
 router.post(
    '/:id/reschedule',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN', 'GUARD'),
    validate(rescheduleVisitSchema),
    rescheduleVisitHandler,
 );
@@ -68,7 +76,6 @@ router.post(
 router.post(
    '/:id/cancel',
    requireAuth,
-   requireRole('HOST', 'MANAGER', 'ADMIN', 'GUARD'),
    validate(visitDecisionSchema),
    cancelVisitHandler,
 );

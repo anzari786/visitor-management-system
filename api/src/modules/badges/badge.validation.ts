@@ -4,13 +4,12 @@ const badgeStatusSchema = z.enum([
    'AVAILABLE',
    'ASSIGNED',
    'LOST',
-   'DAMAGED',
-   'RETIRED',
+   'DISABLED',
 ]);
 
 export const createBadgeSchema = z.object({
    body: z.object({
-      badgeNumber: z.coerce.number().int().positive(),
+      badgeNumber: z.string().trim().min(1).max(50),
       notes: z.string().trim().max(500).optional(),
    }),
 });
@@ -18,7 +17,7 @@ export const createBadgeSchema = z.object({
 export const listBadgesSchema = z.object({
    query: z.object({
       status: badgeStatusSchema.optional(),
-      badgeNumber: z.coerce.number().int().positive().optional(),
+      badgeNumber: z.string().trim().min(1).max(50).optional(),
       page: z.coerce.number().int().positive().optional().default(1),
       limit: z.coerce.number().int().positive().max(100).optional().default(20),
    }),
@@ -43,7 +42,6 @@ export const updateBadgeSchema = z.object({
       }),
 });
 
-/** Used for status-changing actions (lost/damaged/restore/retire) that accept an optional note. */
 export const badgeActionSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),

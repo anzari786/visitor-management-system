@@ -1,17 +1,8 @@
 // ============================================================================
-// ATI Visitor Management System (VMS) Database Schema
+// ATI Visitor Management System (VMS) — Prisma Schema
 // ----------------------------------------------------------------------------
-// This Prisma schema defines the database structure for the Visitor
-// Management System.
-//
-// Main Features:
-// • Visitor Request and Host Invitation workflows
-// • Single visitor and Group visitor support
-// • Single-day and Multi-day visits
-// • QR Code and Visit Code based check-in/check-out
-// • Reusable Badge Inventory Management
-// • SSO (Single Sign-On) authentication
-// • Employees and Departments synchronized from the organization's HR/Directory
+// Models the paper-based visitor workflow digitally:
+// request/invitation → host approval → badge check-in/out → attendance history
 // ============================================================================
 
 generator client {
@@ -23,490 +14,463 @@ datasource db {
   provider = "mysql"
 }
 
-// ----------------------------------------------------------------------------
-// ENUMS
-// ----------------------------------------------------------------------------
+// ── Enums ──────────────────────────────────────────────────────────────────
 
-/// Number of visitors in a visit.
+/// Origin of a visit request / invitation.
+enum VisitSource {
+  PUBLIC
+  RECEPTION
+  HOST_INVITATION
+}
+
+/// Single visitor vs group visit.
 enum VisitorGroupType {
   SINGLE
   GROUP
 }
 
-/// Duration of the visit.
+/// Single-day vs multi-day visit.
 enum VisitDurationType {
   SINGLE_DAY
   MULTI_DAY
 }
 
-/// Overall status of a visit.
+/// Visit lifecycle status (visit-level; not a substitute for attendance rows).
 enum VisitStatus {
   PENDING_APPROVAL
   APPROVED
   REJECTED
   RESCHEDULED
-  COMPLETED
   CANCELLED
-  EXPIRED
+  PARTIALLY_CHECKED_IN
+  CHECKED_IN
+  PARTIALLY_CHECKED_OUT
+  CHECKED_OUT
 }
 
-/// Overall lifecycle of a host invitation.
-enum InvitationStatus {
-  SENT
-  APPROVED
-  REJECTED
-  CANCELLED
-  EXPIRED
-  CONVERTED
-}
-
-/// Attendance status for a visitor on a scheduled day.
-enum VisitAttendanceStatus {
-  SCHEDULED
+/// Per-visitor, per-day attendance state.
+enum AttendanceStatus {
+  EXPECTED
   CHECKED_IN
   CHECKED_OUT
   NO_SHOW
 }
 
-/// Accepted visitor identification types.
-enum IdentificationType {
-  NATIONAL_ID
-  PASSPORT
-  DRIVERS_LICENSE
-  KEBELE_ID
+/// Meeting / visit purpose.
+enum VisitPurpose {
+  MEETING
+  INTERVIEW
+  DELIVERY
+  OFFICIAL_VISIT
+  MAINTENANCE
   OTHER
 }
 
-/// Current availability of a badge.
+/// Visitor government / personal ID type.
+enum IdType {
+  NATIONAL_ID
+  KEBELE_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  OTHER
+}
+
+/// Physical badge inventory status.
 enum BadgeStatus {
   AVAILABLE
   ASSIGNED
   LOST
-  DAMAGED
-  RETIRED
+  DISABLED
 }
 
-/// Delivery channel for notifications.
+/// VMS dashboard roles (hosts are Employees, not necessarily Users).
+enum RoleName {
+  GUARD
+  RECEPTION
+  ADMIN
+  MANAGER
+}
+
+/// Dashboard vs email notification delivery.
 enum NotificationChannel {
-  EMAIL
   DASHBOARD
+  EMAIL
 }
 
-/// Event that triggered a notification.
+/// Notification / email event type.
 enum NotificationType {
-  // Visit workflow
   VISIT_SUBMITTED
+  VISIT_APPROVAL_REQUEST
   VISIT_APPROVED
   VISIT_REJECTED
   VISIT_RESCHEDULED
-  VISITOR_CHECKED_IN
+  VISIT_CANCELLED
+  VISITOR_ARRIVED
   VISITOR_CHECKED_OUT
-  OVERDUE_CHECKOUT
-
-  // Invitation workflow
+  OVERDUE_VISIT
   INVITATION_SENT
-  INVITATION_APPROVED
-  INVITATION_REJECTED
-  INVITATION_CANCELLED
-  INVITATION_EXPIRED
-  INVITATION_CONVERTED
 }
 
-/// Dashboard user authenticated through SSO.
-model User {
-  id              Int      @id @default(autoincrement())
-  externalSubject String?  @unique @map("external_subject") // SSO subject ID - nullable so local-only accounts can exist during the transition
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+// ── Role ───────────────────────────────────────────────────────────────────
 
-  // ─── TODO: Remove after SSO integration ───────────────────────────
-  username           String?   @unique // TODO: Remove after SSO integration
-  passwordHash       String? // TODO: Remove after SSO integration
-  mustChangePassword Boolean   @default(false) // TODO: Remove after SSO integration
-  passwordChangedAt  DateTime? // TODO: Remove after SSO integration
-  // ────────────────────────────────────────────────────────────────
-
-  // A User whose roles include HOST is linked to their directory record.
-  employeeId Int?      @unique @map("employee_id")
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-
-  roleAssignments        UserRoleAssignment[] @relation("UserRoleAssignments")
-  roleAssignmentsGranted UserRoleAssignment[] @relation("RoleAssignmentsGranted")
-
-  createdVisits         Visit[]              @relation("VisitCreatedBy")
-  decidedVisits         Visit[]              @relation("VisitDecidedBy")
-  attendancesCheckedIn  VisitAttendance[]    @relation("AttendanceCheckedInBy")
-  attendancesCheckedOut VisitAttendance[]    @relation("AttendanceCheckedOutBy")
-  statusChangesMade     VisitStatusHistory[]
-  notifications         Notification[]       @relation("NotificationRecipientUser")
-  settingsUpdated       SystemSetting[]
-
-  createdInvitations      Invitation[]              @relation("InvitationCreatedBy")
-  decidedInvitations      Invitation[]              @relation("InvitationDecidedBy")
-  invitationStatusChanges InvitationStatusHistory[]
-
-  @@map("users")
-}
-
-/// Permission role assigned to dashboard users.
 model Role {
   id          Int      @id @default(autoincrement())
-  code        String   @unique // stable machine key, e.g. "ADMIN", "GUARD"
-  name        String // human-readable label shown in the UI
+  name        RoleName @unique
   description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  userAssignments UserRoleAssignment[]
+  userRoles UserRole[]
 
   @@map("roles")
 }
 
-/// Assigns one or more roles to a user.
-model UserRoleAssignment {
-  id     Int  @id @default(autoincrement())
-  userId Int  @map("user_id")
-  user   User @relation("UserRoleAssignments", fields: [userId], references: [id], onDelete: Cascade)
-  roleId Int  @map("role_id")
-  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+model UserRole {
+  userId     Int
+  roleId     Int
+  assignedAt DateTime @default(now())
 
-  assignedAt   DateTime @default(now()) @map("assigned_at")
-  assignedById Int?     @map("assigned_by_id") // User who granted this role, for audit purposes
-  assignedBy   User?    @relation("RoleAssignmentsGranted", fields: [assignedById], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
-  @@unique([userId, roleId])
+  @@id([userId, roleId])
   @@index([roleId])
-  @@map("user_role_assignments")
+  @@map("user_roles")
 }
 
-/// Employee synchronized from the HR directory.
-model Employee {
-  id                 Int      @id @default(autoincrement())
-  externalEmployeeId String   @unique @map("external_employee_id") // ID in the external HR/directory system
-  firstName          String
-  lastName           String
-  email              String
-  phone              String?
-  departmentName     String
-  departmentCode     String? // HR department code
-  position           String?
-  isActive           Boolean  @default(true)
-  lastSyncedAt       DateTime @default(now()) @map("last_synced_at")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+// ── User (Guard / Reception / Admin / Manager) ─────────────────────────────
 
-  user              User?
-  visitsAsHost      Visit[]
-  invitationsAsHost Invitation[]
+model User {
+  id Int @id @default(autoincrement())
+
+  /// SSO subject from company IdP (nullable for local-only accounts).
+  externalSubject String? @unique
+
+  firstName String
+  lastName  String
+  email     String? @unique
+  phone     String?
+
+  /// Local auth (optional alongside SSO). Never store plaintext passwords.
+  username           String?  @unique
+  passwordHash       String?
+  mustChangePassword Boolean  @default(false)
+  lastLoginAt        DateTime?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Optional link when a dashboard user is also an HR employee.
+  employeeId Int?      @unique
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  userRoles UserRole[]
+
+  visitsCreated Visit[] @relation("VisitCreatedBy")
+  visitsDecided Visit[] @relation("VisitDecidedBy")
+
+  attendancesCheckedIn  VisitAttendance[] @relation("AttendanceCheckedInBy")
+  attendancesCheckedOut VisitAttendance[] @relation("AttendanceCheckedOutBy")
+
+  statusChanges VisitStatusHistory[] @relation("VisitStatusChangedBy")
+  notifications Notification[]       @relation("NotificationRecipient")
+  settingsUpdated SystemSetting[]    @relation("SettingUpdatedBy")
+
+  @@index([isActive])
+  @@map("users")
+}
+
+// ── Employee (HR sync — hosts; not necessarily VMS users) ──────────────────
+
+model Employee {
+  id Int @id @default(autoincrement())
+
+  /// Identifier from the external HR / directory system.
+  externalEmployeeId String @unique
+
+  firstName String
+  lastName  String
+  email     String  @unique
+  phone     String?
+  position  String?
+
+  /// Department comes from HR sync — stored as values, not a separate table.
+  departmentName String
+  departmentCode String?
+
+  isActive     Boolean  @default(true)
+  lastSyncedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User?
+  visits Visit[] @relation("VisitHost")
 
   @@index([departmentName])
   @@index([isActive])
+  @@index([lastName, firstName])
   @@map("employees")
 }
 
-/// External person visiting the organization.
+// ── Visitor ────────────────────────────────────────────────────────────────
+
 model Visitor {
-  id           Int     @id @default(autoincrement())
+  id Int @id @default(autoincrement())
+
   firstName    String
   lastName     String
-  phone        String
-  email        String? // optional — some visitors have no email
+  email        String?
+  phone        String?
   organization String?
 
-  idType   IdentificationType
-  idNumber String
+  /// Collected on public/reception requests; may be filled at check-in for invitations.
+  idType   IdType?
+  idNumber String?
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  visitLinks                 VisitParticipant[]
-  invitationParticipantLinks InvitationParticipant[]
+  participations VisitParticipant[]
 
   @@unique([idType, idNumber])
+  @@index([email])
   @@index([phone])
-  @@index([lastName, firstName]) // supports guard's "search by name" lookup
+  @@index([lastName, firstName])
   @@map("visitors")
 }
 
-/// Host-created invitation before a visit exists.
-model Invitation {
-  id             Int    @id @default(autoincrement())
-  invitationCode String @unique
-  qrToken        String @unique
+// ── Visit (unified request / invitation / reception workflow) ──────────────
 
-  groupType    VisitorGroupType
-  durationType VisitDurationType
-  status       InvitationStatus
-
-  expectedVisitorCount Int     @default(1) @map("expected_visitor_count") /// Number of visitors expected by the host.
-  organization         String?
-  purpose              String  @db.Text
-
-  hostEmployeeId Int      @map("host_employee_id")
-  hostEmployee   Employee @relation(fields: [hostEmployeeId], references: [id])
-
-  departmentNameSnapshot String?
-  departmentCodeSnapshot String?
-
-  plannedStartDate DateTime @map("planned_start_date") @db.Date
-  plannedEndDate   DateTime @map("planned_end_date") @db.Date
-
-  createdById Int?  @map("created_by_id")
-  createdBy   User? @relation("InvitationCreatedBy", fields: [createdById], references: [id])
-
-  sentAt    DateTime? @map("sent_at")
-  arrivedAt DateTime? @map("arrived_at")
-
-  decidedById  Int?    @map("decided_by_id")
-  decidedBy    User?   @relation("InvitationDecidedBy", fields: [decidedById], references: [id])
-  decisionNote String? @db.Text
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  visit         Visit?
-  participants  InvitationParticipant[]
-  statusHistory InvitationStatusHistory[]
-  notifications Notification[]
-
-  @@index([status])
-  @@index([hostEmployeeId])
-  @@map("invitations")
-}
-
-model InvitationParticipant {
-  id           Int        @id @default(autoincrement())
-  invitationId Int        @map("invitation_id")
-  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
-
-  firstName    String
-  lastName     String
-  phone        String?
-  email        String?
-  organization String?
-
-  // Set once this invited person is matched to an actual arriving
-  // visitor during conversion. Null until then — there is no Visitor
-  // to link to before that point.
-  visitorId Int?     @map("visitor_id")
-  visitor   Visitor? @relation(fields: [visitorId], references: [id])
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([invitationId])
-  @@map("invitation_participants")
-}
-
-/// Audit log of invitation status changes.
-model InvitationStatusHistory {
-  id           Int               @id @default(autoincrement())
-  invitationId Int               @map("invitation_id")
-  invitation   Invitation        @relation(fields: [invitationId], references: [id], onDelete: Cascade)
-  fromStatus   InvitationStatus?
-  toStatus     InvitationStatus
-  changedById  Int?              @map("changed_by_id")
-  changedBy    User?             @relation(fields: [changedById], references: [id])
-  note         String?
-  createdAt    DateTime          @default(now()) @map("created_at")
-
-  @@index([invitationId])
-  @@map("invitation_status_history")
-}
-
-/// Central record representing a visit request or invitation.
 model Visit {
-  id        Int    @id @default(autoincrement())
-  visitCode String @unique // Human-readable visit code
-  qrToken   String @unique // QR token
+  id Int @id @default(autoincrement())
 
+  /// Public identifiers (not auto-increment DB ids).
+  visitCode String @unique
+  qrToken   String @unique
+
+  source       VisitSource
   groupType    VisitorGroupType
   durationType VisitDurationType
-  status       VisitStatus
+  status       VisitStatus      @default(PENDING_APPROVAL)
+  purpose      VisitPurpose
 
-  purpose String @db.Text
+  hostEmployeeId Int
+  hostEmployee   Employee @relation("VisitHost", fields: [hostEmployeeId], references: [id], onDelete: Restrict)
 
-  hostEmployeeId Int?      @map("host_employee_id")
-  hostEmployee   Employee? @relation(fields: [hostEmployeeId], references: [id])
-
-  // Preserves host details for historical reporting.
+  /// Historical snapshots (survive employee/department renames).
+  hostNameSnapshot       String?
   hostEmailSnapshot      String?
   departmentNameSnapshot String?
   departmentCodeSnapshot String?
 
-  isAssisted Boolean @default(false) // Created by staff on behalf of the visitor.
+  /// Location — required before approval; set at invitation creation for hosts.
+  floor String?
+  room  String?
 
-  invitationId Int?        @unique @map("invitation_id")
-  invitation   Invitation? @relation(fields: [invitationId], references: [id])
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  /// Daily window, stored as "HH:mm".
+  startTime String
+  endTime   String
 
-  createdById Int?  @map("created_by_id")
-  createdBy   User? @relation("VisitCreatedBy", fields: [createdById], references: [id])
+  /// Used when host invites without knowing individual visitor details.
+  expectedVisitorCount Int     @default(1)
+  organization         String?
 
-  decidedById  Int?      @map("decided_by_id")
-  decidedBy    User?     @relation("VisitDecidedBy", fields: [decidedById], references: [id])
-  decisionAt   DateTime? @map("decision_at")
+  createdById Int?
+  createdBy   User? @relation("VisitCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  decidedById  Int?
+  decidedBy    User?     @relation("VisitDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  decisionAt   DateTime?
   decisionNote String?   @db.Text
 
-  visitExpiresAt DateTime? @map("visit_expires_at") // Expiration time for the approved visit.
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  schedules     VisitSchedule[]
+  days          VisitDay[]
   participants  VisitParticipant[]
-  notifications Notification[]
   statusHistory VisitStatusHistory[]
+  notifications Notification[]
 
   @@index([status])
+  @@index([source])
   @@index([hostEmployeeId])
+  @@index([departmentNameSnapshot])
+  @@index([startDate, endDate])
+  @@index([purpose])
+  @@index([createdAt])
   @@map("visits")
 }
 
-/// Scheduled day for a visit.
-model VisitSchedule {
-  id                Int       @id @default(autoincrement())
-  visitId           Int       @map("visit_id")
-  visit             Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  date              DateTime  @db.Date
-  expectedStartTime DateTime? @map("expected_start_time")
-  expectedEndTime   DateTime? @map("expected_end_time")
-  createdAt         DateTime  @default(now()) @map("created_at")
+/// One calendar day within a (possibly multi-day) visit.
+model VisitDay {
+  id      Int      @id @default(autoincrement())
+  visitId Int
+  visit   Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  date    DateTime @db.Date
+
+  createdAt DateTime @default(now())
 
   attendances VisitAttendance[]
 
   @@unique([visitId, date])
-  @@map("visit_schedules")
+  @@index([date])
+  @@map("visit_days")
 }
 
-/// Links a visitor to a visit.
+/// Links a visitor to a visit (supports group visits).
 model VisitParticipant {
-  id        Int      @id @default(autoincrement())
-  visitId   Int      @map("visit_id")
-  visit     Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  visitorId Int      @map("visitor_id")
-  visitor   Visitor  @relation(fields: [visitorId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id        Int     @id @default(autoincrement())
+  visitId   Int
+  visit     Visit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  visitorId Int
+  visitor   Visitor @relation(fields: [visitorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
 
   attendances VisitAttendance[]
 
   @@unique([visitId, visitorId])
+  @@index([visitorId])
   @@map("visit_participants")
 }
 
-/// Reusable physical visitor badge.
+// ── Badge inventory ────────────────────────────────────────────────────────
+
 model Badge {
   id          Int         @id @default(autoincrement())
-  badgeNumber Int         @unique
+  badgeNumber String      @unique
   qrToken     String      @unique
   status      BadgeStatus @default(AVAILABLE)
   notes       String?
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Historical + current assignments live on attendances.
   attendances VisitAttendance[]
 
   @@index([status])
   @@map("badges")
 }
 
-/// Attendance record for one visitor on one scheduled day.
+// ── Attendance (per visitor × visit day) ───────────────────────────────────
+
 model VisitAttendance {
   id Int @id @default(autoincrement())
 
-  visitParticipantId Int              @map("visit_participant_id")
-  visitParticipant   VisitParticipant @relation(fields: [visitParticipantId], references: [id])
-  visitScheduleId    Int              @map("visit_schedule_id")
-  visitSchedule      VisitSchedule    @relation(fields: [visitScheduleId], references: [id])
+  participantId Int
+  participant   VisitParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
-  badgeId         Int?      @map("badge_id")
-  badge           Badge?    @relation(fields: [badgeId], references: [id])
-  badgeAssignedAt DateTime? @map("badge_assigned_at") // Time the badge was assigned.
+  visitDayId Int
+  visitDay   VisitDay @relation(fields: [visitDayId], references: [id], onDelete: Cascade)
 
-  status VisitAttendanceStatus @default(SCHEDULED)
+  status AttendanceStatus @default(EXPECTED)
 
-  personalIdRetained   Boolean   @default(false) // Indicates whether the visitor's ID is retained.
-  personalIdReturnedAt DateTime? @map("personal_id_returned_at") // Time the retained ID was returned.
+  badgeId         Int?
+  badge           Badge?    @relation(fields: [badgeId], references: [id], onDelete: Restrict)
+  badgeAssignedAt DateTime?
 
-  checkInAt  DateTime? @map("check_in_at")
-  checkOutAt DateTime? @map("check_out_at")
+  /// Visitor personal ID retained at reception while badge is held.
+  personalIdRetained   Boolean   @default(false)
+  personalIdReturnedAt DateTime?
 
-  checkedInById  Int?  @map("checked_in_by_id")
-  checkedInBy    User? @relation("AttendanceCheckedInBy", fields: [checkedInById], references: [id])
-  checkedOutById Int?  @map("checked_out_by_id")
-  checkedOutBy   User? @relation("AttendanceCheckedOutBy", fields: [checkedOutById], references: [id])
+  checkInAt  DateTime?
+  checkOutAt DateTime?
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  checkedInById  Int?
+  checkedInBy    User? @relation("AttendanceCheckedInBy", fields: [checkedInById], references: [id], onDelete: SetNull)
+  checkedOutById Int?
+  checkedOutBy   User? @relation("AttendanceCheckedOutBy", fields: [checkedOutById], references: [id], onDelete: SetNull)
 
-  @@unique([visitParticipantId, visitScheduleId])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One attendance row per visitor per visit day.
+  @@unique([participantId, visitDayId])
+  @@index([visitDayId])
+  @@index([badgeId])
   @@index([status])
+  @@index([checkInAt])
   @@map("visit_attendances")
 }
 
-/// Audit log of visit status changes.
+// ── Visit status audit ─────────────────────────────────────────────────────
+
 model VisitStatusHistory {
-  id          Int          @id @default(autoincrement())
-  visitId     Int          @map("visit_id")
-  visit       Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  fromStatus  VisitStatus?
-  toStatus    VisitStatus
-  changedById Int?         @map("changed_by_id")
-  changedBy   User?        @relation(fields: [changedById], references: [id])
-  note        String?
-  createdAt   DateTime     @default(now()) @map("created_at")
+  id     Int   @id @default(autoincrement())
+  visitId Int
+  visit   Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  fromStatus VisitStatus?
+  toStatus   VisitStatus
+
+  changedById Int?
+  changedBy   User?   @relation("VisitStatusChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+  note        String? @db.Text
+
+  createdAt DateTime @default(now())
 
   @@index([visitId])
+  @@index([createdAt])
   @@map("visit_status_history")
 }
 
-/// Email and dashboard notifications.
+// ── Notifications (dashboard + email delivery history) ─────────────────────
+
 model Notification {
   id      Int                 @id @default(autoincrement())
   type    NotificationType
   channel NotificationChannel
 
-  visitId Int?   @map("visit_id")
-  visit   Visit? @relation(fields: [visitId], references: [id])
+  title   String?
+  subject String?
+  message String  @db.Text
 
-  invitationId Int?        @map("invitation_id")
-  invitation   Invitation? @relation(fields: [invitationId], references: [id])
+  isRead Boolean   @default(false)
+  sentAt DateTime?
 
-  recipientUserId Int?    @map("recipient_user_id")
-  recipientUser   User?   @relation("NotificationRecipientUser", fields: [recipientUserId], references: [id])
-  recipientEmail  String? /// Supports both internal users and external email recipients.
+  recipientUserId Int?
+  recipientUser   User?   @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  recipientEmail  String?
 
-  subject   String?
-  message   String    @db.Text
-  isRead    Boolean   @default(false)
-  sentAt    DateTime? @map("sent_at")
-  createdAt DateTime  @default(now()) @map("created_at")
+  visitId Int?
+  visit   Visit? @relation(fields: [visitId], references: [id], onDelete: SetNull)
 
+  createdAt DateTime @default(now())
+
+  @@index([recipientUserId, isRead])
+  @@index([recipientEmail])
   @@index([visitId])
-  @@index([invitationId])
-  @@index([recipientUserId])
+  @@index([type])
+  @@index([createdAt])
   @@map("notifications")
 }
 
-/// Configurable application settings.
+// ── System settings (key / value) ──────────────────────────────────────────
+
 model SystemSetting {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique
-  value       String
-  updatedById Int?     @map("updated_by_id")
-  updatedBy   User?    @relation(fields: [updatedById], references: [id])
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String @db.Text
+
+  updatedById Int?
+  updatedBy   User? @relation("SettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("system_settings")
 }
 
-/// Authenticated user session.
+// ── Session (express-mysql-session compatible) ─────────────────────────────
+
 model Session {
-  id        String   @id
-  sid       String   @unique
-  data      String   @db.Text
-  expiresAt DateTime @map("expires_at")
+  session_id String  @id @db.VarChar(128)
+  expires    Int
+  data       String? @db.MediumText
 
   @@map("sessions")
 }

@@ -1,34 +1,34 @@
+import type { ReactElement } from 'react';
 import type {
    NotificationChannel,
    NotificationType,
 } from '../generated/prisma/client.js';
 import { prisma } from '../config/prisma.js';
-import { sendEmail } from './email.service.js';
+import { sendTemplatedEmail, sendEmail } from './email.service.js';
 
 export interface DispatchNotificationInput {
    type: NotificationType;
    channel: NotificationChannel;
+   /** Inbox / email body text (plain). */
    message: string;
+   /** Dashboard notification title. */
+   title?: string;
+   /** Email subject line. */
    subject?: string;
    visitId?: number;
-   invitationId?: number;
    recipientUserId?: number;
    recipientEmail?: string;
+   /** React Email element — preferred for EMAIL channel. */
+   react?: ReactElement;
 }
 
 /**
- * Single entry point other modules use to raise a notification, e.g.
- * from Visits: "generate QR → dispatchNotification → return visit."
- * Callers never write to the Notification table or an email provider
- * directly — this is the one place that logic lives.
+ * Single entry point for dashboard + email notifications.
  *
- * A DASHBOARD notification is just the created row (the dashboard
- * module reads it back via its own inbox endpoints). An EMAIL
- * notification also attempts delivery and stamps sentAt on success.
- * A send failure is logged and swallowed rather than thrown — the
- * notification row still exists for audit/retry, and a delivery
- * failure shouldn't fail the caller's own operation (e.g. approving
- * a visit) mid-flight.
+ * - DASHBOARD: persists an inbox row for `recipientUserId`
+ * - EMAIL: persists a delivery/audit row and attempts SMTP send
+ *
+ * Delivery failures are logged and swallowed so visit workflows continue.
  */
 export const dispatchNotification = async (
    input: DispatchNotificationInput,
@@ -37,10 +37,10 @@ export const dispatchNotification = async (
       data: {
          type: input.type,
          channel: input.channel,
+         title: input.title,
          message: input.message,
          subject: input.subject,
          visitId: input.visitId,
-         invitationId: input.invitationId,
          recipientUserId: input.recipientUserId,
          recipientEmail: input.recipientEmail,
       },
@@ -51,14 +51,47 @@ export const dispatchNotification = async (
    }
 
    try {
-      await sendEmail(input.recipientEmail, input.subject ?? '', input.message);
+      if (input.react) {
+         await sendTemplatedEmail({
+            to: input.recipientEmail,
+            subject: input.subject ?? input.title ?? 'ATI VMS notification',
+            text: input.message,
+            react: input.react,
+         });
+      } else {
+         await sendEmail({
+            to: input.recipientEmail,
+            subject: input.subject ?? input.title ?? 'ATI VMS notification',
+            text: input.message,
+         });
+      }
 
       await prisma.notification.update({
          where: { id: notification.id },
          data: { sentAt: new Date() },
       });
    } catch (error) {
-      // TODO: route to structured logging (pino/winston) once wired up.
       console.error(`Failed to send notification ${notification.id}:`, error);
    }
+};
+
+/** Fan-out helper for several dashboard recipients of the same event. */
+export const dispatchDashboardNotifications = async (
+   recipientUserIds: number[],
+   input: Omit<
+      DispatchNotificationInput,
+      'channel' | 'recipientUserId' | 'recipientEmail' | 'react'
+   >,
+): Promise<void> => {
+   const uniqueIds = [...new Set(recipientUserIds.filter(Boolean))];
+
+   await Promise.all(
+      uniqueIds.map((recipientUserId) =>
+         dispatchNotification({
+            ...input,
+            channel: 'DASHBOARD',
+            recipientUserId,
+         }),
+      ),
+   );
 };

@@ -11,7 +11,7 @@ import { updateGeneralSettingsSchema } from '../validations/setting.validation.j
 const router = Router();
 
 router.use(requireAuth);
-router.use(requireRole('admin'));
+router.use(requireRole('ADMIN'));
 
 router.get('/', getSettings);
 router.patch(

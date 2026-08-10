@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { format, getISOWeek, startOfMonth, subMonths } from 'date-fns';
 import { prisma } from '../config/prisma.js';
-import { Prisma, VisitStatus } from '../generated/prisma/client.js';
+import { Prisma } from '../generated/prisma/client.js';
 import {
    GROWTH_MONTHS,
    DEPARTMENT_RANGES,
@@ -17,40 +17,34 @@ import {
    getRangeStart,
    minuteDifference,
 } from '../utils/dashboard.js';
-import { DateRange } from '../types/dashboard.types.js';
+import type { DateRange } from '../types/dashboard.types.js';
 import {
    calculateAverageDuration,
    formatVisitDuration,
 } from '../utils/shared.js';
 
-// Converts a date range into Prisma where condition
-export function visitWhere(range: DateRange | null) {
-   return range
+const visitCreatedWhere = (range: DateRange | null) =>
+   range
       ? {
-           checkedInAt: {
+           createdAt: {
               gte: range.start,
               lt: range.end,
            },
         }
       : {};
-}
+
+const getOverstayAfterMins = async () => {
+   const row = await prisma.systemSetting.findUnique({
+      where: { key: 'overstayAfterMins' },
+   });
+   return Number(row?.value ?? 120);
+};
 
 export async function getVisitStats(req: Request, res: Response) {
    const { filter } = req.query as DashboardStatsQuery;
-
    const { current, previous } = getDateRanges(filter);
-
-   // Get overstay configuration
-   const settings = await prisma.setting.findUnique({
-      where: { id: 1 },
-      select: {
-         overstayAfterMins: true,
-      },
-   });
-
-   const overstayCutoff = new Date(
-      Date.now() - (settings?.overstayAfterMins ?? 120) * 60 * 1000,
-   );
+   const overstayAfterMins = await getOverstayAfterMins();
+   const overstayCutoff = new Date(Date.now() - overstayAfterMins * 60_000);
 
    const [
       totalVisits,
@@ -60,101 +54,77 @@ export async function getVisitStats(req: Request, res: Response) {
       currentDurations,
       previousDurations,
    ] = await Promise.all([
-      // Total visits in selected period
-      prisma.visit.count({
-         where: visitWhere(current),
-      }),
-
-      // Previous period comparison
+      prisma.visit.count({ where: visitCreatedWhere(current) }),
       previous
-         ? prisma.visit.count({
-              where: visitWhere(previous),
-           })
+         ? prisma.visit.count({ where: visitCreatedWhere(previous) })
          : Promise.resolve(0),
-
-      // Visitors currently inside
-      prisma.visit.count({
+      prisma.visitAttendance.count({
+         where: { status: 'CHECKED_IN' },
+      }),
+      prisma.visitAttendance.count({
          where: {
-            status: VisitStatus.active,
-            checkedOutAt: null,
+            status: 'CHECKED_IN',
+            checkInAt: { lte: overstayCutoff },
          },
       }),
-
-      // Active visitors exceeding allowed time
-      prisma.visit.count({
+      prisma.visitAttendance.findMany({
          where: {
-            status: VisitStatus.active,
-            checkedOutAt: null,
-            checkedInAt: {
-               lte: overstayCutoff,
-            },
+            status: 'CHECKED_OUT',
+            checkOutAt: { not: null },
+            ...(current
+               ? { checkOutAt: { gte: current.start, lt: current.end } }
+               : {}),
          },
+         select: { checkInAt: true, checkOutAt: true },
       }),
-
-      // Current period durations
-      prisma.visit.findMany({
-         where: {
-            ...visitWhere(current),
-            checkedOutAt: {
-               not: null,
-            },
-         },
-         select: {
-            checkedInAt: true,
-            checkedOutAt: true,
-         },
-      }),
-
-      // Previous period durations
       previous
-         ? prisma.visit.findMany({
+         ? prisma.visitAttendance.findMany({
               where: {
-                 ...visitWhere(previous),
-                 checkedOutAt: {
-                    not: null,
+                 status: 'CHECKED_OUT',
+                 checkOutAt: {
+                    gte: previous.start,
+                    lt: previous.end,
                  },
               },
-              select: {
-                 checkedInAt: true,
-                 checkedOutAt: true,
-              },
+              select: { checkInAt: true, checkOutAt: true },
            })
          : Promise.resolve([]),
    ]);
 
-   const averageCurrent = calculateAverageDuration(currentDurations);
+   const averageCurrent = calculateAverageDuration(
+      currentDurations.map((row) => ({
+         checkedInAt: row.checkInAt!,
+         checkedOutAt: row.checkOutAt,
+      })),
+   );
 
-   const averagePrevious = calculateAverageDuration(previousDurations);
+   const averagePrevious = calculateAverageDuration(
+      previousDurations.map((row) => ({
+         checkedInAt: row.checkInAt!,
+         checkedOutAt: row.checkOutAt,
+      })),
+   );
 
    return res.status(200).json({
       success: true,
-
       data: {
          totalVisits,
-
          totalVisitsChange: previous
             ? percentChange(totalVisits, previousTotalVisits)
             : 0,
-
          currentlyInside,
-
          averageVisitDuration: formatVisitDuration(averageCurrent),
-
          averageVisitDurationChange: previous
             ? minuteDifference(averageCurrent, averagePrevious)
             : 0,
-
          overstays,
       },
    });
 }
 
-// GET /dashboard/growth?period=3m
 export async function getVisitGrowth(req: Request, res: Response) {
    const { period } = req.query as VisitGrowthQuery;
-
    const monthsBack = GROWTH_MONTHS[period];
-
    const rangeStart = startOfMonth(subMonths(new Date(), monthsBack - 1));
 
    const rows = await prisma.$queryRaw<
@@ -167,18 +137,14 @@ export async function getVisitGrowth(req: Request, res: Response) {
             SELECT
                DATE(
                   DATE_SUB(
-                     checkedInAt,
-                     INTERVAL WEEKDAY(checkedInAt) DAY
+                     createdAt,
+                     INTERVAL WEEKDAY(createdAt) DAY
                   )
                ) AS weekStart,
                COUNT(*) AS visits
-
             FROM visits
-
-            WHERE checkedInAt >= ${rangeStart}
-
+            WHERE createdAt >= ${rangeStart}
             GROUP BY weekStart
-
             ORDER BY weekStart ASC
          `,
    );
@@ -187,11 +153,8 @@ export async function getVisitGrowth(req: Request, res: Response) {
 
    const data = rows.map((row) => {
       const date = new Date(row.weekStart);
-
       const month = format(date, 'MMM');
-
       const showMonth = month !== lastMonth;
-
       lastMonth = month;
 
       return {
@@ -208,50 +171,43 @@ export async function getVisitGrowth(req: Request, res: Response) {
    });
 }
 
-// GET /dashboard/departments?range=30days
 export async function getDepartmentVisits(req: Request, res: Response) {
    const { range } = req.query as DepartmentVisitsQuery;
-
    const days = DEPARTMENT_RANGES[range];
-
    const rangeStart = getRangeStart(days);
 
    const rows = await prisma.$queryRaw<
       {
          name: string;
-         shortName: string | null;
-         color: string;
          value: bigint;
       }[]
    >(
       Prisma.sql`
             SELECT
-               d.name,
-                d.shortName,
-               d.color,
+               COALESCE(v.departmentNameSnapshot, 'Unknown') AS name,
                COUNT(v.id) AS value
-
             FROM visits v
-
-            INNER JOIN departments d
-               ON d.id = v.departmentId
-
-            WHERE v.checkedInAt >= ${rangeStart}
-
-            GROUP BY
-               d.id,
-               d.name,
-                d.shortName,
-               d.color
-
+            WHERE v.createdAt >= ${rangeStart}
+              AND v.departmentNameSnapshot IS NOT NULL
+            GROUP BY v.departmentNameSnapshot
             ORDER BY value DESC
          `,
    );
 
-   const data = rows.map((row) => ({
+   const palette = [
+      '#35B9E9',
+      '#6E3FF3',
+      '#375DFB',
+      '#00D084',
+      '#FF6900',
+      '#EB144C',
+      '#F7C948',
+      '#2D9CDB',
+   ];
+
+   const data = rows.map((row, index) => ({
       name: row.name,
-      shortName: row.shortName ?? undefined,
-      color: row.color,
+      color: palette[index % palette.length],
       value: Number(row.value),
    }));
 

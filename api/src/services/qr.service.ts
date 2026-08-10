@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
 /**
- * Generates an opaque, unguessable token used to encode a visit or
- * badge's QR code. Kept as a thin boundary so the actual QR image
- * rendering (if any) can be swapped in here later without touching
- * callers.
+ * Opaque token encoded into visit/badge QR codes.
+ *
+ * Visit QR  → Visit.qrToken  (unique; prefer over visitCode for scanning)
+ * Badge QR  → Badge.qrToken  (unique; prefer over badgeNumber for scanning)
+ *
+ * Human-readable Visit.visitCode / Badge.badgeNumber remain available for
+ * manual entry; lookup endpoints accept either form.
  */
 export const generateQrToken = (): string => randomUUID();

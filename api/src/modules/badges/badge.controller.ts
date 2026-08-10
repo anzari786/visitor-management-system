@@ -8,9 +8,8 @@ import {
    assignBadge,
    releaseBadge,
    reportBadgeLost,
-   reportBadgeDamaged,
+   disableBadge,
    restoreBadge,
-   retireBadge,
    formatBadge,
 } from './badge.service.js';
 import type {
@@ -31,7 +30,6 @@ type BadgeActionBody = z.infer<typeof badgeActionSchema>['body'];
 
 export const postBadge = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateBadgeBody;
-
    const badge = await createBadge(input);
 
    return res.status(201).json({
@@ -61,7 +59,6 @@ export const getBadges = async (req: Request, res: Response) => {
 
 export const getBadge = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeIdParams;
-
    const badge = await getBadgeById(id);
 
    return res.status(200).json({
@@ -73,7 +70,6 @@ export const getBadge = async (req: Request, res: Response) => {
 export const patchBadge = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as UpdateBadgeParams;
    const input = req.validatedBody as UpdateBadgeBody;
-
    const badge = await updateBadge(id, input);
 
    return res.status(200).json({
@@ -85,7 +81,6 @@ export const patchBadge = async (req: Request, res: Response) => {
 
 export const postAssignBadge = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeIdParams;
-
    const badge = await assignBadge(id);
 
    return res.status(200).json({
@@ -97,7 +92,6 @@ export const postAssignBadge = async (req: Request, res: Response) => {
 
 export const postReleaseBadge = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeIdParams;
-
    const badge = await releaseBadge(id);
 
    return res.status(200).json({
@@ -110,7 +104,6 @@ export const postReleaseBadge = async (req: Request, res: Response) => {
 export const postBadgeLost = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeActionParams;
    const { note } = req.validatedBody as BadgeActionBody;
-
    const badge = await reportBadgeLost(id, note);
 
    return res.status(200).json({
@@ -120,15 +113,14 @@ export const postBadgeLost = async (req: Request, res: Response) => {
    });
 };
 
-export const postBadgeDamaged = async (req: Request, res: Response) => {
+export const postBadgeDisabled = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeActionParams;
    const { note } = req.validatedBody as BadgeActionBody;
-
-   const badge = await reportBadgeDamaged(id, note);
+   const badge = await disableBadge(id, note);
 
    return res.status(200).json({
       success: true,
-      message: 'Badge reported damaged',
+      message: 'Badge disabled',
       data: formatBadge(badge),
    });
 };
@@ -136,25 +128,11 @@ export const postBadgeDamaged = async (req: Request, res: Response) => {
 export const postRestoreBadge = async (req: Request, res: Response) => {
    const { id } = req.validatedParams as BadgeActionParams;
    const { note } = req.validatedBody as BadgeActionBody;
-
    const badge = await restoreBadge(id, note);
 
    return res.status(200).json({
       success: true,
       message: 'Badge restored to service',
-      data: formatBadge(badge),
-   });
-};
-
-export const postRetireBadge = async (req: Request, res: Response) => {
-   const { id } = req.validatedParams as BadgeActionParams;
-   const { note } = req.validatedBody as BadgeActionBody;
-
-   const badge = await retireBadge(id, note);
-
-   return res.status(200).json({
-      success: true,
-      message: 'Badge retired',
       data: formatBadge(badge),
    });
 };

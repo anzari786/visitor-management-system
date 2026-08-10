@@ -15,7 +15,7 @@ export type BadgeWithSelect = Prisma.BadgeGetPayload<{
 }>;
 
 export interface CreateBadgeInput {
-   badgeNumber: number;
+   badgeNumber: string;
    notes?: string;
 }
 

@@ -1,4 +1,4 @@
-import { Prisma } from '../../generated/prisma/client.js';
+import { Prisma, type RoleName } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { ConflictError, NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
@@ -32,46 +32,61 @@ const assertEmployeeIsLinkable = async (
    }
 };
 
-const resolveRoleIds = async (roleCodes: string[]): Promise<number[]> => {
-   const roles = await prisma.role.findMany({
-      where: { code: { in: roleCodes }, isActive: true },
+const resolveRoleIds = async (roles: RoleName[]): Promise<number[]> => {
+   const found = await prisma.role.findMany({
+      where: { name: { in: roles } },
    });
 
-   const foundCodes = new Set(roles.map((role) => role.code));
-   const missing = roleCodes.filter((code) => !foundCodes.has(code));
+   const foundNames = new Set(found.map((role) => role.name));
+   const missing = roles.filter((name) => !foundNames.has(name));
 
    if (missing.length > 0) {
-      throw new NotFoundError(`Unknown role code(s): ${missing.join(', ')}`);
+      throw new NotFoundError(`Unknown role(s): ${missing.join(', ')}`);
    }
 
-   return roles.map((role) => role.id);
+   return found.map((role) => role.id);
 };
 
 /**
- * Provisions a dashboard account ahead of someone's first SSO login —
- * the auth module refuses to log in a subject it doesn't already
- * recognize, so this is what makes that recognition possible.
+ * Provisions a dashboard account. Prefer linking an Employee when the
+ * person also appears in the HR directory.
  */
 export const createUser = async (
    input: CreateUserInput,
-   actorId: number,
 ): Promise<UserDetail> => {
    if (input.employeeId) {
       await assertEmployeeIsLinkable(input.employeeId);
    }
 
-   const roleIds = input.roleCodes ? await resolveRoleIds(input.roleCodes) : [];
+   const roleIds = input.roles?.length ? await resolveRoleIds(input.roles) : [];
+
+   let firstName = input.firstName;
+   let lastName = input.lastName;
+   let email = input.email;
+   let phone = input.phone;
+
+   if (input.employeeId) {
+      const employee = await prisma.employee.findUniqueOrThrow({
+         where: { id: input.employeeId },
+      });
+      firstName = firstName || employee.firstName;
+      lastName = lastName || employee.lastName;
+      email = email ?? employee.email;
+      phone = phone ?? employee.phone ?? undefined;
+   }
 
    try {
       return await prisma.user.create({
          data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            username: input.username,
             externalSubject: input.externalSubject,
             employeeId: input.employeeId,
-            roleAssignments: {
-               create: roleIds.map((roleId) => ({
-                  roleId,
-                  assignedById: actorId,
-               })),
+            userRoles: {
+               create: roleIds.map((roleId) => ({ roleId })),
             },
          },
          select: userDetailSelect,
@@ -82,7 +97,7 @@ export const createUser = async (
          error.code === 'P2002';
 
       if (isUniqueConflict) {
-         throw new ConflictError('A user for this SSO subject already exists');
+         throw new ConflictError('A user with these unique fields already exists');
       }
 
       throw error;
@@ -92,25 +107,33 @@ export const createUser = async (
 interface ListUsersFilters extends PaginationParams {
    search?: string;
    isActive?: boolean;
-   roleCode?: string;
+   role?: RoleName;
 }
 
 export const listUsers = async (filters: ListUsersFilters) => {
    const where: Prisma.UserWhereInput = {
       ...(filters.isActive !== undefined && { isActive: filters.isActive }),
-      ...(filters.roleCode && {
-         roleAssignments: { some: { role: { code: filters.roleCode } } },
+      ...(filters.role && {
+         userRoles: { some: { role: { name: filters.role } } },
       }),
       ...(filters.search && {
-         employee: {
-            is: {
-               OR: [
-                  { firstName: { contains: filters.search } },
-                  { lastName: { contains: filters.search } },
-                  { email: { contains: filters.search } },
-               ],
+         OR: [
+            { firstName: { contains: filters.search } },
+            { lastName: { contains: filters.search } },
+            { email: { contains: filters.search } },
+            { username: { contains: filters.search } },
+            {
+               employee: {
+                  is: {
+                     OR: [
+                        { firstName: { contains: filters.search } },
+                        { lastName: { contains: filters.search } },
+                        { email: { contains: filters.search } },
+                     ],
+                  },
+               },
             },
-         },
+         ],
       }),
    };
 
@@ -156,6 +179,10 @@ export const updateUser = async (
    return prisma.user.update({
       where: { id },
       data: {
+         ...(input.firstName !== undefined && { firstName: input.firstName }),
+         ...(input.lastName !== undefined && { lastName: input.lastName }),
+         ...(input.email !== undefined && { email: input.email }),
+         ...(input.phone !== undefined && { phone: input.phone }),
          ...(input.employeeId !== undefined && {
             employeeId: input.employeeId,
          }),
@@ -167,14 +194,13 @@ export const updateUser = async (
 
 export const assignRole = async (
    userId: number,
-   roleCode: string,
-   actorId: number,
+   roleName: RoleName,
 ): Promise<UserDetail> => {
    await getUserById(userId);
 
-   const [roleId] = await resolveRoleIds([roleCode]);
+   const [roleId] = await resolveRoleIds([roleName]);
 
-   const alreadyAssigned = await prisma.userRoleAssignment.findUnique({
+   const alreadyAssigned = await prisma.userRole.findUnique({
       where: { userId_roleId: { userId, roleId } },
    });
 
@@ -182,8 +208,8 @@ export const assignRole = async (
       throw new ConflictError('Role is already assigned to this user');
    }
 
-   await prisma.userRoleAssignment.create({
-      data: { userId, roleId, assignedById: actorId },
+   await prisma.userRole.create({
+      data: { userId, roleId },
    });
 
    return getUserById(userId);
@@ -191,13 +217,13 @@ export const assignRole = async (
 
 export const removeRole = async (
    userId: number,
-   roleCode: string,
+   roleName: RoleName,
 ): Promise<UserDetail> => {
    await getUserById(userId);
 
-   const [roleId] = await resolveRoleIds([roleCode]);
+   const [roleId] = await resolveRoleIds([roleName]);
 
-   const assignment = await prisma.userRoleAssignment.findUnique({
+   const assignment = await prisma.userRole.findUnique({
       where: { userId_roleId: { userId, roleId } },
    });
 
@@ -205,15 +231,24 @@ export const removeRole = async (
       throw new NotFoundError('User does not have this role assigned');
    }
 
-   await prisma.userRoleAssignment.delete({ where: { id: assignment.id } });
+   await prisma.userRole.delete({
+      where: { userId_roleId: { userId, roleId } },
+   });
 
    return getUserById(userId);
 };
 
 export const formatUserDetail = (user: UserDetail) => ({
    id: String(user.id),
-   externalSubject: user.externalSubject,
+   externalSubject: user.externalSubject ?? undefined,
+   firstName: user.firstName,
+   lastName: user.lastName,
+   email: user.email ?? undefined,
+   phone: user.phone ?? undefined,
+   username: user.username ?? undefined,
    isActive: user.isActive,
+   mustChangePassword: user.mustChangePassword,
+   lastLoginAt: user.lastLoginAt ?? undefined,
    employee: user.employee
       ? {
            id: String(user.employee.id),
@@ -224,17 +259,10 @@ export const formatUserDetail = (user: UserDetail) => ({
            position: user.employee.position ?? undefined,
         }
       : undefined,
-   roles: user.roleAssignments.map((assignment) => ({
-      id: String(assignment.id),
-      code: assignment.role.code,
+   roles: user.userRoles.map((assignment) => ({
       name: assignment.role.name,
+      description: assignment.role.description ?? undefined,
       assignedAt: assignment.assignedAt,
-      assignedBy: assignment.assignedBy?.employee
-         ? {
-              firstName: assignment.assignedBy.employee.firstName,
-              lastName: assignment.assignedBy.employee.lastName,
-           }
-         : undefined,
    })),
    createdAt: user.createdAt,
    updatedAt: user.updatedAt,
@@ -242,7 +270,10 @@ export const formatUserDetail = (user: UserDetail) => ({
 
 export const formatUserSummary = (user: UserSummary) => ({
    id: String(user.id),
-   externalSubject: user.externalSubject,
+   externalSubject: user.externalSubject ?? undefined,
+   firstName: user.firstName,
+   lastName: user.lastName,
+   email: user.email ?? undefined,
    isActive: user.isActive,
    employee: user.employee
       ? {
@@ -253,6 +284,6 @@ export const formatUserSummary = (user: UserSummary) => ({
            departmentName: user.employee.departmentName,
         }
       : undefined,
-   roleCodes: user.roleAssignments.map((assignment) => assignment.role.code),
+   roles: user.userRoles.map((assignment) => assignment.role.name),
    createdAt: user.createdAt,
 });

@@ -15,7 +15,7 @@ router.use(requireAuth);
 router.get('/stats', getReportStats);
 router.get(
    '/export',
-   requireRole('admin'),
+   requireRole('ADMIN'),
    validate(exportVisitLogSchema),
    exportVisitLog,
 );

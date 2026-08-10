@@ -6,7 +6,7 @@ export const exportVisitLogSchema = z.object({
    query: z
       .object({
          period: exportPeriodEnum,
-         departmentId: z.coerce.number().int().positive().optional(),
+         departmentName: z.string().trim().min(1).optional(),
          from: z.string().date().optional(),
          to: z.string().date().optional(),
       })

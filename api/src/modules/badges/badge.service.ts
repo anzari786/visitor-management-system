@@ -23,14 +23,6 @@ const assertTransition = (current: BadgeStatus, allowed: BadgeStatus[]) => {
    }
 };
 
-/**
- * Badge has no dedicated status-history table (unlike Visit/Invitation)
- * — just a single freeform notes field and no "who did this" column.
- * Rather than overwrite notes on every transition, timestamped entries
- * are appended so at least a readable trail survives. This is not a
- * substitute for structured audit data; if that's needed later it
- * means adding a BadgeStatusHistory model to the schema.
- */
 const appendNote = (
    existingNotes: string | null,
    note?: string,
@@ -40,7 +32,6 @@ const appendNote = (
    }
 
    const entry = `[${new Date().toISOString()}] ${note}`;
-
    return existingNotes ? `${existingNotes}\n${entry}` : entry;
 };
 
@@ -71,7 +62,7 @@ export const createBadge = async (
 
 interface ListBadgesFilters extends PaginationParams {
    status?: BadgeStatus;
-   badgeNumber?: number;
+   badgeNumber?: string;
 }
 
 export const listBadges = async (filters: ListBadgesFilters) => {
@@ -124,13 +115,6 @@ export const updateBadge = async (
    });
 };
 
-/**
- * Transitions a badge to ASSIGNED when it's physically handed to an
- * arriving visitor. NOTE: this only updates the badge's own status —
- * linking it to a specific VisitAttendance row (badgeId,
- * badgeAssignedAt) is the Attendance module's job; that module should
- * call this alongside writing its own check-in record.
- */
 export const assignBadge = async (id: number): Promise<BadgeWithSelect> => {
    const badge = await getBadgeById(id);
 
@@ -143,7 +127,6 @@ export const assignBadge = async (id: number): Promise<BadgeWithSelect> => {
    });
 };
 
-/** Returns a badge to the pool when it's handed back at check-out. */
 export const releaseBadge = async (id: number): Promise<BadgeWithSelect> => {
    const badge = await getBadgeById(id);
 
@@ -171,49 +154,33 @@ export const reportBadgeLost = async (
    });
 };
 
-export const reportBadgeDamaged = async (
+export const disableBadge = async (
    id: number,
    note?: string,
 ): Promise<BadgeWithSelect> => {
    const badge = await getBadgeById(id);
 
-   assertTransition(badge.status, ['AVAILABLE', 'ASSIGNED']);
+   assertTransition(badge.status, ['AVAILABLE', 'ASSIGNED', 'LOST']);
 
    return prisma.badge.update({
       where: { id },
-      data: { status: 'DAMAGED', notes: appendNote(badge.notes, note) },
+      data: { status: 'DISABLED', notes: appendNote(badge.notes, note) },
       select: badgeSelect,
    });
 };
 
-/** Brings a previously LOST/DAMAGED badge back into circulation. */
+/** Brings a previously LOST/DISABLED badge back into circulation. */
 export const restoreBadge = async (
    id: number,
    note?: string,
 ): Promise<BadgeWithSelect> => {
    const badge = await getBadgeById(id);
 
-   assertTransition(badge.status, ['LOST', 'DAMAGED']);
+   assertTransition(badge.status, ['LOST', 'DISABLED']);
 
    return prisma.badge.update({
       where: { id },
       data: { status: 'AVAILABLE', notes: appendNote(badge.notes, note) },
-      select: badgeSelect,
-   });
-};
-
-/** Terminal — a retired badge is permanently withdrawn from the pool. */
-export const retireBadge = async (
-   id: number,
-   note?: string,
-): Promise<BadgeWithSelect> => {
-   const badge = await getBadgeById(id);
-
-   assertTransition(badge.status, ['AVAILABLE', 'ASSIGNED', 'LOST', 'DAMAGED']);
-
-   return prisma.badge.update({
-      where: { id },
-      data: { status: 'RETIRED', notes: appendNote(badge.notes, note) },
       select: badgeSelect,
    });
 };

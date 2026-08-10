@@ -1,13 +1,18 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { Prisma, RoleName } from '../../generated/prisma/client.js';
 
 /**
  * Select shape used whenever the authenticated user's profile is
  * returned to the client (session hydration, GET /auth/me, etc).
+ * Never includes passwordHash.
  */
 export const authUserSelect = {
    id: true,
    externalSubject: true,
+   firstName: true,
+   lastName: true,
+   email: true,
    isActive: true,
+   mustChangePassword: true,
    createdAt: true,
    employee: {
       select: {
@@ -19,12 +24,12 @@ export const authUserSelect = {
          position: true,
       },
    },
-   roleAssignments: {
+   userRoles: {
       select: {
          role: {
             select: {
-               code: true,
                name: true,
+               description: true,
             },
          },
       },
@@ -35,10 +40,24 @@ export type AuthUserWithRelations = Prisma.UserGetPayload<{
    select: typeof authUserSelect;
 }>;
 
-/** Shape persisted on req.session after a successful SSO login. */
+/** Credential-bearing select — local auth only; never returned to clients. */
+export const localCredentialSelect = {
+   id: true,
+   username: true,
+   passwordHash: true,
+   mustChangePassword: true,
+   isActive: true,
+} satisfies Prisma.UserSelect;
+
+export type LocalCredentialUser = Prisma.UserGetPayload<{
+   select: typeof localCredentialSelect;
+}>;
+
+/** Shape persisted on req.session after a successful login. */
 export interface SessionUser {
    userId: number;
-   roleCodes: string[];
+   /** RoleName values, e.g. GUARD / RECEPTION / ADMIN / MANAGER */
+   roleCodes: RoleName[];
 }
 
 /** Normalized payload returned once an SSO auth code has been exchanged. */

@@ -1,10 +1,17 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { Prisma, RoleName } from '../../generated/prisma/client.js';
 
 /** Full record shape for the user detail view. */
 export const userDetailSelect = {
    id: true,
    externalSubject: true,
+   firstName: true,
+   lastName: true,
+   email: true,
+   phone: true,
+   username: true,
    isActive: true,
+   mustChangePassword: true,
+   lastLoginAt: true,
    createdAt: true,
    updatedAt: true,
    employee: {
@@ -17,22 +24,13 @@ export const userDetailSelect = {
          position: true,
       },
    },
-   roleAssignments: {
+   userRoles: {
       select: {
-         id: true,
          assignedAt: true,
          role: {
             select: {
-               code: true,
                name: true,
-            },
-         },
-         assignedBy: {
-            select: {
-               id: true,
-               employee: {
-                  select: { firstName: true, lastName: true },
-               },
+               description: true,
             },
          },
       },
@@ -48,6 +46,9 @@ export type UserDetail = Prisma.UserGetPayload<{
 export const userSummarySelect = {
    id: true,
    externalSubject: true,
+   firstName: true,
+   lastName: true,
+   email: true,
    isActive: true,
    createdAt: true,
    employee: {
@@ -59,9 +60,9 @@ export const userSummarySelect = {
          departmentName: true,
       },
    },
-   roleAssignments: {
+   userRoles: {
       select: {
-         role: { select: { code: true, name: true } },
+         role: { select: { name: true } },
       },
    },
 } satisfies Prisma.UserSelect;
@@ -71,12 +72,21 @@ export type UserSummary = Prisma.UserGetPayload<{
 }>;
 
 export interface CreateUserInput {
-   externalSubject: string;
+   firstName: string;
+   lastName: string;
+   email?: string;
+   phone?: string;
+   username?: string;
+   externalSubject?: string;
    employeeId?: number;
-   roleCodes?: string[];
+   roles?: RoleName[];
 }
 
 export interface UpdateUserInput {
+   firstName?: string;
+   lastName?: string;
+   email?: string | null;
+   phone?: string | null;
    employeeId?: number | null;
    isActive?: boolean;
 }

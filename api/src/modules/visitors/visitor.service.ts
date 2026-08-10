@@ -170,7 +170,7 @@ export const formatVisitorHistoryEntry = (entry: VisitorHistoryEntry) => ({
       id: String(entry.visit.id),
       visitCode: entry.visit.visitCode,
       status: entry.visit.status,
-      isAssisted: entry.visit.isAssisted,
+      source: entry.visit.source,
       purpose: entry.visit.purpose,
       createdAt: entry.visit.createdAt,
       host: entry.visit.hostEmployee

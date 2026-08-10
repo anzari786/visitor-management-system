@@ -11,14 +11,25 @@ const identificationTypeSchema = z.enum([
    'OTHER',
 ]);
 
+const visitPurposeSchema = z.enum([
+   'MEETING',
+   'INTERVIEW',
+   'DELIVERY',
+   'OFFICIAL_VISIT',
+   'MAINTENANCE',
+   'OTHER',
+]);
+
 const visitStatusSchema = z.enum([
    'PENDING_APPROVAL',
    'APPROVED',
    'REJECTED',
    'RESCHEDULED',
-   'COMPLETED',
    'CANCELLED',
-   'EXPIRED',
+   'PARTIALLY_CHECKED_IN',
+   'CHECKED_IN',
+   'PARTIALLY_CHECKED_OUT',
+   'CHECKED_OUT',
 ]);
 
 const visitorInputSchema = z.object({
@@ -41,10 +52,12 @@ const visitRequestBodySchema = z
    .object({
       groupType: groupTypeSchema,
       durationType: durationTypeSchema,
-      purpose: z.string().trim().min(1).max(2000),
+      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
       hostEmployeeId: z.coerce.number().int().positive(),
       visitors: z.array(visitorInputSchema).min(1).max(50),
       scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
+      floor: z.string().trim().min(1).max(100).optional(),
+      room: z.string().trim().min(1).max(100).optional(),
    })
    .refine((body) => body.groupType === 'GROUP' || body.visitors.length === 1, {
       message: 'A SINGLE visit must have exactly one visitor',
@@ -64,8 +77,13 @@ export const createVisitRequestSchema = z.object({
    body: visitRequestBodySchema,
 });
 
-/** Guard-assisted registration — same body shape, different actor/meta. */
+/** Guard/reception-assisted registration — same body shape, different actor/meta. */
 export const createWalkInVisitSchema = z.object({
+   body: visitRequestBodySchema,
+});
+
+/** Host invitation — pre-approved visit created by staff on behalf of a host. */
+export const createHostInvitationSchema = z.object({
    body: visitRequestBodySchema,
 });
 
@@ -98,12 +116,26 @@ export const visitDecisionSchema = z.object({
    }),
 });
 
+/** Host must assign floor/room before approving. */
+export const approveVisitSchema = z.object({
+   params: z.object({
+      id: z.coerce.number().int().positive(),
+   }),
+   body: z.object({
+      floor: z.string().trim().min(1).max(100),
+      room: z.string().trim().min(1).max(100),
+      note: z.string().trim().max(1000).optional(),
+   }),
+});
+
 export const rescheduleVisitSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),
    }),
    body: z.object({
       scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
+      floor: z.string().trim().min(1).max(100).optional(),
+      room: z.string().trim().min(1).max(100).optional(),
       note: z.string().trim().max(1000).optional(),
    }),
 });

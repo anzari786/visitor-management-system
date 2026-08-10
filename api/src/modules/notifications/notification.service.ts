@@ -98,13 +98,11 @@ export const formatNotification = (notification: NotificationWithSelect) => ({
    id: String(notification.id),
    type: notification.type,
    channel: notification.channel,
+   title: notification.title ?? undefined,
    subject: notification.subject ?? undefined,
    message: notification.message,
    isRead: notification.isRead,
    sentAt: notification.sentAt ?? undefined,
    createdAt: notification.createdAt,
    visitId: notification.visitId ? String(notification.visitId) : undefined,
-   invitationId: notification.invitationId
-      ? String(notification.invitationId)
-      : undefined,
 });

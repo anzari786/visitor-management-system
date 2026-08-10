@@ -1,7 +1,9 @@
 import type {
-   IdentificationType,
+   IdType,
    Prisma,
    VisitDurationType,
+   VisitPurpose,
+   VisitSource,
    VisitorGroupType,
 } from '../../generated/prisma/client.js';
 
@@ -10,17 +12,25 @@ export const visitDetailSelect = {
    id: true,
    visitCode: true,
    qrToken: true,
+   source: true,
    groupType: true,
    durationType: true,
    status: true,
    purpose: true,
-   isAssisted: true,
+   hostNameSnapshot: true,
    hostEmailSnapshot: true,
    departmentNameSnapshot: true,
    departmentCodeSnapshot: true,
+   floor: true,
+   room: true,
+   startDate: true,
+   endDate: true,
+   startTime: true,
+   endTime: true,
+   expectedVisitorCount: true,
+   organization: true,
    decisionAt: true,
    decisionNote: true,
-   visitExpiresAt: true,
    createdAt: true,
    updatedAt: true,
    hostEmployee: {
@@ -30,6 +40,7 @@ export const visitDetailSelect = {
          lastName: true,
          email: true,
          departmentName: true,
+         user: { select: { id: true } },
       },
    },
    participants: {
@@ -49,12 +60,10 @@ export const visitDetailSelect = {
          },
       },
    },
-   schedules: {
+   days: {
       select: {
          id: true,
          date: true,
-         expectedStartTime: true,
-         expectedEndTime: true,
       },
       orderBy: { date: 'asc' },
    },
@@ -68,9 +77,8 @@ export const visitDetailSelect = {
          changedBy: {
             select: {
                id: true,
-               employee: {
-                  select: { firstName: true, lastName: true },
-               },
+               firstName: true,
+               lastName: true,
             },
          },
       },
@@ -86,11 +94,17 @@ export type VisitDetail = Prisma.VisitGetPayload<{
 export const visitSummarySelect = {
    id: true,
    visitCode: true,
+   source: true,
    groupType: true,
    durationType: true,
    status: true,
    purpose: true,
-   isAssisted: true,
+   floor: true,
+   room: true,
+   startDate: true,
+   endDate: true,
+   startTime: true,
+   endTime: true,
    createdAt: true,
    hostEmployee: {
       select: {
@@ -107,7 +121,7 @@ export const visitSummarySelect = {
          },
       },
    },
-   schedules: {
+   days: {
       select: { date: true },
       orderBy: { date: 'asc' },
    },
@@ -123,7 +137,7 @@ export interface VisitorInputForVisit {
    phone: string;
    email?: string;
    organization?: string;
-   idType: IdentificationType;
+   idType: IdType;
    idNumber: string;
 }
 
@@ -136,14 +150,29 @@ export interface ScheduleDateInput {
 export interface CreateVisitInput {
    groupType: VisitorGroupType;
    durationType: VisitDurationType;
-   purpose: string;
+   purpose: VisitPurpose | string;
    hostEmployeeId: number;
    visitors: VisitorInputForVisit[];
    scheduleDates: ScheduleDateInput[];
+   floor?: string;
+   room?: string;
 }
 
-/** Context that differs between the public request and walk-in paths. */
+/** Context that differs between public, walk-in, and host-invitation paths. */
 export interface CreateVisitMeta {
-   isAssisted: boolean;
+   source: VisitSource;
    createdById?: number;
+}
+
+export interface ApproveVisitInput {
+   floor: string;
+   room: string;
+   note?: string;
+}
+
+export interface RescheduleVisitInput {
+   scheduleDates: ScheduleDateInput[];
+   floor?: string;
+   room?: string;
+   note?: string;
 }

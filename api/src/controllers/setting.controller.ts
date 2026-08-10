@@ -1,69 +1,113 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../config/prisma.js';
-import type { Prisma } from '../generated/prisma/client.js';
 import { APP_INFO } from '../config/app.js';
-import { NotFoundError } from '../lib/errors.js';
 
-const settingSelect = {
-   orgName: true,
-   badgePrefix: true,
-   overstayEnabled: true,
-   overstayAfterMins: true,
-   createdAt: true,
-} satisfies Prisma.SystemSettingSelect;
+const SETTING_KEYS = [
+   'orgName',
+   'badgePrefix',
+   'overstayEnabled',
+   'overstayAfterMins',
+] as const;
 
-type SettingWithBase = Prisma.SystemSettingGetPayload<{
-   select: typeof settingSelect;
-}>;
+type SettingKey = (typeof SETTING_KEYS)[number];
 
-// Maps the Prisma shape onto the frontend `Settings` type
-// (adds computed/env-derived fields not stored in the DB).
-const formatSettings = (setting: SettingWithBase, totalUsers: number) => ({
-   orgName: setting.orgName,
-   badgePrefix: setting.badgePrefix,
-   overstayEnabled: setting.overstayEnabled,
-   overstayAfterMins: setting.overstayAfterMins,
-   createdAt: setting.createdAt,
+const DEFAULTS: Record<SettingKey, string> = {
+   orgName: 'Ethiopian Agricultural Transformation Institute',
+   badgePrefix: 'ATI',
+   overstayEnabled: 'true',
+   overstayAfterMins: '120',
+};
+
+const loadSettingsMap = async () => {
+   const rows = await prisma.systemSetting.findMany({
+      where: { key: { in: [...SETTING_KEYS] } },
+   });
+
+   return Object.fromEntries(rows.map((row) => [row.key, row.value])) as Partial<
+      Record<SettingKey, string>
+   >;
+};
+
+const formatSettings = (
+   map: Partial<Record<SettingKey, string>>,
+   totalUsers: number,
+) => ({
+   orgName: map.orgName ?? DEFAULTS.orgName,
+   badgePrefix: map.badgePrefix ?? DEFAULTS.badgePrefix,
+   overstayEnabled: (map.overstayEnabled ?? DEFAULTS.overstayEnabled) !== 'false',
+   overstayAfterMins: Number(
+      map.overstayAfterMins ?? DEFAULTS.overstayAfterMins,
+   ),
    systemVersion: APP_INFO.systemVersion,
    database: APP_INFO.databaseLabel,
    totalUsers,
 });
 
 export async function getSettings(_req: Request, res: Response) {
-   const [settings, totalUsers] = await Promise.all([
-      prisma.systemSetting.findUnique({
-         where: { id: 1 },
-         select: settingSelect,
-      }),
+   const [map, totalUsers] = await Promise.all([
+      loadSettingsMap(),
       prisma.user.count(),
    ]);
 
-   if (!settings) {
-      throw new NotFoundError('Settings not found');
-   }
-
    return res.status(200).json({
       success: true,
-      data: formatSettings(settings, totalUsers),
+      data: formatSettings(map, totalUsers),
    });
 }
 
 export async function updateGeneralSettings(req: Request, res: Response) {
    const { orgName, badgePrefix, overstayEnabled, overstayAfterMins } =
-      req.body;
+      req.body as {
+         orgName?: string;
+         badgePrefix?: string;
+         overstayEnabled?: boolean;
+         overstayAfterMins?: number;
+      };
 
-   const [settings, totalUsers] = await Promise.all([
-      prisma.systemSetting.update({
-         where: { id: 1 },
-         data: { orgName, badgePrefix, overstayEnabled, overstayAfterMins },
-         select: settingSelect,
-      }),
+   const updates: Array<{ key: SettingKey; value: string }> = [];
+
+   if (orgName !== undefined) updates.push({ key: 'orgName', value: orgName });
+   if (badgePrefix !== undefined) {
+      updates.push({ key: 'badgePrefix', value: badgePrefix });
+   }
+   if (overstayEnabled !== undefined) {
+      updates.push({
+         key: 'overstayEnabled',
+         value: overstayEnabled ? 'true' : 'false',
+      });
+   }
+   if (overstayAfterMins !== undefined) {
+      updates.push({
+         key: 'overstayAfterMins',
+         value: String(overstayAfterMins),
+      });
+   }
+
+   await Promise.all(
+      updates.map((item) =>
+         prisma.systemSetting.upsert({
+            where: { key: item.key },
+            create: {
+               key: item.key,
+               value: item.value,
+               updatedById: req.session.userId,
+            },
+            update: {
+               value: item.value,
+               updatedById: req.session.userId,
+            },
+         }),
+      ),
+   );
+
+   const [map, totalUsers] = await Promise.all([
+      loadSettingsMap(),
       prisma.user.count(),
    ]);
 
    return res.status(200).json({
       success: true,
       message: 'General settings updated successfully',
-      data: formatSettings(settings, totalUsers),
+      data: formatSettings(map, totalUsers),
    });
 }

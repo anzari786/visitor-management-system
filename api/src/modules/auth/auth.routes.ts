@@ -1,12 +1,34 @@
 import { Router } from 'express';
-import { ssoCallback, logout, getCurrentUser } from './auth.controller.js';
+import {
+   ssoCallback,
+   localLogin,
+   changePassword,
+   logout,
+   getCurrentUser,
+} from './auth.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
-import { ssoCallbackSchema, meQuerySchema } from './auth.validation.js';
+import {
+   ssoCallbackSchema,
+   localLoginSchema,
+   changePasswordSchema,
+   meQuerySchema,
+} from './auth.validation.js';
 
 const router = Router();
 
+// Local username/password (Guard / Reception / Admin / Manager)
+router.post('/login', validate(localLoginSchema), localLogin);
+router.post(
+   '/change-password',
+   requireAuth,
+   validate(changePasswordSchema),
+   changePassword,
+);
+
+// Company SSO (including host employees with linked User accounts)
 router.post('/sso/callback', validate(ssoCallbackSchema), ssoCallback);
+
 router.post('/logout', requireAuth, logout);
 router.get('/me', requireAuth, validate(meQuerySchema), getCurrentUser);
 

@@ -1,9 +1,10 @@
 import 'express-session';
+import type { RoleName } from '../generated/prisma/client.js';
 
 declare module 'express-session' {
    interface SessionData {
       userId: number;
-      roleCodes: string[];
+      roleCodes: RoleName[];
    }
 }
 

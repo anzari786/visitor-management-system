@@ -11,9 +11,16 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { QrScannerDialog } from '@/components/shared/qr-scanner-dialog';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import { getMeetingTypeLabel } from '@/constants/meeting-types';
+import {
+   findMockBadge,
+   normalizeBadgeCode,
+   resolveAvailableBadges,
+} from '@/data/mock-badges';
 import { cn } from '@/lib/utils';
+import { visitAttendanceLookupService } from '@/services/visit-attendance-lookup.service';
 import type { IdType, ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { format, parseISO } from 'date-fns';
 import {
@@ -56,32 +63,19 @@ const CHECK_IN_STEPS = [
    },
 ] as const;
 
-type MockBadge = {
-   number: string;
-   qrCode: string;
-   /** Pool status before this check-in session. */
-   poolStatus: 'available' | 'in_use';
+export type CheckInConfirmPayload = {
+   visitorIds: string[];
+   badgeAssignments: Record<string, string>;
 };
-
-const MOCK_BADGE_POOL: MockBadge[] = [
-   { number: 'B-1021', qrCode: 'QR-B-1021', poolStatus: 'available' },
-   { number: 'B-1022', qrCode: 'QR-B-1022', poolStatus: 'available' },
-   { number: 'B-1023', qrCode: 'QR-B-1023', poolStatus: 'available' },
-   { number: 'B-1024', qrCode: 'QR-B-1024', poolStatus: 'available' },
-   { number: 'B-1025', qrCode: 'QR-B-1025', poolStatus: 'available' },
-   { number: 'B-1026', qrCode: 'QR-B-1026', poolStatus: 'available' },
-   { number: 'B-1027', qrCode: 'QR-B-1027', poolStatus: 'in_use' },
-   { number: 'B-1028', qrCode: 'QR-B-1028', poolStatus: 'in_use' },
-   { number: 'B-1029', qrCode: 'QR-B-1029', poolStatus: 'available' },
-   { number: 'B-1030', qrCode: 'QR-B-1030', poolStatus: 'available' },
-];
 
 type CheckInDialogProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
    visit: ManagedVisit | null;
    visitors?: ManagedVisitor[];
-   onConfirm: (visitorIds: string[]) => void | Promise<void>;
+   /** Optional desk visit list used for badge availability checks. */
+   allVisits?: ManagedVisit[];
+   onConfirm: (payload: CheckInConfirmPayload) => void | Promise<void>;
 };
 
 type BadgeFieldState = {
@@ -105,15 +99,6 @@ function formatIdType(idType: IdType) {
          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
          .join(' ')
    );
-}
-
-function normalizeBadgeNumber(value: string) {
-   const trimmed = value.trim().toUpperCase();
-   if (!trimmed) return '';
-   if (trimmed.startsWith('B-')) return trimmed;
-   const digits = trimmed.replace(/\D/g, '');
-   if (!digits) return trimmed;
-   return `B-${digits.padStart(4, '0')}`;
 }
 
 function InfoRow({
@@ -142,6 +127,7 @@ export function CheckInDialog({
    onOpenChange,
    visit,
    visitors: visitorsProp,
+   allVisits = [],
    onConfirm,
 }: CheckInDialogProps) {
    const [activeStepIdx, setActiveStepIdx] = React.useState(0);
@@ -159,6 +145,9 @@ export function CheckInDialog({
    const [activeBadgeVisitorId, setActiveBadgeVisitorId] = React.useState<
       string | null
    >(null);
+   const [badgeScannerVisitorId, setBadgeScannerVisitorId] = React.useState<
+      string | null
+   >(null);
 
    const visitors = React.useMemo(() => {
       if (visitorsProp && visitorsProp.length > 0) return visitorsProp;
@@ -174,6 +163,7 @@ export function CheckInDialog({
          setAssignedBadges({});
          setBadgeFields({});
          setActiveBadgeVisitorId(null);
+         setBadgeScannerVisitorId(null);
          return;
       }
 
@@ -201,9 +191,8 @@ export function CheckInDialog({
       [assignedBadges],
    );
 
-   const availableBadges = MOCK_BADGE_POOL.filter(
-      (badge) =>
-         badge.poolStatus === 'available' && !assignedSet.has(badge.number),
+   const availableBadges = resolveAvailableBadges(allVisits).filter(
+      (badge) => !assignedSet.has(badge.number),
    );
 
    const activeBadgeTargetId = React.useMemo(() => {
@@ -226,7 +215,7 @@ export function CheckInDialog({
    ]);
 
    const selectedPoolBadgeNumber = activeBadgeTargetId
-      ? normalizeBadgeNumber(badgeFields[activeBadgeTargetId]?.input ?? '')
+      ? normalizeBadgeCode(badgeFields[activeBadgeTargetId]?.input ?? '')
       : '';
 
    React.useEffect(() => {
@@ -361,8 +350,11 @@ export function CheckInDialog({
       setActiveBadgeVisitorId(visitorId);
    };
 
-   const validateBadgeForVisitor = (visitorId: string, rawValue?: string) => {
-      const value = normalizeBadgeNumber(
+   const validateBadgeForVisitor = async (
+      visitorId: string,
+      rawValue?: string,
+   ) => {
+      const value = normalizeBadgeCode(
          rawValue ?? badgeFields[visitorId]?.input ?? '',
       );
 
@@ -377,77 +369,120 @@ export function CheckInDialog({
          return;
       }
 
-      const poolBadge = MOCK_BADGE_POOL.find((badge) => badge.number === value);
-      if (!poolBadge) {
+      try {
+         const lookup =
+            await visitAttendanceLookupService.lookupBadgeAvailability(
+               value,
+               allVisits,
+            );
+
+         if (!lookup.available) {
+            setBadgeFields((prev) => ({
+               ...prev,
+               [visitorId]: {
+                  input: lookup.badgeNumber || value,
+                  error: lookup.reason ?? 'Badge is not available',
+               },
+            }));
+            return;
+         }
+
+         const assignedToOther = Object.entries(assignedBadges).find(
+            ([id, number]) =>
+               id !== visitorId &&
+               normalizeBadgeCode(number) ===
+                  normalizeBadgeCode(lookup.badgeNumber),
+         );
+         if (assignedToOther) {
+            setBadgeFields((prev) => ({
+               ...prev,
+               [visitorId]: {
+                  input: lookup.badgeNumber,
+                  error: 'This badge is already assigned in this check-in',
+               },
+            }));
+            return;
+         }
+
+         setAssignedBadges((prev) => ({
+            ...prev,
+            [visitorId]: lookup.badgeNumber,
+         }));
+         setBadgeFields((prev) => ({
+            ...prev,
+            [visitorId]: { input: lookup.badgeNumber },
+         }));
+         toast.success(`Badge ${lookup.badgeNumber} assigned`);
+      } catch (error) {
          setBadgeFields((prev) => ({
             ...prev,
             [visitorId]: {
                input: value,
-               error: 'Badge not found in the available pool',
+               error:
+                  error instanceof Error
+                     ? error.message
+                     : 'Unable to validate badge',
             },
          }));
-         return;
       }
-
-      if (poolBadge.poolStatus === 'in_use') {
-         setBadgeFields((prev) => ({
-            ...prev,
-            [visitorId]: {
-               input: value,
-               error: 'This badge is already in use',
-            },
-         }));
-         return;
-      }
-
-      const assignedToOther = Object.entries(assignedBadges).find(
-         ([id, number]) => id !== visitorId && number === value,
-      );
-      if (assignedToOther) {
-         setBadgeFields((prev) => ({
-            ...prev,
-            [visitorId]: {
-               input: value,
-               error: 'This badge is already assigned in this check-in',
-            },
-         }));
-         return;
-      }
-
-      setAssignedBadges((prev) => ({ ...prev, [visitorId]: value }));
-      setBadgeFields((prev) => ({
-         ...prev,
-         [visitorId]: { input: value },
-      }));
-      toast.success(`Badge ${value} assigned`);
    };
 
-   const scanBadgeForVisitor = (visitorId: string) => {
-      const nextAvailable = availableBadges[0];
-      if (!nextAvailable) {
-         toast.error('No available badges to scan right now');
+   const handleScannedBadge = React.useCallback(
+      async (decodedText: string) => {
+         const visitorId = badgeScannerVisitorId ?? activeBadgeTargetId;
+         if (!visitorId) {
+            throw new Error('Select a visitor before scanning a badge');
+         }
+
+         const lookup =
+            await visitAttendanceLookupService.lookupBadgeAvailability(
+               decodedText,
+               allVisits,
+            );
+
+         if (!lookup.available) {
+            throw new Error(lookup.reason ?? 'Badge is not available');
+         }
+
+         const assignedToOther = Object.entries(assignedBadges).find(
+            ([id, number]) =>
+               id !== visitorId &&
+               normalizeBadgeCode(number) ===
+                  normalizeBadgeCode(lookup.badgeNumber),
+         );
+         if (assignedToOther) {
+            throw new Error('This badge is already assigned in this check-in');
+         }
+
+         setActiveBadgeVisitorId(visitorId);
+         setAssignedBadges((prev) => ({
+            ...prev,
+            [visitorId]: lookup.badgeNumber,
+         }));
          setBadgeFields((prev) => ({
             ...prev,
-            [visitorId]: {
-               input: prev[visitorId]?.input ?? '',
-               error: 'No available badges left to assign',
-            },
+            [visitorId]: { input: lookup.badgeNumber },
          }));
-         return;
-      }
-
-      setBadgeFields((prev) => ({
-         ...prev,
-         [visitorId]: { input: nextAvailable.number },
-      }));
-      validateBadgeForVisitor(visitorId, nextAvailable.number);
-   };
+         setBadgeScannerVisitorId(null);
+         toast.success(`Badge ${lookup.badgeNumber} assigned`);
+      },
+      [activeBadgeTargetId, allVisits, assignedBadges, badgeScannerVisitorId],
+   );
 
    const handleConfirm = async () => {
       if (isSubmitting || !visit || !canEnterStep3) return;
       setIsSubmitting(true);
       try {
-         await onConfirm(readyVisitors.map((visitor) => visitor.id));
+         const badgeAssignments = Object.fromEntries(
+            readyVisitors.map((visitor) => [
+               visitor.id,
+               assignedBadges[visitor.id]!,
+            ]),
+         );
+         await onConfirm({
+            visitorIds: readyVisitors.map((visitor) => visitor.id),
+            badgeAssignments,
+         });
          onOpenChange(false);
       } finally {
          setIsSubmitting(false);
@@ -460,6 +495,7 @@ export function CheckInDialog({
       (activeStepIdx === 1 && !canEnterStep3);
 
    return (
+      <>
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
             className="gap-0 overflow-hidden p-0 duration-300 sm:max-w-4xl"
@@ -481,7 +517,7 @@ export function CheckInDialog({
                         </span>
                      </>
                   ) : null}
-                  .
+                  . QR scanning is optional throughout this flow.
                </DialogDescription>
             </DialogHeader>
 
@@ -723,11 +759,10 @@ export function CheckInDialog({
                                              Physical Badge Assignment
                                           </h3>
                                        </div>
-                                      <p className="text-sm leading-relaxed text-muted-foreground">
-                                          Enter a badge number, pick one from
-                                          Available Badges, or scan. Badges
-                                          already in use or assigned here cannot
-                                          be reused.
+                                       <p className="text-sm leading-relaxed text-muted-foreground">
+                                          Enter a badge number or pick one from
+                                          Available Badges. Scanning a badge QR
+                                          is optional.
                                        </p>
                                     </div>
 
@@ -746,11 +781,7 @@ export function CheckInDialog({
                                                    input: '',
                                                 };
                                              const poolBadge = assigned
-                                                ? MOCK_BADGE_POOL.find(
-                                                     (badge) =>
-                                                        badge.number ===
-                                                        assigned,
-                                                  )
+                                                ? findMockBadge(assigned)
                                                 : undefined;
 
                                              return (
@@ -879,14 +910,20 @@ export function CheckInDialog({
                                                                type="button"
                                                                variant="outline"
                                                                className="h-10 shrink-0 gap-2"
-                                                               onClick={() =>
-                                                                  scanBadgeForVisitor(
+                                                               onClick={() => {
+                                                                  setActiveBadgeVisitorId(
                                                                      visitor.id,
-                                                                  )
-                                                               }
+                                                                  );
+                                                                  setBadgeScannerVisitorId(
+                                                                     visitor.id,
+                                                                  );
+                                                               }}
                                                             >
                                                                <ScanLine className="size-4" />
                                                                Scan Badge
+                                                               <span className="text-[10px] font-normal text-muted-foreground">
+                                                                  (optional)
+                                                               </span>
                                                             </Button>
                                                          </div>
                                                          {field.error ? (
@@ -895,12 +932,11 @@ export function CheckInDialog({
                                                             </p>
                                                          ) : (
                                                             <p className="text-xs text-muted-foreground">
-                                                               Focus this field,
-                                                               then click an
-                                                               Available Badge —
-                                                               or type / scan a
-                                                               number and
-                                                               validate.
+                                                               Type a badge
+                                                               number, click an
+                                                               Available Badge,
+                                                               or optionally scan
+                                                               — then validate.
                                                             </p>
                                                          )}
                                                       </div>
@@ -1153,12 +1189,10 @@ export function CheckInDialog({
                                                    icon={QrCode}
                                                    label="Badge QR"
                                                    value={
-                                                      MOCK_BADGE_POOL.find(
-                                                         (badge) =>
-                                                            badge.number ===
-                                                            assignedBadges[
-                                                               visitor.id
-                                                            ],
+                                                      findMockBadge(
+                                                         assignedBadges[
+                                                            visitor.id
+                                                         ] ?? '',
                                                       )?.qrCode
                                                    }
                                                 />
@@ -1229,5 +1263,16 @@ export function CheckInDialog({
             )}
          </DialogContent>
       </Dialog>
+
+      <QrScannerDialog
+         open={Boolean(badgeScannerVisitorId)}
+         onOpenChange={(next) => {
+            if (!next) setBadgeScannerVisitorId(null);
+         }}
+         title="Scan Badge QR"
+         description="Scan the physical badge QR code to assign it to the selected visitor."
+         onScan={handleScannedBadge}
+      />
+      </>
    );
 }

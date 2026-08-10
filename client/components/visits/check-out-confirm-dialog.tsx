@@ -36,9 +36,18 @@ type CheckOutConfirmDialogProps = {
    onConfirm: () => void | Promise<void>;
    /** Optional lookup for temporary badge find / scan demo. */
    onLookupBadge?: (badge: string) => ManagedVisit | null;
+   /** Open the shared QR scanner for badge lookup. */
+   onScanBadgeRequest?: () => void;
 };
 
-function getDisplayBadge(visit: ManagedVisit) {
+function getDisplayBadge(
+   visit: ManagedVisit,
+   visitors: ManagedVisitor[] = [],
+) {
+   const assigned = visitors.find(
+      (visitor) => visitor.assignedBadgeNumber,
+   )?.assignedBadgeNumber;
+   if (assigned) return assigned;
    const digits = visit.id.replace(/\D/g, '').slice(-4) || '1000';
    return `B-${digits}`;
 }
@@ -71,6 +80,7 @@ export function CheckOutConfirmDialog({
    scanMode = false,
    onConfirm,
    onLookupBadge,
+   onScanBadgeRequest,
 }: CheckOutConfirmDialogProps) {
    const [isSubmitting, setIsSubmitting] = React.useState(false);
    const [badgeInput, setBadgeInput] = React.useState('');
@@ -87,12 +97,17 @@ export function CheckOutConfirmDialog({
       }
       if (visitProp) {
          setResolvedVisit(visitProp);
-         setBadgeInput(getDisplayBadge(visitProp));
+         const initialVisitors = resolveVisitors(
+            visitProp,
+            visitorsProp,
+            visitorNames,
+         );
+         setBadgeInput(getDisplayBadge(visitProp, initialVisitors));
       } else {
          setResolvedVisit(null);
          setBadgeInput('');
       }
-   }, [open, visitProp]);
+   }, [open, visitProp, visitorsProp, visitorNames]);
 
    const visit = resolvedVisit;
    const selectedVisitors = resolveVisitors(visit, visitorsProp, visitorNames);
@@ -104,7 +119,9 @@ export function CheckOutConfirmDialog({
         )
       : null;
    const duration = checkInAt ? formatVisitDuration(checkInAt) : '—';
-   const badge = visit ? getDisplayBadge(visit) : badgeInput || '—';
+   const badge = visit
+      ? getDisplayBadge(visit, selectedVisitors)
+      : badgeInput || '—';
    const confirmLabel =
       selectedVisitors.length === 1
          ? (selectedVisitors[0]?.name ?? 'Visitor')
@@ -121,6 +138,11 @@ export function CheckOutConfirmDialog({
    };
 
    const handleScanBadge = () => {
+      if (onScanBadgeRequest) {
+         onOpenChange(false);
+         onScanBadgeRequest();
+         return;
+      }
       const found = onLookupBadge?.(badgeInput.trim() || 'SCAN');
       if (found) {
          setResolvedVisit(found);
@@ -242,7 +264,10 @@ export function CheckOutConfirmDialog({
                                           .join(' · ') || 'Visitor'}
                                     </p>
                                  </div>
-                                 <VisitorAttendanceBadge status={dayStatus} />
+                                 <VisitorAttendanceBadge
+                                    status={dayStatus}
+                                    visitStatus={visit.status}
+                                 />
                               </li>
                            );
                         })}

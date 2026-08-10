@@ -37,7 +37,9 @@ import { format, parseISO } from 'date-fns';
 import { CalendarRange, Users } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
+import { FindVisitCheckInDialog } from './find-visit-check-in-dialog';
 import { CheckInDialog } from './check-in-dialog';
+import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
@@ -46,6 +48,10 @@ import VisitDetailsSheet from './visit-details';
 import { VisitRowActions } from './visit-row-actions';
 import { VisitsTableFilters } from './visits-table-filters';
 import { VisitsTablePagination } from './visits-table-pagination';
+import { QrScannerDialog } from '@/components/shared/qr-scanner-dialog';
+import { withAssignedBadges } from '@/data/mock-badges';
+import { visitAttendanceLookupService } from '@/services/visit-attendance-lookup.service';
+import { toast } from 'sonner';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -108,9 +114,13 @@ function filterVisits(
 
 type RowHandlers = {
    onView: (visit: ManagedVisit) => void;
+   onCheckIn: (visit: ManagedVisit) => void;
    onCheckOut: (visit: ManagedVisit) => void;
    onCancel: (visit: ManagedVisit) => void;
-   onOpenAttendance: (visit: ManagedVisit, mode: 'check_out') => void;
+   onOpenAttendance: (
+      visit: ManagedVisit,
+      mode: 'check_in' | 'check_out',
+   ) => void;
 };
 
 const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
@@ -225,6 +235,7 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
          <VisitRowActions
             visit={row.original}
             onView={handlers.onView}
+            onCheckIn={handlers.onCheckIn}
             onCheckOut={handlers.onCheckOut}
             onCancel={handlers.onCancel}
             onOpenAttendance={handlers.onOpenAttendance}
@@ -262,10 +273,20 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const [qrCheckInVisitId, setQrCheckInVisitId] = React.useState<string | null>(
       null,
    );
+   const [qrCheckInVisitorIds, setQrCheckInVisitorIds] = React.useState<
+      string[] | null
+   >(null);
    const [qrCheckInSuccessOpen, setQrCheckInSuccessOpen] = React.useState(false);
    const [qrCheckInSuccessLabel, setQrCheckInSuccessLabel] = React.useState('');
    const [qrCheckInSuccessVisitId, setQrCheckInSuccessVisitId] =
       React.useState('');
+   const [visitQrScannerOpen, setVisitQrScannerOpen] = React.useState(false);
+   const [checkoutQrScannerOpen, setCheckoutQrScannerOpen] =
+      React.useState(false);
+   const [findVisitOpen, setFindVisitOpen] = React.useState(false);
+   const [checkoutVisitorIds, setCheckoutVisitorIds] = React.useState<
+      string[] | null
+   >(null);
 
    const page = Number(searchParams.get('page')) || 1;
    const pageSize = Number(searchParams.get('pageSize')) || DEFAULT_PAGE_SIZE;
@@ -309,7 +330,19 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       null;
 
    const qrCheckInVisitors = qrCheckInVisit
-      ? getCheckInEligibleVisitors(qrCheckInVisit)
+      ? qrCheckInVisitorIds?.length
+         ? qrCheckInVisit.visitors.filter((visitor) =>
+              qrCheckInVisitorIds.includes(visitor.id),
+           )
+         : getCheckInEligibleVisitors(qrCheckInVisit)
+      : [];
+
+   const badgeCheckoutVisitors = badgeCheckoutVisit
+      ? checkoutVisitorIds?.length
+         ? badgeCheckoutVisit.visitors.filter((visitor) =>
+              checkoutVisitorIds.includes(visitor.id),
+           )
+         : getCheckOutEligibleVisitors(badgeCheckoutVisit)
       : [];
 
    const lookupVisitByBadge = React.useCallback(
@@ -345,21 +378,92 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    }, []);
 
    const handleScanBadge = React.useCallback(() => {
-      const target = visits.find((visit) => canCheckOut(visit)) ?? null;
-      setBadgeCheckoutVisitId(target?.id ?? null);
-      setBadgeCheckoutOpen(true);
-   }, [visits]);
+      setCheckoutQrScannerOpen(true);
+   }, []);
 
    const handleScanVisitorQr = React.useCallback(() => {
-      const target = visits.find((visit) => canCheckIn(visit)) ?? null;
-      setQrCheckInVisitId(target?.id ?? null);
+      setVisitQrScannerOpen(true);
+   }, []);
+
+   const handleFindVisit = React.useCallback(() => {
+      setFindVisitOpen(true);
+   }, []);
+
+   const openManualCheckIn = React.useCallback((visit: ManagedVisit) => {
+      if (!canCheckIn(visit)) {
+         toast.error('This visit is not ready for check-in');
+         return;
+      }
+      const eligible = getCheckInEligibleVisitors(visit);
+      setQrCheckInVisitId(visit.id);
+      setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
       setQrCheckInOpen(true);
-   }, [visits]);
+   }, []);
+
+   const handleVisitQrScanned = React.useCallback(
+      async (code: string) => {
+         const result =
+            await visitAttendanceLookupService.lookupVisitForCheckIn(
+               code,
+               visits,
+            );
+
+         if (!result.eligibleForCheckIn || result.eligibleVisitors.length === 0) {
+            throw new Error(
+               result.reason ??
+                  'This visit is not eligible for check-in right now',
+            );
+         }
+
+         setQrCheckInVisitId(result.visit.id);
+         setQrCheckInVisitorIds(result.eligibleVisitors.map((v) => v.id));
+         setQrCheckInOpen(true);
+         toast.success('Visit found', {
+            description: `${result.visit.visitorName} · ${result.visit.id}`,
+         });
+      },
+      [visits],
+   );
+
+   const handleCheckoutQrScanned = React.useCallback(
+      async (code: string) => {
+         const result =
+            await visitAttendanceLookupService.lookupBadgeForCheckOut(
+               code,
+               visits,
+            );
+
+         if (!result.eligibleForCheckOut || result.visitors.length === 0) {
+            throw new Error(
+               result.reason ??
+                  'No checked-in visitor found for this badge',
+            );
+         }
+
+         setBadgeCheckoutVisitId(result.visit.id);
+         setCheckoutVisitorIds(result.visitors.map((visitor) => visitor.id));
+         setBadgeCheckoutOpen(true);
+         toast.success('Badge matched', {
+            description: `${result.visitors.map((v) => v.name).join(', ')} · ${result.badgeNumber}`,
+         });
+      },
+      [visits],
+   );
 
    const handleBadgeCheckoutConfirm = React.useCallback(() => {
       if (!badgeCheckoutVisit) return;
-      const eligible = getCheckOutEligibleVisitors(badgeCheckoutVisit);
-      const updated = checkOutAllEligible(badgeCheckoutVisit);
+      const eligible =
+         checkoutVisitorIds?.length
+            ? badgeCheckoutVisit.visitors.filter((visitor) =>
+                 checkoutVisitorIds.includes(visitor.id),
+              )
+            : getCheckOutEligibleVisitors(badgeCheckoutVisit);
+      const ids = eligible.map((visitor) => visitor.id);
+      const updated = applyVisitorAttendance(
+         badgeCheckoutVisit,
+         ids,
+         'checked_out',
+      );
       upsertVisit(updated);
       setBadgeSuccessLabel(
          eligible.length === 1
@@ -369,22 +473,23 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setBadgeSuccessVisitId(badgeCheckoutVisit.id);
       setBadgeSuccessOpen(true);
       setBadgeCheckoutVisitId(null);
-   }, [badgeCheckoutVisit, upsertVisit]);
+      setCheckoutVisitorIds(null);
+   }, [badgeCheckoutVisit, checkoutVisitorIds, upsertVisit]);
 
    const handleQrCheckInConfirm = React.useCallback(
-      (visitorIds: string[]) => {
+      (payload: CheckInConfirmPayload) => {
          if (!qrCheckInVisit) return;
-         const eligible = getCheckInEligibleVisitors(qrCheckInVisit);
-         const ids =
-            visitorIds.length > 0
-               ? visitorIds
-               : eligible.map((visitor) => visitor.id);
+         const ids = payload.visitorIds;
          if (ids.length === 0) return;
 
-         const updated = applyVisitorAttendance(
+         const withAttendance = applyVisitorAttendance(
             qrCheckInVisit,
             ids,
             'checked_in',
+         );
+         const updated = withAssignedBadges(
+            withAttendance,
+            payload.badgeAssignments,
          );
          upsertVisit(updated);
          const names = qrCheckInVisit.visitors
@@ -396,6 +501,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          setQrCheckInSuccessVisitId(qrCheckInVisit.id);
          setQrCheckInSuccessOpen(true);
          setQrCheckInVisitId(null);
+         setQrCheckInVisitorIds(null);
       },
       [qrCheckInVisit, upsertVisit],
    );
@@ -407,12 +513,23 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    }, []);
 
    const handleOpenAttendance = React.useCallback(
-      (visit: ManagedVisit, mode: 'check_out') => {
+      (visit: ManagedVisit, mode: 'check_in' | 'check_out') => {
+         if (mode === 'check_in') {
+            openManualCheckIn(visit);
+            return;
+         }
          setSelectedVisitId(visit.id);
          setSheetMode(mode);
          setSheetOpen(true);
       },
-      [],
+      [openManualCheckIn],
+   );
+
+   const handleCheckIn = React.useCallback(
+      (visit: ManagedVisit) => {
+         openManualCheckIn(visit);
+      },
+      [openManualCheckIn],
    );
 
    const handleCheckOut = React.useCallback(
@@ -434,11 +551,18 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       () =>
          getColumns({
             onView: handleView,
+            onCheckIn: handleCheckIn,
             onCheckOut: handleCheckOut,
             onCancel: handleCancel,
             onOpenAttendance: handleOpenAttendance,
          }),
-      [handleView, handleCheckOut, handleCancel, handleOpenAttendance],
+      [
+         handleView,
+         handleCheckIn,
+         handleCheckOut,
+         handleCancel,
+         handleOpenAttendance,
+      ],
    );
 
    const table = useReactTable({
@@ -454,6 +578,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
             {showFilters && (
                <VisitsTableFilters
+                  onFindVisit={handleFindVisit}
                   onScanBadge={handleScanBadge}
                   onScanVisitorQr={handleScanVisitorQr}
                />
@@ -533,6 +658,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
          <VisitDetailsSheet
             visit={selectedVisit}
+            allVisits={visits}
             open={sheetOpen}
             onOpenChange={(open) => {
                setSheetOpen(open);
@@ -544,14 +670,41 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             initialMode={sheetMode}
          />
 
+         <FindVisitCheckInDialog
+            open={findVisitOpen}
+            onOpenChange={setFindVisitOpen}
+            visits={visits}
+            onSelectVisit={openManualCheckIn}
+         />
+
+         <QrScannerDialog
+            open={visitQrScannerOpen}
+            onOpenChange={setVisitQrScannerOpen}
+            title="Scan Visitor QR"
+            description="Optional shortcut — scan the visitor approval email QR, or use Find / Search Visit instead."
+            onScan={handleVisitQrScanned}
+         />
+
+         <QrScannerDialog
+            open={checkoutQrScannerOpen}
+            onOpenChange={setCheckoutQrScannerOpen}
+            title="Scan Badge QR"
+            description="Scan the physical badge QR code to find the checked-in visitor."
+            onScan={handleCheckoutQrScanned}
+         />
+
          <CheckInDialog
             open={qrCheckInOpen}
             onOpenChange={(open) => {
                setQrCheckInOpen(open);
-               if (!open) setQrCheckInVisitId(null);
+               if (!open) {
+                  setQrCheckInVisitId(null);
+                  setQrCheckInVisitorIds(null);
+               }
             }}
             visit={qrCheckInVisit}
             visitors={qrCheckInVisitors}
+            allVisits={visits}
             onConfirm={handleQrCheckInConfirm}
          />
 
@@ -566,15 +719,20 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             open={badgeCheckoutOpen}
             onOpenChange={(open) => {
                setBadgeCheckoutOpen(open);
-               if (!open) setBadgeCheckoutVisitId(null);
+               if (!open) {
+                  setBadgeCheckoutVisitId(null);
+                  setCheckoutVisitorIds(null);
+               }
             }}
             visit={badgeCheckoutVisit}
+            visitors={badgeCheckoutVisitors}
             scanMode
             onLookupBadge={(badge) => {
                const found = lookupVisitByBadge(badge);
                if (found) setBadgeCheckoutVisitId(found.id);
                return found;
             }}
+            onScanBadgeRequest={() => setCheckoutQrScannerOpen(true)}
             onConfirm={handleBadgeCheckoutConfirm}
          />
 

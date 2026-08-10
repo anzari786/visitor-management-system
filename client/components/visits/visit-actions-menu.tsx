@@ -20,12 +20,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
    canCancel,
+   canCheckIn,
    canCheckOut,
    isGroupVisit,
 } from '@/lib/visit-attendance';
 import { sendPendingApprovalReminderEmail } from '@/services/visit-notification.service';
 import type { ManagedVisit } from '@/types/visit.types';
-import { Eye, Loader2, LogOut, Mail, XCircle } from 'lucide-react';
+import { Eye, Loader2, LogIn, LogOut, Mail, XCircle } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
@@ -36,9 +37,13 @@ interface VisitActionsMenuProps {
    trigger: React.ReactNode;
    align?: 'start' | 'end';
    onView?: (visit: ManagedVisit) => void;
+   onCheckIn?: (visit: ManagedVisit) => void;
    onCheckOut?: (visit: ManagedVisit) => void;
    onCancel?: (visit: ManagedVisit) => void;
-   onOpenAttendance?: (visit: ManagedVisit, mode: 'check_out') => void;
+   onOpenAttendance?: (
+      visit: ManagedVisit,
+      mode: 'check_in' | 'check_out',
+   ) => void;
 }
 
 export function VisitActionsMenu({
@@ -46,6 +51,7 @@ export function VisitActionsMenu({
    trigger,
    align = 'end',
    onView,
+   onCheckIn,
    onCheckOut,
    onCancel,
    onOpenAttendance,
@@ -56,9 +62,14 @@ export function VisitActionsMenu({
    const [isResending, setIsResending] = React.useState(false);
 
    const group = isGroupVisit(visit);
+   const showCheckIn = canCheckIn(visit);
    const showCheckOut = canCheckOut(visit);
    const showCancel = canCancel(visit.status);
    const showResendApproval = visit.status === 'requested';
+
+   const requestCheckIn = () => {
+      onCheckIn?.(visit);
+   };
 
    const requestCheckOut = () => {
       if (group) {
@@ -115,6 +126,13 @@ export function VisitActionsMenu({
                   <Eye className="size-4" />
                   View
                </DropdownMenuItem>
+
+               {showCheckIn && (
+                  <DropdownMenuItem onClick={requestCheckIn}>
+                     <LogIn className="size-4" />
+                     Check In
+                  </DropdownMenuItem>
+               )}
 
                {showResendApproval && (
                   <DropdownMenuItem

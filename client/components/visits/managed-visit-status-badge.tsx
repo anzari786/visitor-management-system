@@ -4,7 +4,7 @@ import type {
    VisitorAttendanceStatus,
 } from '@/types/visit.types';
 import { MANAGED_VISIT_STATUS_LABELS } from '@/data/mock-visits';
-import { ATTENDANCE_STATUS_LABELS } from '@/lib/visit-attendance';
+import { ATTENDANCE_STATUS_LABELS, getVisitorAttendanceLabel } from '@/lib/visit-attendance';
 import { Badge } from '@/components/ui/badge';
 
 const statusStyles: Record<
@@ -126,10 +126,16 @@ export function ManagedVisitStatusBadge({
 
 export function VisitorAttendanceBadge({
    status,
+   visitStatus,
 }: {
    status: VisitorAttendanceStatus;
+   /** When provided, "Pending" is only shown for requested visits. */
+   visitStatus?: ManagedVisitStatus;
 }) {
    const styles = attendanceStyles[status];
+   const label = visitStatus
+      ? getVisitorAttendanceLabel(status, visitStatus)
+      : ATTENDANCE_STATUS_LABELS[status];
 
    return (
       <Badge
@@ -139,7 +145,7 @@ export function VisitorAttendanceBadge({
             styles.text,
          )}
       >
-         {ATTENDANCE_STATUS_LABELS[status]}
+         {label}
       </Badge>
    );
 }

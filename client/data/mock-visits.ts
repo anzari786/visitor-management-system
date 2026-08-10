@@ -16,6 +16,8 @@ type VisitorSeed = {
    idType?: IdType;
    idNumber?: string;
    checkedInAt?: string;
+   assignedBadgeNumber?: string;
+   assignedBadgeQr?: string;
 };
 
 function withIds(
@@ -36,6 +38,8 @@ function withIds(
          idType: entry.idType,
          idNumber: entry.idNumber,
          checkedInAt: entry.checkedInAt,
+         assignedBadgeNumber: entry.assignedBadgeNumber,
+         assignedBadgeQr: entry.assignedBadgeQr,
          attendanceByDate: {
             [day]: {
                date: day,
@@ -60,6 +64,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
             name: 'Sara Bekele',
             attendanceStatus: 'checked_in',
             checkedInAt: '2026-08-10T08:45:00.000Z',
+            assignedBadgeNumber: 'B-1024',
+            assignedBadgeQr: 'QR-B-1024',
             phone: '+251 911 234 567',
             email: 'sara.bekele@addisTalent.com',
             organization: 'Addis Talent Group',
@@ -84,7 +90,7 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0141',
       visitorName: 'Daniel Haile',
-      visitors: withIds('VMS-2026-0141', '2026-08-10', [
+      visitors: withIds('VMS-2026-0141', '2026-08-11', [
          {
             name: 'Daniel Haile',
             phone: '+251 911 100 221',
@@ -123,9 +129,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       department: 'Information Technology',
       meetingType: 'vendor_review',
       purpose: 'Quarterly vendor performance review',
-      startDate: '2026-08-10',
-      startTime: '10:00',
-      endTime: '20:00',
+      startDate: '2026-08-11',
+      startTime: '00:00',
+      endTime: '23:59',
       floor: '5',
       room: 'Conference 5A',
       status: 'approved',
@@ -210,8 +216,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       purpose: 'Three-day research methods workshop',
       startDate: '2026-08-11',
       endDate: '2026-08-13',
-      startTime: '09:00',
-      endTime: '17:00',
+      startTime: '00:00',
+      endTime: '23:59',
       floor: '4',
       room: 'Training Hall',
       status: 'approved',
@@ -246,11 +252,11 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0137',
       visitorName: 'Tekle Mekonnen',
-      visitors: withIds('VMS-2026-0137', '2026-08-10', [
+      visitors: withIds('VMS-2026-0137', '2026-08-11', [
          {
             name: 'Tekle Mekonnen',
             attendanceStatus: 'checked_out',
-            checkedInAt: '2026-08-10T08:45:00.000Z',
+            checkedInAt: '2026-08-11T08:45:00.000Z',
             phone: '+251 911 640 100',
             email: 'tekle@swiftlogistics.et',
             organization: 'Swift Logistics',
@@ -259,8 +265,10 @@ export const MOCK_VISITS: ManagedVisit[] = [
          },
          {
             name: 'Aster Lemma',
-            attendanceStatus: 'checked_out',
-            checkedInAt: '2026-08-10T08:45:00.000Z',
+            attendanceStatus: 'checked_in',
+            checkedInAt: '2026-08-11T08:45:00.000Z',
+            assignedBadgeNumber: 'B-1030',
+            assignedBadgeQr: 'QR-B-1030',
             phone: '+251 911 640 101',
             organization: 'Swift Logistics',
             idType: 'national_id',
@@ -288,9 +296,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       department: 'Procurement',
       meetingType: 'delivery',
       purpose: 'Equipment delivery and handover',
-      startDate: '2026-08-10',
-      startTime: '08:30',
-      endTime: '20:00',
+      startDate: '2026-08-11',
+      startTime: '00:00',
+      endTime: '23:59',
       floor: '1',
       room: 'Loading Bay',
       status: 'partially_checked_out',
@@ -381,16 +389,16 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0132',
       visitorName: 'Rahel Desta',
-      visitors: withIds('VMS-2026-0132', '2026-08-10', [{ name: 'Rahel Desta' }]),
+      visitors: withIds('VMS-2026-0132', '2026-08-11', [{ name: 'Rahel Desta' }]),
       visitorCount: 1,
       organization: 'Ministry Liaison Office',
       host: 'Rahel Fikru',
       department: 'Legal Affairs',
       meetingType: 'official_visit',
       purpose: 'Official compliance briefing',
-      startDate: '2026-08-10',
-      startTime: '11:30',
-      endTime: '20:00',
+      startDate: '2026-08-11',
+      startTime: '00:00',
+      endTime: '23:59',
       floor: '6',
       room: 'Executive Meeting Room',
       status: 'approved',
@@ -451,13 +459,13 @@ export const MOCK_VISITS: ManagedVisit[] = [
             idType: 'passport',
             idNumber: 'EP1122334',
             attendanceByDate: {
-               '2026-08-09': {
-                  date: '2026-08-09',
-                  status: 'checked_out',
-                  checkedInAt: '2026-08-09T09:10:00.000Z',
-               },
                '2026-08-10': {
                   date: '2026-08-10',
+                  status: 'checked_out',
+                  checkedInAt: '2026-08-10T09:10:00.000Z',
+               },
+               '2026-08-11': {
+                  date: '2026-08-11',
                   status: 'pending',
                },
             },
@@ -466,22 +474,24 @@ export const MOCK_VISITS: ManagedVisit[] = [
             id: 'VMS-2026-0129-v2',
             name: 'Frehiwot Desta',
             attendanceStatus: 'checked_in',
-            checkedInAt: '2026-08-10T09:05:00.000Z',
+            checkedInAt: '2026-08-11T09:05:00.000Z',
+            assignedBadgeNumber: 'B-1025',
+            assignedBadgeQr: 'QR-B-1025',
             phone: '+251 911 880 002',
             email: 'frehiwot@cloudbridge.et',
             organization: 'CloudBridge Ethiopia',
             idType: 'national_id',
             idNumber: 'ET-12131415',
             attendanceByDate: {
-               '2026-08-09': {
-                  date: '2026-08-09',
-                  status: 'checked_out',
-                  checkedInAt: '2026-08-09T09:12:00.000Z',
-               },
                '2026-08-10': {
                   date: '2026-08-10',
+                  status: 'checked_out',
+                  checkedInAt: '2026-08-10T09:12:00.000Z',
+               },
+               '2026-08-11': {
+                  date: '2026-08-11',
                   status: 'checked_in',
-                  checkedInAt: '2026-08-10T09:05:00.000Z',
+                  checkedInAt: '2026-08-11T09:05:00.000Z',
                },
             },
          },
@@ -492,10 +502,10 @@ export const MOCK_VISITS: ManagedVisit[] = [
       department: 'Information Technology',
       meetingType: 'meeting',
       purpose: 'Integration architecture workshop',
-      startDate: '2026-08-09',
-      endDate: '2026-08-10',
-      startTime: '09:00',
-      endTime: '20:00',
+      startDate: '2026-08-10',
+      endDate: '2026-08-11',
+      startTime: '00:00',
+      endTime: '23:59',
       floor: '5',
       room: 'War Room',
       status: 'partially_checked_in',
@@ -522,6 +532,10 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
 ];
+
+MOCK_VISITS.forEach((visit) => {
+   visit.qrToken ??= `visit_${visit.id.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+});
 
 export const VISIT_DEPARTMENTS = [
    'Human Resources',

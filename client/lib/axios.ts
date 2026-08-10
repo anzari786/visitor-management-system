@@ -9,7 +9,12 @@ export const api = axios.create({
    },
 });
 
-const PUBLIC_API_PATHS = ['/auth/login', '/public/'];
+const PUBLIC_API_PATHS = [
+   '/auth/login',
+   '/public/',
+   '/self-service/',
+   '/employees/search',
+];
 
 api.interceptors.response.use(
    (response) => response,

@@ -6,17 +6,24 @@ import {
 } from '@/constants/visit-request';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import { format, isSameDay } from 'date-fns';
+import type {
+   SubmitVisitRequestPayload,
+   SubmitVisitRequestResponse,
+} from '@/types/self-service.types';
 
-export type SubmitVisitRequestResponse = {
-   requestId: string;
-   submittedAt: string;
-};
+export type {
+   SubmitVisitRequestPayload,
+   SubmitVisitRequestResponse,
+} from '@/types/self-service.types';
 
-export type SubmitVisitRequestPayload = VisitRequestFormValues;
-
-/** Temporary client-side submission until a public visit-request API exists. */
+/**
+ * Temporary client-side submission until the public visit-request API exists.
+ *
+ * When wiring the backend, replace callers with `useSubmitVisitRequest`
+ * from `@/hooks/use-self-service` (backed by `selfServiceService`).
+ */
 export async function submitVisitRequest(
-   payload: SubmitVisitRequestPayload,
+   payload: SubmitVisitRequestPayload | VisitRequestFormValues,
 ): Promise<SubmitVisitRequestResponse> {
    await new Promise((resolve) => setTimeout(resolve, 1200));
 
@@ -62,6 +69,7 @@ export async function submitVisitRequest(
    return {
       requestId: `VR-${Date.now().toString(36).toUpperCase()}`,
       submittedAt: new Date().toISOString(),
+      status: 'submitted',
    };
 }
 

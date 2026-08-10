@@ -1,6 +1,10 @@
 /**
  * Temporary client-side stubs for visitor notification emails
  * until a real notification service is wired up.
+ *
+ * Host Portal API equivalents (for backend wiring):
+ * - `useResendHostApprovalEmail` / `hostService.resendApprovalEmail`
+ * - approve/reschedule mutations already invalidate host visit queries
  */
 
 export type VisitApprovalEmailPayload = {

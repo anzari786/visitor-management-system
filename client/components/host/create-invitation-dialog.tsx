@@ -49,6 +49,7 @@ type CreateInvitationDialogProps = {
    onOpenChange: (open: boolean) => void;
 };
 
+/** Temporary stub — swap for `useCreateHostInvitation` from `@/hooks/use-host`. */
 async function submitHostInvitation(_values: HostInvitationFormValues) {
    await new Promise((resolve) => setTimeout(resolve, 1000));
 }

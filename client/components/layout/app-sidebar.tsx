@@ -20,7 +20,7 @@ import * as React from 'react';
 import { AppSidebarSkeleton } from './app-sidebar-skeleton';
 import { NavMain } from './nav-main';
 import ProfileDropdown from './profile-dropdown';
-import { getUserFullName } from '../users/user-card-menu';
+import { getUserFullName } from '@/lib/user';
 import type { User, UserRole } from '@/types/user.types';
 
 const avatarMap: Record<UserRole, string> = {

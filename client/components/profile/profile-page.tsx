@@ -10,7 +10,7 @@ import { ChangePasswordForm } from './change-password-form';
 import { PreferencesForm } from './preferences-form';
 import { useUpdateProfile, useChangePassword } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth-store';
-import { getUserFullName } from '../users/user-card-menu';
+import { getUserFullName } from '@/lib/user';
 import type {
    ProfileFormValues,
    ChangePasswordFormValues,

@@ -2,6 +2,8 @@ import { USER_ROLES } from '@/constants/user';
 
 export type UserRole = (typeof USER_ROLES)[number];
 
+export type UserStatusFilter = 'active' | 'inactive';
+
 export type User = {
    id: number;
    firstName: string;
@@ -15,6 +17,22 @@ export type User = {
    createdAt: string;
    checkIns: number;
    checkOuts: number;
+};
+
+export type UsersParams = {
+   page: number;
+   pageSize: number;
+   search?: string;
+   role?: UserRole | 'all';
+   status?: UserStatusFilter | 'all';
+};
+
+export type UsersPaginatedData = {
+   data: User[];
+   total: number;
+   page: number;
+   pageSize: number;
+   pageCount: number;
 };
 
 export type CreateUserPayload = {

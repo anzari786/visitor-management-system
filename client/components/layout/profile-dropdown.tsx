@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useLogout } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth-store';
-import { getUserFullName } from '@/components/users/user-card-menu';
+import { getUserFullName } from '@/lib/user';
 import type { UserRole } from '@/types/user.types';
 import { LogOut, UserCircle } from 'lucide-react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';

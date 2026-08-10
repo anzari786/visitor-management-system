@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
    Dialog,
@@ -10,85 +12,111 @@ import {
 } from '@/components/ui/dialog';
 import {
    Field,
-   FieldDescription,
    FieldError,
    FieldGroup,
    FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import {
-   createUserSchema,
-   type CreateUserFormValues,
-} from '@/lib/validations/user.schema';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as React from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Badge } from '../reui/badge';
-import {
    Select,
    SelectContent,
    SelectItem,
    SelectTrigger,
    SelectValue,
-} from '../ui/select';
+} from '@/components/ui/select';
+import { useUpdateUser } from '@/hooks/use-users';
 import { formatEthiopianPhone } from '@/lib/phone';
+import { getUserFullName } from '@/lib/user';
+import { createUserSchema } from '@/lib/validations/user.schema';
+import type { User } from '@/types/user.types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as React from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
-type CreateUserProps = {
+const editUserSchema = createUserSchema.omit({ password: true });
+type EditUserFormValues = z.infer<typeof editUserSchema>;
+
+type EditUserProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
-   onSubmit?: (values: CreateUserFormValues) => void | Promise<void>;
+   user: User;
 };
 
-const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
+export function EditUser({ open, onOpenChange, user }: EditUserProps) {
+   const { mutateAsync: updateUser, isPending } = useUpdateUser();
+
    const {
       register,
       handleSubmit,
       control,
       reset,
-      formState: { errors, isSubmitting },
-   } = useForm<CreateUserFormValues>({
-      resolver: zodResolver(createUserSchema),
+      formState: { errors },
+   } = useForm<EditUserFormValues>({
+      resolver: zodResolver(editUserSchema),
       defaultValues: {
-         firstName: '',
-         lastName: '',
-         username: '',
-         phone: '+251 ',
-         role: 'front_desk',
-         password: '',
+         firstName: user.firstName,
+         lastName: user.lastName,
+         username: user.username,
+         phone: user.phone ?? '+251 ',
+         role: user.role,
       },
    });
 
-   // Reset form whenever dialog is opened
    React.useEffect(() => {
       if (open) {
-         reset();
+         reset({
+            firstName: user.firstName,
+            lastName: user.lastName,
+            username: user.username,
+            phone: user.phone ?? '+251 ',
+            role: user.role,
+         });
       }
-   }, [open, reset]);
+   }, [open, reset, user]);
 
-   const handleFormSubmit = handleSubmit(async (values) => {
-      await onSubmit?.(values);
-      onOpenChange(false);
+   const onSubmit = handleSubmit(async (values) => {
+      try {
+         const phone =
+            !values.phone || values.phone === '+251 '
+               ? undefined
+               : values.phone;
+
+         await updateUser({
+            id: user.id,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            username: values.username,
+            phone,
+            role: values.role,
+         });
+
+         toast.success(`${getUserFullName(user)} updated`);
+         onOpenChange(false);
+      } catch {
+         toast.error('Failed to update user. Please try again.');
+      }
    });
 
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent className="sm:max-w-120 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-               <DialogTitle>Create User</DialogTitle>
+               <DialogTitle>Edit User</DialogTitle>
                <DialogDescription className="sr-only" />
             </DialogHeader>
 
-            <form onSubmit={handleFormSubmit} className="space-y-4 pt-2">
+            <form onSubmit={onSubmit} className="space-y-4 pt-2">
                <FieldGroup>
-                  {/* First / Last name row */}
                   <div className="grid grid-cols-2 gap-3">
                      <Field>
-                        <FieldLabel htmlFor="first-name">
+                        <FieldLabel htmlFor="edit-first-name">
                            First Name
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
-                           id="first-name"
+                           id="edit-first-name"
                            aria-invalid={!!errors.firstName}
                            {...register('firstName')}
                         />
@@ -98,12 +126,12 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                      </Field>
 
                      <Field>
-                        <FieldLabel htmlFor="last-name">
+                        <FieldLabel htmlFor="edit-last-name">
                            Last Name
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
-                           id="last-name"
+                           id="edit-last-name"
                            aria-invalid={!!errors.lastName}
                            {...register('lastName')}
                         />
@@ -113,41 +141,29 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                      </Field>
                   </div>
 
-                  {/* Username */}
                   <Field>
-                     <FieldLabel htmlFor="username">
+                     <FieldLabel htmlFor="edit-username">
                         Username
                         <span className="text-destructive">*</span>
                      </FieldLabel>
-                     <FieldDescription>
-                        Choose a unique username for the account.
-                     </FieldDescription>
                      <Input
-                        id="username"
-                        type="text"
+                        id="edit-username"
                         aria-invalid={!!errors.username}
                         {...register('username')}
                      />
-
                      {errors.username && (
                         <FieldError>{errors.username.message}</FieldError>
                      )}
                   </Field>
 
-                  {/* Phone (optional) */}
                   <Field>
-                     <div className="flex items-center justify-between gap-2">
-                        <FieldLabel htmlFor="phone">Phone</FieldLabel>
-                        <Badge variant="warning-outline" size="sm">
-                           Optional
-                        </Badge>
-                     </div>
+                     <FieldLabel htmlFor="edit-phone">Phone</FieldLabel>
                      <Controller
                         name="phone"
                         control={control}
                         render={({ field }) => (
                            <Input
-                              id="phone"
+                              id="edit-phone"
                               type="tel"
                               placeholder="+251 9XX XXX XXX"
                               aria-invalid={!!errors.phone}
@@ -165,9 +181,8 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                      )}
                   </Field>
 
-                  {/* Role */}
                   <Field>
-                     <FieldLabel htmlFor="role">
+                     <FieldLabel htmlFor="edit-role">
                         Role
                         <span className="text-destructive">*</span>
                      </FieldLabel>
@@ -180,7 +195,7 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                               onValueChange={field.onChange}
                            >
                               <SelectTrigger
-                                 id="role"
+                                 id="edit-role"
                                  aria-invalid={!!errors.role}
                               >
                                  <SelectValue />
@@ -198,24 +213,6 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                         <FieldError>{errors.role.message}</FieldError>
                      )}
                   </Field>
-
-                  {/* Password */}
-                  <Field>
-                     <FieldLabel htmlFor="password">
-                        Password
-                        <span className="text-destructive">*</span>
-                     </FieldLabel>
-                     <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        aria-invalid={!!errors.password}
-                        {...register('password')}
-                     />
-                     {errors.password && (
-                        <FieldError>{errors.password.message}</FieldError>
-                     )}
-                  </Field>
                </FieldGroup>
 
                <DialogFooter>
@@ -224,14 +221,12 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                         Cancel
                      </Button>
                   </DialogClose>
-                  <Button type="submit" disabled={isSubmitting}>
-                     {isSubmitting ? 'Creating…' : 'Create User'}
+                  <Button type="submit" disabled={isPending}>
+                     {isPending ? 'Saving…' : 'Save Changes'}
                   </Button>
                </DialogFooter>
             </form>
          </DialogContent>
       </Dialog>
    );
-};
-
-export default CreateUser;
+}

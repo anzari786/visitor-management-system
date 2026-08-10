@@ -139,8 +139,11 @@ export const formatAuthUser = (user: AuthUserWithRelations) => ({
    firstName: user.firstName,
    lastName: user.lastName,
    email: user.email ?? undefined,
+   phone: user.phone ?? undefined,
+   username: user.username ?? undefined,
    isActive: user.isActive,
    mustChangePassword: user.mustChangePassword,
+   lastLoginAt: user.lastLoginAt ?? undefined,
    createdAt: user.createdAt,
    employee: user.employee
       ? {

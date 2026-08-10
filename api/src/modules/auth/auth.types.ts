@@ -11,8 +11,11 @@ export const authUserSelect = {
    firstName: true,
    lastName: true,
    email: true,
+   phone: true,
+   username: true,
    isActive: true,
    mustChangePassword: true,
+   lastLoginAt: true,
    createdAt: true,
    employee: {
       select: {

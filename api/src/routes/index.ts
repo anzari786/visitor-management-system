@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import authRoutes from '../modules/auth/auth.routes.js';
 
-import dashboardRoutes from './dashboard.routes.js';
+import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
 import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 

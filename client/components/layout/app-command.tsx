@@ -12,6 +12,7 @@ import {
 import { navigation } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
+import { useSettingsDialogStore } from '@/store/settings-dialog-store';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LogOut, UserCircle } from 'lucide-react';
@@ -26,6 +27,7 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    const router = useRouter();
    const user = useAuthStore((state) => state.user);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
+   const setSettingsOpen = useSettingsDialogStore((s) => s.setOpen);
    const { mutate: logout } = useLogout();
 
    useEffect(() => {
@@ -49,6 +51,16 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
       fn();
    }
 
+   function selectNavItem(item: (typeof navigation)[number]) {
+      if (item.action === 'open-settings') {
+         run(() => setSettingsOpen(true));
+         return;
+      }
+      if (item.href) {
+         go(item.href);
+      }
+   }
+
    const filteredNav = user
       ? navigation.filter((item) => item.roles.includes(user.role))
       : [];
@@ -66,9 +78,9 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                <CommandGroup heading="Workspace">
                   {workspaceItems.map((item) => (
                      <CommandItem
-                        key={item.href}
+                        key={item.href ?? item.action ?? item.title}
                         value={item.title}
-                        onSelect={() => go(item.href)}
+                        onSelect={() => selectNavItem(item)}
                      >
                         <item.icon />
                         <span>{item.title}</span>
@@ -83,9 +95,9 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                   <CommandGroup heading="Administration">
                      {adminItems.map((item) => (
                         <CommandItem
-                           key={item.href}
+                           key={item.href ?? item.action ?? item.title}
                            value={item.title}
-                           onSelect={() => go(item.href)}
+                           onSelect={() => selectNavItem(item)}
                         >
                            <item.icon />
                            <span>{item.title}</span>

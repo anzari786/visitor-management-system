@@ -8,14 +8,16 @@ import {
    LayoutGrid,
    LucideIcon,
    Settings,
-   UserCircle,
    Users,
 } from 'lucide-react';
+
+export type NavigationAction = 'open-settings';
 
 type NavigationItem = {
    title: string;
    icon: LucideIcon;
-   href: string;
+   href?: string;
+   action?: NavigationAction;
    group: 'Operations' | 'Administration' | 'Workspace';
    roles: UserRole[];
    isGradient?: boolean;
@@ -72,23 +74,17 @@ export const navigation: NavigationItem[] = [
    {
       title: 'Settings',
       icon: Settings,
-      href: '/settings',
+      action: 'open-settings',
       group: 'Administration',
       roles: ['admin'],
-   },
-   {
-      title: 'Profile',
-      icon: UserCircle,
-      href: '/profile',
-      group: 'Workspace',
-      roles: ['admin', 'front_desk'],
-      hidden: true,
    },
 ];
 
 export const getNavigationItem = (pathname: string) => {
    return navigation.find(
-      (item) => item.href === pathname || pathname.startsWith(`${item.href}/`),
+      (item) =>
+         !!item.href &&
+         (item.href === pathname || pathname.startsWith(`${item.href}/`)),
    );
 };
 
@@ -107,6 +103,7 @@ export function getSidebarNavItems(role: UserRole): NavItem[] {
             title: item.title,
             icon: item.icon,
             href: item.href,
+            action: item.action,
          })),
       ];
    });

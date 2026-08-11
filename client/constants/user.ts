@@ -1,3 +1,4 @@
+import type { BadgeProps } from '@/components/reui/badge';
 import { UserRole } from '@/types/user.types';
 import { Shield, User as UserIcon, type LucideIcon } from 'lucide-react';
 
@@ -9,12 +10,14 @@ export const USER_ROLE_CONFIG = {
       image: '/admin.svg',
       icon: Shield,
       color: 'text-chart-4',
+      badgeVariant: 'primary-light',
    },
    front_desk: {
       label: 'Front Desk',
       image: '/front_desk.svg',
       icon: UserIcon,
       color: 'text-chart-2',
+      badgeVariant: 'success-light',
    },
 } satisfies Record<
    UserRole,
@@ -23,5 +26,6 @@ export const USER_ROLE_CONFIG = {
       image: string;
       icon: LucideIcon;
       color: string;
+      badgeVariant: NonNullable<BadgeProps['variant']>;
    }
 >;

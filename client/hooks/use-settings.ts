@@ -17,7 +17,7 @@ export const settingsKeys = {
    detail: () => [...settingsKeys.all, 'detail'] as const,
 };
 
-export function useSettings() {
+export function useSettings(enabled = true) {
    return useQuery({
       queryKey: settingsKeys.detail(),
       queryFn: async () => {
@@ -25,6 +25,7 @@ export function useSettings() {
          return data.data;
       },
       staleTime: 1000 * 60 * 5, // treat settings as fresh for 5 min
+      enabled,
    });
 }
 
@@ -32,8 +33,8 @@ function deriveSystemStatus(isError: boolean): Status {
    return isError ? 'inactive' : 'active';
 }
 
-export function useSettingsWithStatus() {
-   const settingsQuery = useSettings();
+export function useSettingsWithStatus(enabled = true) {
+   const settingsQuery = useSettings(enabled);
    const healthQuery = useHealth();
 
    const data: SettingsWithStatus | undefined = settingsQuery.data
@@ -45,7 +46,7 @@ export function useSettingsWithStatus() {
 
    return {
       data,
-      isLoading: settingsQuery.isLoading || healthQuery.isLoading,
+      isLoading: enabled && (settingsQuery.isLoading || healthQuery.isLoading),
       isError: settingsQuery.isError || healthQuery.isError,
       error: settingsQuery.error || healthQuery.error,
    };

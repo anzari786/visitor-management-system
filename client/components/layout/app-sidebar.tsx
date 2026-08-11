@@ -13,6 +13,11 @@ import {
 } from '@/components/ui/sidebar';
 import { getSidebarNavItems } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
+import { useProfileAvatarStore } from '@/store/profile-avatar-store';
+import {
+   DEFAULT_PROFILE_AVATAR_ID,
+   getProfileAvatarById,
+} from '@/constants/profile-avatars';
 import { ChevronsUpDown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -21,12 +26,7 @@ import { AppSidebarSkeleton } from './app-sidebar-skeleton';
 import { NavMain } from './nav-main';
 import ProfileDropdown from './profile-dropdown';
 import { getUserFullName } from '@/lib/user';
-import type { User, UserRole } from '@/types/user.types';
-
-const avatarMap: Record<UserRole, string> = {
-   admin: '/admin.svg',
-   front_desk: '/front_desk.svg',
-};
+import type { User } from '@/types/user.types';
 
 function SidebarBrand() {
    return (
@@ -65,6 +65,11 @@ function SidebarBrand() {
 function NavUser({ user }: { user: User }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
+   const avatarId = useProfileAvatarStore(
+      (s) =>
+         s.selections[String(user.id)] ?? DEFAULT_PROFILE_AVATAR_ID,
+   );
+   const avatarSrc = getProfileAvatarById(avatarId).image;
 
    return (
       <SidebarMenu>
@@ -79,10 +84,7 @@ function NavUser({ user }: { user: User }) {
                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
                      <Avatar className="size-8 rounded-full">
-                        <AvatarImage
-                           src={avatarMap[user.role]}
-                           alt={fullName}
-                        />
+                        <AvatarImage src={avatarSrc} alt={fullName} />
                         <AvatarFallback className="rounded-full">
                            {user.firstName[0]}
                            {user.lastName[0]}

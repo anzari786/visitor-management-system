@@ -1,25 +1,18 @@
-import { Content } from '@/components/shared/content';
-import { SettingsTabs } from '@/components/settings/settings-tabs';
-import { canAccess } from '@/lib/access';
-import { getServerUser } from '@/lib/auth-server';
-import { redirect } from 'next/navigation';
+'use client';
 
-export default async function SettingsPage() {
-   const user = await getServerUser();
+import { useSettingsDialogStore } from '@/store/settings-dialog-store';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
-   if (!user || !canAccess(user.role, 'settings')) {
-      redirect('/');
-   }
+/** Settings is a dialog; open it and return to the dashboard. */
+export default function SettingsPage() {
+   const router = useRouter();
+   const setOpen = useSettingsDialogStore((s) => s.setOpen);
 
-   return (
-      <Content
-         subtitle={
-            <p>
-               Configure organization-wide visitor settings and preferences.
-            </p>
-         }
-      >
-         <SettingsTabs />
-      </Content>
-   );
+   useEffect(() => {
+      setOpen(true);
+      router.replace('/dashboard');
+   }, [router, setOpen]);
+
+   return null;
 }

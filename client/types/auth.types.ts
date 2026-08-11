@@ -10,6 +10,8 @@ export type LoginData = {
 };
 
 export type UpdateProfilePayload = {
+   firstName: string;
+   lastName: string;
    username: string;
    phone?: string;
 };

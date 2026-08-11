@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ReactElement } from 'react';
-import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
    DropdownMenu,
@@ -14,8 +13,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useLogout } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth-store';
+import { useProfileAvatarStore } from '@/store/profile-avatar-store';
+import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { getUserFullName } from '@/components/users/user-card-menu';
-import type { UserRole } from '@/types/user.types';
+import {
+   DEFAULT_PROFILE_AVATAR_ID,
+   getProfileAvatarById,
+} from '@/constants/profile-avatars';
 import { LogOut, UserCircle } from 'lucide-react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';
 
@@ -25,11 +29,6 @@ type Props = {
    align?: 'start' | 'center' | 'end';
    side?: 'top' | 'right' | 'bottom' | 'left';
    sideOffset?: number;
-};
-
-const avatarMap: Record<UserRole, string> = {
-   admin: '/admin.svg',
-   front_desk: '/front_desk.svg',
 };
 
 const itemClass = 'px-3 py-2 text-sm cursor-pointer gap-2.5';
@@ -42,7 +41,13 @@ export default function ProfileDropdown({
    sideOffset = 8,
 }: Props) {
    const [logoutOpen, setLogoutOpen] = useState(false);
+   const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const user = useAuthStore((state) => state.user);
+   const avatarId = useProfileAvatarStore(
+      (s) =>
+         (user ? s.selections[String(user.id)] : undefined) ??
+         DEFAULT_PROFILE_AVATAR_ID,
+   );
    const { mutate: logout, isPending: loggingOut } = useLogout();
 
    const fullName = user ? getUserFullName(user) : 'User';
@@ -50,6 +55,7 @@ export default function ProfileDropdown({
       ? `${user.firstName[0]}${user.lastName[0]}`
       : 'U';
    const subtitle = user?.username ?? '';
+   const avatarSrc = getProfileAvatarById(avatarId).image;
 
    return (
       <>
@@ -66,11 +72,7 @@ export default function ProfileDropdown({
                   <DropdownMenuLabel className="flex items-center gap-2.5 px-2.5 py-2 font-normal">
                      <div className="relative shrink-0">
                         <Avatar className="size-9">
-                           <AvatarImage
-                              src={user ? avatarMap[user.role] : undefined}
-                              alt={fullName}
-                           />
-                           <AvatarFallback>{initials}</AvatarFallback>
+                           <AvatarImage src={avatarSrc} alt={fullName} />                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                         <span className="ring-card absolute right-0 bottom-0 size-2 rounded-full bg-green-600 ring-2" />
                      </div>
@@ -87,11 +89,15 @@ export default function ProfileDropdown({
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  <DropdownMenuItem asChild className={itemClass}>
-                     <Link href="/profile">
-                        <UserCircle className="size-4 text-foreground" />
-                        <span>Profile</span>
-                     </Link>
+                  <DropdownMenuItem
+                     className={itemClass}
+                     onSelect={(event) => {
+                        event.preventDefault();
+                        setProfileOpen(true);
+                     }}
+                  >
+                     <UserCircle className="size-4 text-foreground" />
+                     <span>Profile</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator className="my-1" />

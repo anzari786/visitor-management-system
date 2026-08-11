@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
+import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { getServerUser } from '@/lib/auth-server';
 import type { CSSProperties } from 'react';
@@ -37,6 +38,7 @@ export default async function RootLayout({
                      <TooltipProvider>{children}</TooltipProvider>
                   </main>
                </div>
+               <EditProfileDialog />
             </SidebarProvider>
          </ThemeProvider>
       </div>

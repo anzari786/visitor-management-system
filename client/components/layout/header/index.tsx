@@ -8,8 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { BellRing, Globe, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
+import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { getNavigationItem } from '@/lib/navigation';
-import type { UserRole } from '@/types/user.types';
+import {
+   DEFAULT_PROFILE_AVATAR_ID,
+   getProfileAvatarById,
+} from '@/constants/profile-avatars';
 import { AppCommand } from '@/components/layout/app-command';
 import { ThemeToggle } from '@/components/theme-toggle';
 import LanguageDropdown from './dropdown-language';
@@ -17,18 +21,19 @@ import ProfileDropdown from './dropdown-profile';
 import Search from './search';
 import NotificationDropdown from './notification-dropdown';
 
-const avatarMap: Record<UserRole, string> = {
-   admin: '/admin.svg',
-   front_desk: '/front_desk.svg',
-};
-
 export default function Header() {
    const [commandOpen, setCommandOpen] = useState(false);
    const pathname = usePathname();
    const currentNavItem = getNavigationItem(pathname);
    const Icon = currentNavItem?.icon ?? LayoutGrid;
    const user = useAuthStore((state) => state.user);
+   const avatarId = useProfileAvatarStore(
+      (s) =>
+         (user ? s.selections[String(user.id)] : undefined) ??
+         DEFAULT_PROFILE_AVATAR_ID,
+   );
    const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U';
+   const avatarSrc = getProfileAvatarById(avatarId).image;
 
    return (
       <header className="bg-card sticky top-0 z-50 border-b shrink-0">
@@ -87,7 +92,7 @@ export default function Header() {
                      >
                         <Avatar className="size-7 rounded-full">
                            <AvatarImage
-                              src={user ? avatarMap[user.role] : undefined}
+                              src={avatarSrc}
                               alt={
                                  user
                                     ? `${user.firstName} ${user.lastName}`

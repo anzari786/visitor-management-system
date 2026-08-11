@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/command';
 import { navigation } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
+import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LogOut, UserCircle } from 'lucide-react';
@@ -24,6 +25,7 @@ type AppCommandProps = {
 export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    const router = useRouter();
    const user = useAuthStore((state) => state.user);
+   const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const { mutate: logout } = useLogout();
 
    useEffect(() => {
@@ -51,9 +53,7 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
       ? navigation.filter((item) => item.roles.includes(user.role))
       : [];
 
-   const workspaceItems = filteredNav.filter(
-      (i) => i.group === 'Workspace' && i.href !== '/profile',
-   );
+   const workspaceItems = filteredNav.filter((i) => i.group === 'Workspace');
    const adminItems = filteredNav.filter((i) => i.group === 'Administration');
 
    return (
@@ -97,7 +97,10 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
 
             <CommandSeparator />
             <CommandGroup heading="Account">
-               <CommandItem value="profile" onSelect={() => go('/profile')}>
+               <CommandItem
+                  value="profile"
+                  onSelect={() => run(() => setProfileOpen(true))}
+               >
                   <UserCircle />
                   <span>Profile</span>
                </CommandItem>

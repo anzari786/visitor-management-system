@@ -1,8 +1,9 @@
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/user.types';
-import { Crown, Phone, Shield } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import Image from 'next/image';
+import { RoleBadge } from './role-badge';
 import { getUserFullName, UserCardMenu } from './user-card-menu';
 import { USER_ROLE_CONFIG } from '@/constants/user';
 import { format } from 'date-fns';
@@ -14,7 +15,6 @@ type UserCardProps = {
 
 export function UserCard({ user }: UserCardProps) {
    const role = USER_ROLE_CONFIG[user.role];
-   const RoleIcon = role.icon;
 
    const stats = [
       { label: 'Check-ins', value: user.checkIns ?? 0 },
@@ -34,11 +34,6 @@ export function UserCard({ user }: UserCardProps) {
                      height={44}
                      className="rounded-full size-11 border-2 border-border"
                   />
-                  {user.role === 'admin' && (
-                     <div className="absolute -top-1 -right-1 size-5 rounded-full bg-chart-4/20 border border-chart-4/30 flex items-center justify-center">
-                        <Shield className="size-2.5 text-chart-4" />
-                     </div>
-                  )}
                </div>
 
                <div>
@@ -57,10 +52,7 @@ export function UserCard({ user }: UserCardProps) {
          {/* Role & Status */}
          <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-               <div className={cn('flex items-center gap-1', role.color)}>
-                  <RoleIcon className="size-2.5" />
-                  <span className="text-xs font-medium">{role.label}</span>
-               </div>
+               <RoleBadge role={user.role} />
                <Separator orientation="vertical" />
                <span
                   className={cn(

@@ -72,6 +72,14 @@ const SETTINGS_TABS = [
 
 type TabId = (typeof SETTINGS_TABS)[number]['id'];
 
+const panelVariants = {
+   enter: (dir: number) => ({ y: dir > 0 ? -48 : 48, opacity: 0 }),
+   center: { y: 0, opacity: 1 },
+   exit: (dir: number) => ({ y: dir > 0 ? 48 : -48, opacity: 0 }),
+};
+
+const panelTransition = { type: 'spring' as const, stiffness: 320, damping: 30 };
+
 function isSettingsEqual(a: SettingsFormState, b: SettingsFormState) {
    return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -114,6 +122,7 @@ export function SettingsDialog() {
    const canOpen = !!user && canAccess(user.role, 'settings');
 
    const [activeTab, setActiveTab] = React.useState<TabId>('general');
+   const [direction, setDirection] = React.useState(1);
    const [baseline, setBaseline] =
       React.useState<SettingsFormState>(DEFAULT_SETTINGS);
    const [form, setForm] = React.useState<SettingsFormState>(DEFAULT_SETTINGS);
@@ -124,8 +133,16 @@ export function SettingsDialog() {
       if (open) {
          setForm(baseline);
          setActiveTab('general');
+         setDirection(1);
       }
    }, [open, baseline]);
+
+   const handleTabChange = (newId: string) => {
+      const prevIdx = SETTINGS_TABS.findIndex((t) => t.id === activeTab);
+      const nextIdx = SETTINGS_TABS.findIndex((t) => t.id === newId);
+      setDirection(nextIdx > prevIdx ? 1 : -1);
+      setActiveTab(newId as TabId);
+   };
 
    React.useEffect(() => {
       if (open && !canOpen) {
@@ -177,7 +194,7 @@ export function SettingsDialog() {
                <div className="min-h-0 flex-1 overflow-hidden px-5 py-5 sm:px-6 sm:py-6">
                   <Tabs
                      value={activeTab}
-                     onValueChange={(value) => setActiveTab(value as TabId)}
+                     onValueChange={handleTabChange}
                      orientation="vertical"
                      className="flex h-full min-h-0 flex-col items-start gap-6 md:flex-row md:gap-10 lg:gap-12"
                   >
@@ -192,7 +209,7 @@ export function SettingsDialog() {
                                     key={tab.id}
                                     value={tab.id}
                                     className={cn(
-                                       'relative w-auto cursor-pointer select-none justify-start gap-3 whitespace-nowrap rounded-lg px-3.5 py-3 text-sm font-medium outline-none transition-colors md:w-full',
+                                       'relative w-auto cursor-pointer select-none justify-start gap-3 whitespace-nowrap rounded-lg px-3.5 py-3 text-sm font-medium outline-none transition-all md:w-full',
                                        'hover:bg-muted/60 hover:text-foreground',
                                        isActive
                                           ? 'border-none text-foreground'
@@ -212,7 +229,7 @@ export function SettingsDialog() {
                                           transition={{
                                              type: 'spring',
                                              stiffness: 300,
-                                             damping: 28,
+                                             damping: 25,
                                           }}
                                        />
                                     )}
@@ -222,27 +239,35 @@ export function SettingsDialog() {
                         </TabsList>
                      </div>
 
-                     <div className="relative min-h-0 w-full flex-1 overflow-hidden">
-                        <div className="h-[min(54vh,560px)] overflow-hidden rounded-xl border border-border bg-card md:h-[min(60vh,600px)]">
-                           <ScrollArea className="h-full">
-                              <AnimatePresence mode="wait" initial={false}>
-                                 <motion.div
-                                    key={activeTab}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.14 }}
-                                    className="flex flex-col gap-5 p-5 sm:p-7"
-                                 >
-                                    <PanelForTab
-                                       tabId={activeTab}
-                                       icon={active.icon}
-                                       form={form}
-                                       onChange={handleChange}
-                                    />
-                                 </motion.div>
-                              </AnimatePresence>
-                           </ScrollArea>
+                     <div className="relative min-h-[360px] w-full flex-1 overflow-hidden md:min-h-[380px]">
+                        <div className="relative h-[min(54vh,560px)] w-full md:h-[min(60vh,600px)]">
+                           <AnimatePresence
+                              mode="wait"
+                              custom={direction}
+                              initial={false}
+                           >
+                              <motion.div
+                                 key={activeTab}
+                                 custom={direction}
+                                 variants={panelVariants}
+                                 initial="enter"
+                                 animate="center"
+                                 exit="exit"
+                                 transition={panelTransition}
+                                 className="absolute inset-0 flex h-full w-full flex-col overflow-hidden rounded-xl border border-border bg-card"
+                              >
+                                 <ScrollArea className="h-full">
+                                    <div className="flex flex-col gap-5 p-5 sm:p-7">
+                                       <PanelForTab
+                                          tabId={activeTab}
+                                          icon={active.icon}
+                                          form={form}
+                                          onChange={handleChange}
+                                       />
+                                    </div>
+                                 </ScrollArea>
+                              </motion.div>
+                           </AnimatePresence>
                         </div>
                      </div>
                   </Tabs>

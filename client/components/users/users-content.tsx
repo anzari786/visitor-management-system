@@ -1,31 +1,37 @@
 'use client';
 
+import { Content } from '@/components/shared/content';
+import { useCreateUser, useUsersCount } from '@/hooks/use-users';
+import type { CreateUserFormValues } from '@/lib/validations/user.schema';
 import { Plus } from 'lucide-react';
-import React from 'react';
+import * as React from 'react';
+import { Suspense } from 'react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
-import { Content } from '@/components/shared/content';
 import CreateUser from './create-user';
-import { UserCardGrid } from './user-card-grid';
-import { useCreateUser, useUsers } from '@/hooks/use-users';
-import type { CreateUserFormValues } from '@/lib/validations/user.schema';
+import { UsersTable } from './users-table';
+import { UsersTableSkeleton } from './users-table-skeleton';
 
 export function UsersContent() {
    const [open, setOpen] = React.useState(false);
-   const { data: users = [] } = useUsers();
+   const usersCount = useUsersCount();
    const { mutateAsync: createUser } = useCreateUser();
 
    async function handleCreateUser(values: CreateUserFormValues) {
       try {
-         await createUser(values);
+         const phone =
+            !values.phone || values.phone === '+251 '
+               ? undefined
+               : values.phone;
+
+         await createUser({
+            ...values,
+            phone,
+         });
          toast.success('User created successfully');
          setOpen(false);
-      } catch (error) {
-         const message =
-            (error as import('axios').AxiosError<{ message: string }>)?.response
-               ?.data?.message ?? 'Failed to create user. Please try again.';
-
-         toast.error(message);
+      } catch {
+         toast.error('Failed to create user. Please try again.');
       }
    }
 
@@ -33,8 +39,10 @@ export function UsersContent() {
       <Content
          subtitle={
             <p>
-               <span className="text-foreground font-medium">
-                  {users.length} users
+               Manage staff accounts, roles, and access across the visitor
+               management system.{' '}
+               <span className="text-foreground font-medium tabular-nums">
+                  {usersCount} users
                </span>{' '}
                in the system
             </p>
@@ -51,7 +59,9 @@ export function UsersContent() {
             </Button>
          }
       >
-         <UserCardGrid />
+         <Suspense fallback={<UsersTableSkeleton rows={10} />}>
+            <UsersTable />
+         </Suspense>
          <CreateUser
             open={open}
             onOpenChange={setOpen}

@@ -4,22 +4,9 @@ import type { ReactNode } from 'react';
 import { format, parse } from 'date-fns';
 import { Dot, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import type { HostVisitCardData } from '@/types/host.types';
 
-export type HostVisitCardData = {
-   id: string;
-   visitorName: string;
-   isGroup?: boolean;
-   groupSize?: number;
-   orgName?: string;
-   meetingType: string;
-   startDate: string;
-   endDate?: string;
-   time: string;
-   endTime: string;
-   isMultiDay: boolean;
-   floor?: string;
-   room?: string;
-};
+export type { HostVisitCardData };
 
 type HostVisitCardProps = {
    visit: HostVisitCardData;

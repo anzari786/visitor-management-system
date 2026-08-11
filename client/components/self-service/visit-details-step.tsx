@@ -67,6 +67,10 @@ function matchesQuery(text: string, query: string) {
    return text.toLowerCase().includes(query.toLowerCase());
 }
 
+/**
+ * Temporary client-side host search.
+ * Replace with `useEmployeeSearch` from `@/hooks/use-self-service` when the API is ready.
+ */
 async function searchHosts(query: string): Promise<HostEmployee[]> {
    await new Promise((resolve) =>
       setTimeout(resolve, Math.random() * 400 + 150),

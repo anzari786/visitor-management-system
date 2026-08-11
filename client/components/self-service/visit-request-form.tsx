@@ -21,6 +21,7 @@ import {
    type VisitRequestFormInput,
    type VisitRequestFormValues,
 } from '@/lib/validations/visit-request.schema';
+/** Mock submit — swap for `useSubmitVisitRequest` from `@/hooks/use-self-service`. */
 import { submitVisitRequest } from '@/services/visit-request.service';
 import { Button } from '@/components/ui/button';
 import { VisitRequestSuccessDialog } from './visit-request-success-dialog';

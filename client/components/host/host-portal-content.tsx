@@ -15,6 +15,11 @@ import {
 } from '@/lib/host-visit-schedule';
 import type { VisitUpdateDetailsValue } from './visit-update-details';
 
+/**
+ * Local mock seed data for the Host Portal UI.
+ * Replace with `useHostPendingVisits` / `useHostUpcomingVisits` from
+ * `@/hooks/use-host` when the host API is available.
+ */
 const INITIAL_PENDING: HostVisitCardData[] = [
    {
       id: '1',

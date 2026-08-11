@@ -42,7 +42,7 @@ export const navigation: NavigationItem[] = [
       roles: ['admin', 'front_desk'],
    },
    {
-      title: 'Badge',
+      title: 'Badges',
       icon: IdCard,
       href: '/badge',
       group: 'Workspace',

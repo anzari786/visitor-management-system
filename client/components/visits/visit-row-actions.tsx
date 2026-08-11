@@ -1,28 +1,37 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import type { ManagedVisit } from '@/types/visit.types';
 import { MoreHorizontal } from 'lucide-react';
-import type { Visit } from '@/types/visit.types';
 import { VisitActionsMenu } from './visit-actions-menu';
 
 interface VisitRowActionsProps {
-   visit: Visit;
-   onViewDetails: (visit: Visit) => void;
+   visit: ManagedVisit;
+   onView: (visit: ManagedVisit) => void;
+   onCheckOut: (visit: ManagedVisit) => void;
+   onCancel: (visit: ManagedVisit) => void;
+   onOpenAttendance: (visit: ManagedVisit, mode: 'check_out') => void;
 }
 
 export function VisitRowActions({
    visit,
-   onViewDetails,
+   onView,
+   onCheckOut,
+   onCancel,
+   onOpenAttendance,
 }: VisitRowActionsProps) {
    return (
       <VisitActionsMenu
          visit={visit}
-         onViewDetails={onViewDetails}
+         onView={onView}
+         onCheckOut={onCheckOut}
+         onCancel={onCancel}
+         onOpenAttendance={onOpenAttendance}
          align="end"
          trigger={
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" size="icon" className="size-8">
                <span className="sr-only">Open menu</span>
-               <MoreHorizontal className="h-4 w-4" />
+               <MoreHorizontal className="size-4" />
             </Button>
          }
       />

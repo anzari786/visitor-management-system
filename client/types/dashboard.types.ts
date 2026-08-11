@@ -46,3 +46,35 @@ export type DepartmentVisitsData = {
    data: DepartmentVisitDataPoint[];
    total: number;
 };
+
+/**
+ * Dashboard summary stat card (UI-ready; swap mock for API later)
+ */
+export type DashboardStatId =
+   | 'total_visits'
+   | 'currently_inside'
+   | 'avg_duration'
+   | 'overstays';
+
+export type DashboardStatCard = {
+   id: DashboardStatId;
+   title: string;
+   value: string;
+   change: string;
+   changeValue: string;
+   isPositive: boolean;
+};
+
+/**
+ * Meeting type pie chart item
+ */
+export type MeetingTypeDataPoint = {
+   name: string;
+   value: number;
+   color: string;
+};
+
+export type MeetingTypeChartData = {
+   data: MeetingTypeDataPoint[];
+   total: number;
+};

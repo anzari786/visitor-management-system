@@ -46,3 +46,20 @@ export async function sendVisitUpdateEmail(
       body: `Your visit details have been updated. Please report to Floor ${payload.floor}, Room ${payload.room}.${schedulePart}`,
    };
 }
+
+export type PendingApprovalReminderPayload = {
+   visitorName: string;
+   hostName?: string;
+   visitSummary?: string;
+};
+
+export async function sendPendingApprovalReminderEmail(
+   payload: PendingApprovalReminderPayload,
+): Promise<{ body: string }> {
+   await new Promise((resolve) => setTimeout(resolve, 700));
+   return {
+      body: `Reminder: a visit request for ${payload.visitorName} is still awaiting host approval.${
+         payload.visitSummary ? ` ${payload.visitSummary}` : ''
+      }`,
+   };
+}

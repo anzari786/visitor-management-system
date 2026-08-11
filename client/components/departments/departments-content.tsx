@@ -3,13 +3,14 @@
 import { Plus } from 'lucide-react';
 import React from 'react';
 import { toast } from 'sonner';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { Content } from '@/components/shared/content';
 import CreateDepartment from './create-department';
+import { DepartmentCardGrid } from './department-card-grid';
 import { useCreateDepartment, useDepartments } from '@/hooks/use-departments';
 import type { CreateDepartmentFormValues } from '@/lib/validations/department.schema';
 
-const DepartmentsToolbar = () => {
+export function DepartmentsContent() {
    const [open, setOpen] = React.useState(false);
    const { data: departments = [] } = useDepartments();
    const { mutateAsync: createDepartment } = useCreateDepartment();
@@ -18,7 +19,7 @@ const DepartmentsToolbar = () => {
       try {
          await createDepartment(values);
          toast.success('Department created successfully');
-         setOpen(false); // ← moved here: only close on success
+         setOpen(false);
       } catch (error) {
          const message =
             (error as import('axios').AxiosError<{ message: string }>)?.response
@@ -26,30 +27,38 @@ const DepartmentsToolbar = () => {
             'Failed to create department. Please try again.';
 
          toast.error(message);
-         throw error; // ← propagate so the dialog knows not to close
+         throw error;
       }
    }
 
    return (
-      <div>
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-               <h1 className="text-base font-semibold">Departments</h1>
-               <Badge>{departments.length}</Badge>
-            </div>
-            <Button size="sm" onClick={() => setOpen(true)}>
-               <Plus className="size-4" />
-               <span className="hidden sm:inline-flex">New Department</span>
+      <Content
+         subtitle={
+            <p>
+               <span className="text-foreground font-medium">
+                  {departments.length} departments
+               </span>{' '}
+               configured for visitor routing
+            </p>
+         }
+         actionButton={
+            <Button
+               size="sm"
+               onClick={() => setOpen(true)}
+               className="gap-2 sm:gap-3 h-8 sm:h-9 text-xs sm:text-sm bg-linear-to-b from-foreground to-foreground/90 text-background"
+            >
+               <Plus className="size-3 sm:size-4" />
+               <span className="hidden sm:inline">New Department</span>
+               <span className="sm:hidden">New</span>
             </Button>
-         </div>
-
+         }
+      >
+         <DepartmentCardGrid />
          <CreateDepartment
             open={open}
             onOpenChange={setOpen}
             onSubmit={handleCreateDepartment}
          />
-      </div>
+      </Content>
    );
-};
-
-export default DepartmentsToolbar;
+}

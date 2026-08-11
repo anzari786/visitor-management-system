@@ -1,9 +1,34 @@
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import type { MeetingTypeValue } from '@/constants/meeting-types';
 import type { Department } from './department.types';
 
 export type IdTypeValue = (typeof ID_TYPE_OPTIONS)[number]['value'];
 
+/** Legacy check-in session status (walk-in / badge flow). */
 export type VisitStatus = 'active' | 'overstay' | 'completed' | 'cancelled';
+
+export type VisitorAttendanceStatus =
+   | 'pending'
+   | 'checked_in'
+   | 'checked_out';
+
+/**
+ * Visit request lifecycle status.
+ * Requested → Approved / Rejected / Rescheduled →
+ * Partially Checked In → Checked In →
+ * Partially Checked Out → Checked Out / Cancelled
+ */
+export type ManagedVisitStatus =
+   | 'requested'
+   | 'approved'
+   | 'rejected'
+   | 'rescheduled'
+   | 'partially_checked_in'
+   | 'checked_in'
+   | 'partially_checked_out'
+   | 'checked_out'
+   | 'cancelled';
+
 export type IdType =
    | 'national_id'
    | 'kebele_id'
@@ -11,6 +36,7 @@ export type IdType =
    | 'drivers_license'
    | 'other';
 
+/** Legacy check-in session record. */
 export type Visit = {
    id: number;
    badge: string;
@@ -27,6 +53,58 @@ export type Visit = {
    note?: string;
 };
 
+export type VisitorDayAttendance = {
+   date: string;
+   status: VisitorAttendanceStatus;
+   checkedInAt?: string;
+};
+
+export type ManagedVisitor = {
+   id: string;
+   name: string;
+   /** Convenience mirror of today's / active-day attendance for table UI. */
+   attendanceStatus: VisitorAttendanceStatus;
+   phone?: string;
+   email?: string;
+   organization?: string;
+   idType?: IdType;
+   idNumber?: string;
+   /** ISO timestamp when the visitor checked in (active day). */
+   checkedInAt?: string;
+   /** Per-day attendance for multi-day visits. */
+   attendanceByDate?: Record<string, VisitorDayAttendance>;
+};
+
+/**
+ * Managed visit from the Visit Request Form lifecycle.
+ * Shape mirrors the intended backend visit list payload.
+ */
+export type ManagedVisit = {
+   /** Public visit identifier sent to the visitor by email (e.g. VMS-2026-0042). */
+   id: string;
+   /** Primary visitor display name (first guest / group lead). */
+   visitorName: string;
+   visitors: ManagedVisitor[];
+   visitorCount: number;
+   organization?: string;
+   host: string;
+   department: string;
+   meetingType: MeetingTypeValue;
+   purpose: string;
+   /** ISO date string (yyyy-MM-dd) */
+   startDate: string;
+   /** ISO date string for multi-day visits */
+   endDate?: string;
+   /** 24h time string HH:mm */
+   startTime: string;
+   /** 24h time string HH:mm */
+   endTime: string;
+   floor?: string;
+   room?: string;
+   status: ManagedVisitStatus;
+   isMultiDay: boolean;
+};
+
 export type DateFilter =
    | 'all'
    | 'today'
@@ -41,6 +119,15 @@ export type VisitsParams = {
    status?: VisitStatus | 'all';
    dateFilter?: DateFilter;
    departmentId?: string;
+};
+
+export type ManagedVisitsParams = {
+   page: number;
+   pageSize: number;
+   search?: string;
+   status?: ManagedVisitStatus | 'all';
+   department?: string | 'all';
+   meetingType?: MeetingTypeValue | 'all';
 };
 
 export type VisitsPaginatedData = {

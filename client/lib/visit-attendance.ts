@@ -15,14 +15,29 @@ import type {
    VisitorDayAttendance,
 } from '@/types/visit.types';
 
+/** Default attendance labels for visits that are past approval. */
 export const ATTENDANCE_STATUS_LABELS: Record<
    VisitorAttendanceStatus,
    string
 > = {
-   pending: 'Pending',
+   pending: 'Not Checked In',
    checked_in: 'Checked In',
    checked_out: 'Checked Out',
 };
+
+/**
+ * Visitor badge label for the details sheet.
+ * "Pending" is reserved for requested / awaiting-approval visits only.
+ */
+export function getVisitorAttendanceLabel(
+   status: VisitorAttendanceStatus,
+   visitStatus: ManagedVisitStatus,
+): string {
+   if (status === 'pending' && visitStatus === 'requested') {
+      return 'Pending';
+   }
+   return ATTENDANCE_STATUS_LABELS[status];
+}
 
 export function isGroupVisit(visit: ManagedVisit) {
    return visit.visitors.length > 1;
@@ -166,11 +181,9 @@ export function getCheckInEligibleVisitors(
    visit: ManagedVisit,
    now: Date = new Date(),
 ) {
-   if (
-      visit.status === 'cancelled' ||
-      visit.status === 'rejected' ||
-      visit.status === 'requested'
-   ) {
+   // Includes approved, partially_checked_in, partially_checked_out, etc.
+   // Remaining not-checked-in guests stay eligible while the schedule window is open.
+   if (!canAttemptCheckIn(visit.status)) {
       return [];
    }
    if (!isVisitAttendanceWindowOpen(visit, now)) return [];
@@ -187,6 +200,8 @@ export function getCheckOutEligibleVisitors(
    visit: ManagedVisit,
    now: Date = new Date(),
 ) {
+   // Remaining checked-in guests stay eligible on partially_checked_out
+   // (and related) statuses until they check out.
    if (
       visit.status === 'cancelled' ||
       visit.status === 'rejected' ||

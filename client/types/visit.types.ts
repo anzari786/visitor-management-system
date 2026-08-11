@@ -73,6 +73,10 @@ export type ManagedVisitor = {
    checkedInAt?: string;
    /** Per-day attendance for multi-day visits. */
    attendanceByDate?: Record<string, VisitorDayAttendance>;
+   /** Physical badge assigned at check-in (public badge number, not DB id). */
+   assignedBadgeNumber?: string;
+   /** Opaque badge QR token paired with the assigned badge. */
+   assignedBadgeQr?: string;
 };
 
 /**
@@ -82,6 +86,11 @@ export type ManagedVisitor = {
 export type ManagedVisit = {
    /** Public visit identifier sent to the visitor by email (e.g. VMS-2026-0042). */
    id: string;
+   /**
+    * Opaque QR token encoded in the visitor approval email.
+    * Prefer scanning this over the human-readable visit id.
+    */
+   qrToken?: string;
    /** Primary visitor display name (first guest / group lead). */
    visitorName: string;
    visitors: ManagedVisitor[];

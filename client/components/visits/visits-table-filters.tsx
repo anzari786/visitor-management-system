@@ -27,11 +27,13 @@ import { ScanDialog } from './scan-dialog';
 type VisitsTableFiltersProps = {
    onScanBadge?: () => void;
    onScanVisitorQr?: () => void;
+   onFindVisit?: () => void;
 };
 
 export function VisitsTableFilters({
    onScanBadge,
    onScanVisitorQr,
+   onFindVisit,
 }: VisitsTableFiltersProps) {
    const router = useRouter();
    const pathname = usePathname();
@@ -203,6 +205,7 @@ export function VisitsTableFilters({
          <ScanDialog
             open={scanOpen}
             onOpenChange={setScanOpen}
+            onFindVisit={onFindVisit}
             onScanBadge={onScanBadge}
             onScanVisitorQr={onScanVisitorQr}
          />

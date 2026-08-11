@@ -8,14 +8,19 @@ import { VisitActionsMenu } from './visit-actions-menu';
 interface VisitRowActionsProps {
    visit: ManagedVisit;
    onView: (visit: ManagedVisit) => void;
+   onCheckIn: (visit: ManagedVisit) => void;
    onCheckOut: (visit: ManagedVisit) => void;
    onCancel: (visit: ManagedVisit) => void;
-   onOpenAttendance: (visit: ManagedVisit, mode: 'check_out') => void;
+   onOpenAttendance: (
+      visit: ManagedVisit,
+      mode: 'check_in' | 'check_out',
+   ) => void;
 }
 
 export function VisitRowActions({
    visit,
    onView,
+   onCheckIn,
    onCheckOut,
    onCancel,
    onOpenAttendance,
@@ -24,6 +29,7 @@ export function VisitRowActions({
       <VisitActionsMenu
          visit={visit}
          onView={onView}
+         onCheckIn={onCheckIn}
          onCheckOut={onCheckOut}
          onCancel={onCancel}
          onOpenAttendance={onOpenAttendance}

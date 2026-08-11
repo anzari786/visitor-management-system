@@ -59,6 +59,7 @@ import {
 import * as React from 'react';
 import { toast } from 'sonner';
 import { CheckInDialog } from './check-in-dialog';
+import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
@@ -66,9 +67,11 @@ import {
    ManagedVisitStatusBadge,
    VisitorAttendanceBadge,
 } from './managed-visit-status-badge';
+import { withAssignedBadges } from '@/data/mock-badges';
 
 type VisitDetailsSheetProps = {
    visit: ManagedVisit | null;
+   allVisits?: ManagedVisit[];
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onVisitChange: (visit: ManagedVisit) => void;
@@ -154,6 +157,7 @@ function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
 
 export function VisitDetailsSheet({
    visit,
+   allVisits = [],
    open,
    onOpenChange,
    onVisitChange,
@@ -194,6 +198,13 @@ export function VisitDetailsSheet({
          if (auto) defaults[auto.id] = true;
       }
       setSelectedIds(defaults);
+
+      // Open the Check-In stepper when launched in check-in mode (parity with Check Out sheet flow).
+      if (initialMode === 'check_in' && canCheckIn(visit)) {
+         const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
+         setPendingCheckInIds(ids);
+         setCheckInDialogOpen(true);
+      }
    }, [visit?.id, open, initialMode]);
 
    if (!visit) return null;
@@ -234,9 +245,24 @@ export function VisitDetailsSheet({
    const checkedOutCount = displayVisit.visitors.filter(
       (v) => v.attendanceStatus === 'checked_out',
    ).length;
-   const pendingCount = displayVisit.visitors.filter(
+   const notCheckedInCount = displayVisit.visitors.filter(
       (v) => v.attendanceStatus === 'pending',
    ).length;
+   const isApprovalPending = visit.status === 'requested';
+
+   const eligibleIdSet = new Set([
+      ...checkInEligible.map((v) => v.id),
+      ...checkOutEligible.map((v) => v.id),
+   ]);
+   const orderedVisitors = [...displayVisit.visitors].sort((a, b) => {
+      const aEligible = eligibleIdSet.has(a.id) ? 0 : 1;
+      const bEligible = eligibleIdSet.has(b.id) ? 0 : 1;
+      if (aEligible !== bEligible) return aEligible - bEligible;
+      const order = { pending: 0, checked_in: 1, checked_out: 2 } as const;
+      return (
+         (order[a.attendanceStatus] ?? 3) - (order[b.attendanceStatus] ?? 3)
+      );
+   });
 
    const toggleVisitor = (id: string, checked: boolean, selectable: boolean) => {
       if (!selectable) return;
@@ -244,8 +270,9 @@ export function VisitDetailsSheet({
    };
 
    const handleCheckIn = () => {
+      // Prefer explicit selection; otherwise check in all eligible (same pattern as Check Out).
       const ids =
-         group && selectedCheckInIds.length > 0
+         selectedCheckInIds.length > 0
             ? selectedCheckInIds
             : checkInEligible.map((v) => v.id);
 
@@ -258,15 +285,21 @@ export function VisitDetailsSheet({
       setCheckInDialogOpen(true);
    };
 
-   const confirmCheckIn = (visitorIds: string[]) => {
+   const confirmCheckIn = (payload: CheckInConfirmPayload) => {
       const ids =
-         visitorIds.length > 0 ? visitorIds : pendingCheckInIds;
+         payload.visitorIds.length > 0
+            ? payload.visitorIds
+            : pendingCheckInIds;
       if (ids.length === 0) return;
 
       const names = visit.visitors
          .filter((v) => ids.includes(v.id))
          .map((v) => v.name);
-      const updated = applyVisitorAttendance(visit, ids, 'checked_in');
+      const withAttendance = applyVisitorAttendance(visit, ids, 'checked_in');
+      const updated = withAssignedBadges(
+         withAttendance,
+         payload.badgeAssignments,
+      );
       onVisitChange(updated);
       setSelectedIds({});
       setPendingCheckInIds([]);
@@ -278,7 +311,7 @@ export function VisitDetailsSheet({
 
    const handleCheckOut = () => {
       const ids =
-         group && selectedCheckOutIds.length > 0
+         selectedCheckOutIds.length > 0
             ? selectedCheckOutIds
             : checkOutEligible.map((v) => v.id);
 
@@ -459,8 +492,11 @@ export function VisitDetailsSheet({
                                  {visit.isMultiDay
                                     ? `${attendanceDayLabel}${windowOpen ? ' · open' : ''} · `
                                     : ''}
-                                 {pendingCount} pending · {checkedInCount}{' '}
-                                 checked in · {checkedOutCount} checked out
+                                 {isApprovalPending
+                                    ? `${notCheckedInCount} pending`
+                                    : `${notCheckedInCount} not checked in`}{' '}
+                                 · {checkedInCount} checked in ·{' '}
+                                 {checkedOutCount} checked out
                               </p>
                            </div>
                            {group && (showCheckIn || showCheckOut) && (
@@ -496,7 +532,7 @@ export function VisitDetailsSheet({
                            </div>
                         ) : (
                            <FieldGroup className="w-full gap-3">
-                              {displayVisit.visitors.map((visitor) => {
+                              {orderedVisitors.map((visitor) => {
                                  const dayStatus =
                                     getVisitorAttendanceStatusForDay(
                                        visitor,
@@ -513,6 +549,11 @@ export function VisitDetailsSheet({
                                  const checked = Boolean(
                                     selectedIds[visitor.id],
                                  );
+                                 const completed =
+                                    dayStatus === 'checked_out' ||
+                                    (!selectable &&
+                                       dayStatus === 'checked_in' &&
+                                       !showCheckOut);
 
                                  return (
                                     <FieldLabel
@@ -521,7 +562,8 @@ export function VisitDetailsSheet({
                                           'relative p-0',
                                           selectable
                                              ? 'cursor-pointer'
-                                             : 'cursor-default opacity-90',
+                                             : 'cursor-default',
+                                          completed && 'opacity-70',
                                        )}
                                     >
                                        <Field
@@ -530,16 +572,29 @@ export function VisitDetailsSheet({
                                              'items-start gap-3',
                                              checked &&
                                                 'border-primary bg-primary/5 dark:bg-primary/10',
+                                             canSelectForCheckIn &&
+                                                !checked &&
+                                                'border-dashed',
+                                             completed &&
+                                                'bg-muted/40 dark:bg-muted/20',
                                           )}
                                        >
-                                          <FieldTitle className="min-w-0 flex-1 items-start">
+                                          <FieldTitle className="min-w-0 flex-1 flex-col items-start gap-0">
                                              <VisitorDetails
                                                 visitor={visitor}
                                              />
+                                             {selectable && (
+                                                <span className="mt-1 text-[11px] font-normal text-muted-foreground">
+                                                   {canSelectForCheckIn
+                                                      ? 'Eligible for check-in'
+                                                      : 'Eligible for check-out'}
+                                                </span>
+                                             )}
                                           </FieldTitle>
                                           <div className="flex shrink-0 flex-col items-end gap-2.5 self-start">
                                              <VisitorAttendanceBadge
                                                 status={dayStatus}
+                                                visitStatus={visit.status}
                                              />
                                              {selectable ? (
                                                 <Checkbox
@@ -590,15 +645,16 @@ export function VisitDetailsSheet({
                            className="h-11 flex-1 gap-2"
                            onClick={handleCheckIn}
                            disabled={
-                              checkInDialogOpen ||
-                              (group
-                                 ? selectedCheckInIds.length === 0
-                                 : checkInEligible.length === 0)
+                              checkInDialogOpen || checkInEligible.length === 0
                            }
                         >
                            <LogIn className="size-4" />
                            {group
-                              ? `Check In${selectedCheckInIds.length ? ` (${selectedCheckInIds.length})` : ''}`
+                              ? `Check In${
+                                   selectedCheckInIds.length
+                                      ? ` (${selectedCheckInIds.length})`
+                                      : ` (${checkInEligible.length})`
+                                }`
                               : 'Check In'}
                         </Button>
                      )}
@@ -609,14 +665,16 @@ export function VisitDetailsSheet({
                            onClick={handleCheckOut}
                            disabled={
                               checkOutConfirmOpen ||
-                              (group
-                                 ? selectedCheckOutIds.length === 0
-                                 : checkOutEligible.length === 0)
+                              checkOutEligible.length === 0
                            }
                         >
                            <LogOut className="size-4" />
                            {group
-                              ? `Check Out${selectedCheckOutIds.length ? ` (${selectedCheckOutIds.length})` : ''}`
+                              ? `Check Out${
+                                   selectedCheckOutIds.length
+                                      ? ` (${selectedCheckOutIds.length})`
+                                      : ` (${checkOutEligible.length})`
+                                }`
                               : 'Check Out'}
                         </Button>
                      )}
@@ -630,6 +688,7 @@ export function VisitDetailsSheet({
             onOpenChange={setCheckInDialogOpen}
             visit={visit}
             visitors={pendingCheckInVisitors}
+            allVisits={allVisits.length ? allVisits : [visit]}
             onConfirm={confirmCheckIn}
          />
 

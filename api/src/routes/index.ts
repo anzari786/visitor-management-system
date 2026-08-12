@@ -6,6 +6,7 @@ import departmentRoutes from './department.routes.js';
 import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 import userRoutes from './user.routes.js';
+import visitRequestRoutes from './visit-request.routes.js';
 import visitRoutes from './visit.routes.js';
 
 const router = Router();
@@ -15,6 +16,7 @@ router.use('/dashboard', dashboardRoutes);
 
 router.use('/users', userRoutes);
 router.use('/visits', visitRoutes);
+router.use('/visit-requests', visitRequestRoutes);
 router.use('/departments', departmentRoutes);
 
 router.use('/settings', settingRoutes);

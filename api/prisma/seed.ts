@@ -1,5 +1,10 @@
 // prisma/seed.ts
-import { IdType, VisitStatus } from '../src/generated/prisma/client.js';
+import {
+   IdType,
+   VisitPurpose,
+   VisitRequestStatus,
+   VisitStatus,
+} from '../src/generated/prisma/client.js';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 import {
@@ -118,6 +123,8 @@ async function main() {
    console.log('Seeding started...\n');
 
    // Clear existing data (respecting FK order)
+   await prisma.visitRequestVisitor.deleteMany();
+   await prisma.visitRequest.deleteMany();
    await prisma.visit.deleteMany();
    await prisma.visitor.deleteMany();
    await prisma.department.deleteMany();
@@ -356,6 +363,98 @@ async function main() {
       );
    }
 
+   // ── Sample visit requests ──
+   const purposes = Object.values(VisitPurpose);
+   const hostNames = [
+      'Abebe Kebede',
+      'Helen Tesfaye',
+      'Dawit Mengistu',
+      'Yonas Hailu',
+      'Kidus Berhanu',
+      'Nahom Desta',
+   ];
+   const organizations = [
+      'Ministry of Agriculture',
+      'World Bank',
+      'FAO Ethiopia',
+      'GIZ',
+      null,
+      'Private Consultant',
+   ];
+
+   let pendingCount = 0;
+   let approvedCount = 0;
+   let rejectedCount = 0;
+
+   for (let i = 0; i < 24; i++) {
+      const visitor = visitorPool[i % visitorPool.length];
+      const department = faker.helpers.arrayElement(departments);
+      const status = faker.helpers.weightedArrayElement([
+         { value: VisitRequestStatus.pending, weight: 3 },
+         { value: VisitRequestStatus.approved, weight: 2 },
+         { value: VisitRequestStatus.rejected, weight: 1 },
+      ]);
+
+      const startDate = faker.date.soon({ days: 21 });
+      const endDate = faker.helpers.maybe(() => addDays(startDate, 1), {
+         probability: 0.2,
+      }) ?? startDate;
+
+      const reviewedBy =
+         status === VisitRequestStatus.pending
+            ? null
+            : faker.helpers.arrayElement(frontDeskUsers);
+
+      await prisma.visitRequest.create({
+         data: {
+            hostName: faker.helpers.arrayElement(hostNames),
+            hostEmail: null,
+            departmentId: department.id,
+            purpose: faker.helpers.arrayElement(purposes),
+            startDate,
+            endDate,
+            startTime: faker.helpers.arrayElement([
+               '09:00',
+               '10:00',
+               '11:00',
+               '13:00',
+               '14:30',
+            ]),
+            endTime: faker.helpers.arrayElement([
+               '10:00',
+               '11:30',
+               '12:00',
+               '15:00',
+               '16:00',
+            ]),
+            status,
+            rejectionReason:
+               status === VisitRequestStatus.rejected
+                  ? 'Host unavailable on the requested date.'
+                  : null,
+            reviewedAt: reviewedBy ? faker.date.recent({ days: 5 }) : null,
+            reviewedById: reviewedBy?.id ?? null,
+            visitors: {
+               create: [
+                  {
+                     visitorId: visitor.id,
+                     email: faker.internet.email().toLowerCase(),
+                     organization: faker.helpers.arrayElement(organizations),
+                  },
+               ],
+            },
+         },
+      });
+
+      if (status === VisitRequestStatus.pending) pendingCount += 1;
+      if (status === VisitRequestStatus.approved) approvedCount += 1;
+      if (status === VisitRequestStatus.rejected) rejectedCount += 1;
+   }
+
+   console.log(
+      `Created 24 visit requests (${pendingCount} pending, ${approvedCount} approved, ${rejectedCount} rejected)`,
+   );
+
    console.log('\nSeeding complete.');
    console.log(`- Org: ${ORG_NAME}`);
    console.log(`- Badge prefix: ${BADGE_PREFIX}`);
@@ -365,6 +464,7 @@ async function main() {
    );
    console.log(`- Users: ${users.map((u) => u.username).join(', ')}`);
    console.log(`- Total visits: ${visitsToCreate.length}`);
+   console.log(`- Visit requests: 24`);
 }
 
 main()

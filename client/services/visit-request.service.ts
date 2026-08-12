@@ -1,3 +1,5 @@
+import { api } from '@/lib/axios';
+import type { ApiResponse } from '@/types/api.types';
 import type { VisitRequestFormValues } from '@/lib/validations/visit-request.schema';
 import {
    HOST_EMPLOYEES,
@@ -6,24 +8,20 @@ import {
 } from '@/constants/visit-request';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import { format, isSameDay } from 'date-fns';
-
-export type SubmitVisitRequestResponse = {
-   requestId: string;
-   submittedAt: string;
-};
+import type {
+   RejectVisitRequestPayload,
+   SubmitVisitRequestApiPayload,
+   SubmitVisitRequestResponse,
+   VisitRequest,
+   VisitRequestsPaginatedData,
+   VisitRequestsParams,
+} from '@/types/visit-request.types';
 
 export type SubmitVisitRequestPayload = VisitRequestFormValues;
 
-/** Temporary client-side submission until a public visit-request API exists. */
-export async function submitVisitRequest(
+function toApiPayload(
    payload: SubmitVisitRequestPayload,
-): Promise<SubmitVisitRequestResponse> {
-   await new Promise((resolve) => setTimeout(resolve, 1200));
-
-   if (!payload.visitors?.length) {
-      throw new Error('At least one visitor is required to submit a request.');
-   }
-
+): SubmitVisitRequestApiPayload {
    const host = HOST_EMPLOYEES.find((h) => h.id === payload.hostId);
    const department = VISIT_REQUEST_DEPARTMENTS.find(
       (d) => d.id === payload.departmentId,
@@ -60,10 +58,69 @@ export async function submitVisitRequest(
    }
 
    return {
-      requestId: `VR-${Date.now().toString(36).toUpperCase()}`,
-      submittedAt: new Date().toISOString(),
+      visitors: payload.visitors.map((visitor) => ({
+         firstName: visitor.firstName,
+         lastName: visitor.lastName,
+         email: visitor.email,
+         phone: visitor.phone,
+         idType: visitor.idType,
+         idNumber: visitor.idNumber,
+         organization: visitor.organization,
+      })),
+      hostName: host.name,
+      departmentCode: department.id,
+      purpose: payload.purpose,
+      startDate: format(payload.startDate, 'yyyy-MM-dd'),
+      endDate: format(payload.endDate, 'yyyy-MM-dd'),
+      startTime: payload.startTime,
+      endTime: payload.endTime,
    };
 }
+
+export async function submitVisitRequest(
+   payload: SubmitVisitRequestPayload,
+): Promise<SubmitVisitRequestResponse> {
+   if (!payload.visitors?.length) {
+      throw new Error('At least one visitor is required to submit a request.');
+   }
+
+   const body = toApiPayload(payload);
+   const { data } = await api.post<
+      ApiResponse<SubmitVisitRequestResponse & VisitRequest>
+   >('/visit-requests', body);
+
+   return {
+      requestId: data.data.requestId,
+      id: data.data.id,
+      submittedAt: data.data.submittedAt,
+   };
+}
+
+export const visitRequestsService = {
+   getAll(params: VisitRequestsParams) {
+      return api.get<ApiResponse<VisitRequestsPaginatedData>>(
+         '/visit-requests',
+         { params },
+      );
+   },
+
+   getById(id: number) {
+      return api.get<ApiResponse<VisitRequest>>(`/visit-requests/${id}`);
+   },
+
+   approve(id: number) {
+      return api.patch<ApiResponse<VisitRequest>>(
+         `/visit-requests/${id}/approve`,
+      );
+   },
+
+   reject({ id, reason }: RejectVisitRequestPayload) {
+      return api.patch<ApiResponse<VisitRequest>>(
+         `/visit-requests/${id}/reject`,
+         { reason },
+      );
+   },
+};
 
 export function getIdTypeLabel(value: string) {
    return ID_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? value;

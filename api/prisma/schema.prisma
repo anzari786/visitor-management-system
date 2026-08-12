@@ -15,6 +15,21 @@ enum VisitStatus {
   cancelled
 }
 
+enum VisitRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum VisitPurpose {
+  meeting
+  interview
+  delivery
+  official_visit
+  maintenance
+  other
+}
+
 enum IdType {
   national_id
   kebele_id
@@ -65,9 +80,10 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   // Relations
-  userRoles        UserRole[]
-  checkedInVisits  Visit[]    @relation("CheckedInBy")
-  checkedOutVisits Visit[]    @relation("CheckedOutBy")
+  userRoles              UserRole[]
+  checkedInVisits        Visit[]        @relation("CheckedInBy")
+  checkedOutVisits       Visit[]        @relation("CheckedOutBy")
+  reviewedVisitRequests  VisitRequest[] @relation("ReviewedBy")
 
   @@map("users")
 }
@@ -84,7 +100,8 @@ model Visitor {
   createdAt DateTime @default(now())
 
   // Relations
-  visits Visit[]
+  visits              Visit[]
+  visitRequestVisitors VisitRequestVisitor[]
 
   @@unique([idType, idNumber])
   @@map("visitors")
@@ -141,9 +158,66 @@ model Department {
   createdAt DateTime @default(now())
 
   // Relations
-  visits Visit[]
+  visits        Visit[]
+  visitRequests VisitRequest[]
 
   @@map("departments")
+}
+
+// ── VisitRequest ──────────────────────────────
+
+model VisitRequest {
+  id Int @id @default(autoincrement())
+
+  // Host (free-text until a host directory exists)
+  hostName  String
+  hostEmail String?
+
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  purpose VisitPurpose
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  startTime String // "HH:mm"
+  endTime   String // "HH:mm"
+
+  status          VisitRequestStatus @default(pending)
+  rejectionReason String?            @db.Text
+
+  reviewedAt   DateTime?
+  reviewedById Int?
+  reviewedBy   User?     @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visitors VisitRequestVisitor[]
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([startDate])
+  @@index([createdAt])
+  @@map("visit_requests")
+}
+
+model VisitRequestVisitor {
+  id Int @id @default(autoincrement())
+
+  visitRequestId Int
+  visitRequest   VisitRequest @relation(fields: [visitRequestId], references: [id], onDelete: Cascade)
+
+  visitorId Int
+  visitor   Visitor @relation(fields: [visitorId], references: [id])
+
+  // Request-specific fields not stored on Visitor
+  email        String
+  organization String?
+
+  @@unique([visitRequestId, visitorId])
+  @@index([visitorId])
+  @@map("visit_request_visitors")
 }
 
 // ── Setting ───────────────────────────────────

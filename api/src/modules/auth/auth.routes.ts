@@ -3,6 +3,7 @@ import {
    ssoCallback,
    localLogin,
    changePassword,
+   completePasswordSetupHandler,
    logout,
    getCurrentUser,
 } from './auth.controller.js';
@@ -12,6 +13,7 @@ import {
    ssoCallbackSchema,
    localLoginSchema,
    changePasswordSchema,
+   completePasswordSetupSchema,
    meQuerySchema,
 } from './auth.validation.js';
 
@@ -19,6 +21,11 @@ const router = Router();
 
 // Local username/password (Guard / Reception / Admin / Manager)
 router.post('/login', validate(localLoginSchema), localLogin);
+router.post(
+   '/password/setup/complete',
+   validate(completePasswordSetupSchema),
+   completePasswordSetupHandler,
+);
 router.post(
    '/change-password',
    requireAuth,

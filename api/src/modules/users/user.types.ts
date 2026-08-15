@@ -1,14 +1,15 @@
-import type { Prisma, RoleName } from '../../generated/prisma/client.js';
+import type { AuthProvider, Prisma, RoleName } from '../../generated/prisma/client.js';
 
 /** Full record shape for the user detail view. */
 export const userDetailSelect = {
    id: true,
-   externalSubject: true,
+   authProvider: true,
    firstName: true,
    lastName: true,
    email: true,
    phone: true,
    username: true,
+   passwordHash: true,
    isActive: true,
    mustChangePassword: true,
    lastLoginAt: true,
@@ -45,11 +46,12 @@ export type UserDetail = Prisma.UserGetPayload<{
 /** Lighter shape for the user list/search view. */
 export const userSummarySelect = {
    id: true,
-   externalSubject: true,
+   authProvider: true,
    firstName: true,
    lastName: true,
    email: true,
    isActive: true,
+   passwordHash: true,
    createdAt: true,
    employee: {
       select: {
@@ -71,22 +73,28 @@ export type UserSummary = Prisma.UserGetPayload<{
    select: typeof userSummarySelect;
 }>;
 
-export interface CreateUserInput {
-   firstName: string;
-   lastName: string;
-   email?: string;
-   phone?: string;
-   username?: string;
-   externalSubject?: string;
-   employeeId?: number;
-   roles?: RoleName[];
-}
+export type CreateUserInput =
+   | {
+        authProvider: 'SSO';
+        employeeId: number;
+        roles: RoleName[];
+     }
+   | {
+        authProvider: 'LOCAL';
+        firstName: string;
+        lastName: string;
+        email?: string;
+        phone?: string;
+        username: string;
+        roles: RoleName[];
+     };
 
 export interface UpdateUserInput {
    firstName?: string;
    lastName?: string;
    email?: string | null;
    phone?: string | null;
-   employeeId?: number | null;
    isActive?: boolean;
 }
+
+export type { AuthProvider };

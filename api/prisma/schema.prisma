@@ -91,6 +91,12 @@ enum RoleName {
   MANAGER
 }
 
+/// How a dashboard user authenticates.
+enum AuthProvider {
+  SSO
+  LOCAL
+}
+
 /// Dashboard vs email notification delivery.
 enum NotificationChannel {
   DASHBOARD
@@ -143,7 +149,9 @@ model UserRole {
 model User {
   id Int @id @default(autoincrement())
 
-  /// SSO subject from company IdP (nullable for local-only accounts).
+  authProvider AuthProvider
+
+  /// SSO subject from company IdP — populated during SSO login, not at admin create.
   externalSubject String? @unique
 
   firstName String
@@ -151,7 +159,7 @@ model User {
   email     String? @unique
   phone     String?
 
-  /// Local auth (optional alongside SSO). Never store plaintext passwords.
+  /// Local auth credentials. Never store plaintext passwords.
   username           String?  @unique
   passwordHash       String?
   mustChangePassword Boolean  @default(false)
@@ -161,11 +169,12 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// Optional link when a dashboard user is also an HR employee.
+  /// Required for SSO accounts; null for LOCAL accounts.
   employeeId Int?      @unique
   employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
-  userRoles UserRole[]
+  userRoles            UserRole[]
+  passwordSetupTokens  PasswordSetupToken[]
 
   visitsCreated Visit[] @relation("VisitCreatedBy")
   visitsDecided Visit[] @relation("VisitDecidedBy")
@@ -178,7 +187,23 @@ model User {
   settingsUpdated SystemSetting[]    @relation("SettingUpdatedBy")
 
   @@index([isActive])
+  @@index([authProvider])
   @@map("users")
+}
+
+/// Single-use token for LOCAL users to set their initial password.
+model PasswordSetupToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_setup_tokens")
 }
 
 // ── Employee (HR sync — hosts; not necessarily VMS users) ──────────────────

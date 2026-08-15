@@ -1,6 +1,7 @@
 // prisma/seed.ts
 import {
    RoleName,
+   AuthProvider,
    BadgeStatus,
    VisitSource,
    VisitStatus,
@@ -99,6 +100,7 @@ async function main() {
    await prisma.badge.deleteMany();
    await prisma.visitor.deleteMany();
    await prisma.userRole.deleteMany();
+   await prisma.passwordSetupToken.deleteMany();
    await prisma.user.deleteMany();
    await prisma.employee.deleteMany();
    await prisma.role.deleteMany();
@@ -170,6 +172,7 @@ async function main() {
       STAFF_USERS.map((u) =>
          prisma.user.create({
             data: {
+               authProvider: AuthProvider.LOCAL,
                firstName: u.firstName,
                lastName: u.lastName,
                username: u.username,
@@ -200,6 +203,7 @@ async function main() {
       hostEmployees.map((employee, index) =>
          prisma.user.create({
             data: {
+               authProvider: AuthProvider.SSO,
                externalSubject: `sso-host-${index + 1}`,
                firstName: employee.firstName,
                lastName: employee.lastName,

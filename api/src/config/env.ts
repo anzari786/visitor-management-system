@@ -31,4 +31,9 @@ export const env = {
    SMTP_FROM:
       process.env.SMTP_FROM ??
       '"ATI VMS" <noreply@ati.gov.et>',
+
+   // Local account password setup invitations
+   PASSWORD_SETUP_TOKEN_TTL_HOURS: Number(
+      process.env.PASSWORD_SETUP_TOKEN_TTL_HOURS ?? 72,
+   ),
 } as const;

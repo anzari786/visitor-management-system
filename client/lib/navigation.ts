@@ -1,9 +1,7 @@
 import type { NavItem } from '@/components/layout/nav-main';
-import { STAFF_ROLES } from '@/constants/user';
-import { hasAnyRole } from '@/lib/access';
+import { PAGE_ACCESS, hasAnyRole } from '@/lib/access';
 import { UserRole } from '@/types/user.types';
 import {
-   Briefcase,
    ClipboardList,
    IdCard,
    Inbox,
@@ -21,7 +19,7 @@ type NavigationItem = {
    href?: string;
    action?: NavigationAction;
    group: 'Operations' | 'Administration' | 'Workspace';
-   roles: UserRole[];
+   roles: readonly UserRole[];
    isGradient?: boolean;
    isRoot?: boolean;
    hidden?: boolean;
@@ -36,49 +34,42 @@ export const navigation: NavigationItem[] = [
       href: '/dashboard',
       isRoot: true,
       group: 'Workspace',
-      roles: STAFF_ROLES,
+      roles: PAGE_ACCESS['/dashboard'],
    },
    {
       title: 'Visits',
       icon: ClipboardList,
       href: '/visits',
       group: 'Workspace',
-      roles: STAFF_ROLES,
+      roles: PAGE_ACCESS['/visits'],
    },
    {
       title: 'Badges',
       icon: IdCard,
       href: '/badge',
       group: 'Workspace',
-      roles: STAFF_ROLES,
+      roles: PAGE_ACCESS['/badge'],
    },
    {
       title: 'Visit Requests',
       icon: Inbox,
       href: '/visit-requests',
       group: 'Workspace',
-      roles: STAFF_ROLES,
-   },
-   {
-      title: 'Departments',
-      icon: Briefcase,
-      href: '/departments',
-      group: 'Administration',
-      roles: STAFF_ROLES,
+      roles: PAGE_ACCESS['/visit-requests'],
    },
    {
       title: 'Users',
       icon: Users,
       href: '/users',
       group: 'Administration',
-      roles: ['ADMIN'],
+      roles: PAGE_ACCESS['/users'],
    },
    {
       title: 'Settings',
       icon: Settings,
       action: 'open-settings',
       group: 'Administration',
-      roles: ['ADMIN'],
+      roles: PAGE_ACCESS['/settings'],
    },
 ];
 

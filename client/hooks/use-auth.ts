@@ -11,6 +11,7 @@ import type {
 } from '@/types/auth.types';
 import { AxiosError } from 'axios';
 import { ApiErrorResponse } from '@/types/api.types';
+import { homePathForRoles } from '@/lib/access';
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ export function useLogin() {
          router.push(
             mustChangePassword || user.mustChangePassword
                ? '/change-password'
-               : '/dashboard',
+               : homePathForRoles(user.roles),
          );
          router.refresh();
       },
@@ -112,7 +113,7 @@ export function useForceChangePassword() {
          // Server returns the updated user with mustChangePassword: false
          setUser(updatedUser);
          toast.success('Password updated. Welcome!');
-         router.push('/');
+         router.push(homePathForRoles(updatedUser.roles));
       },
       onError: () => {
          toast.error('Failed to update password. Please try again.');

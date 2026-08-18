@@ -63,7 +63,9 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    }
 
    const filteredNav = user
-      ? navigation.filter((item) => hasAnyRole(user.roles, item.roles))
+      ? navigation.filter(
+           (item) => hasAnyRole(user.roles, item.roles) && !item.hidden,
+        )
       : [];
 
    const workspaceItems = filteredNav.filter((i) => i.group === 'Workspace');

@@ -25,6 +25,7 @@ import { canAccess } from '@/lib/access';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { useSettingsDialogStore } from '@/store/settings-dialog-store';
+import { useRouter } from 'next/navigation';
 import {
    Bell,
    ClipboardList,
@@ -113,6 +114,19 @@ function PanelForTab({
       case 'security':
          return <SecurityPanel icon={icon} form={form} onChange={onChange} />;
    }
+}
+
+/** Settings is a dialog; open it and return to the caller's home path. */
+export function OpenSettingsThenRedirect({ homePath }: { homePath: string }) {
+   const router = useRouter();
+   const setOpen = useSettingsDialogStore((s) => s.setOpen);
+
+   React.useEffect(() => {
+      setOpen(true);
+      router.replace(homePath);
+   }, [homePath, router, setOpen]);
+
+   return null;
 }
 
 export function SettingsDialog() {

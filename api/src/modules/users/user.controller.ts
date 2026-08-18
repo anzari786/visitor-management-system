@@ -7,6 +7,7 @@ import {
    updateUser,
    assignRole,
    removeRole,
+   resetLocalPassword,
    formatUserDetail,
    formatUserSummary,
 } from './user.service.js';
@@ -17,6 +18,7 @@ import type {
    updateUserSchema,
    assignRoleSchema,
    removeRoleParamSchema,
+   resetPasswordParamSchema,
 } from './user.validation.js';
 
 type CreateUserBody = z.infer<typeof createUserSchema>['body'];
@@ -27,6 +29,7 @@ type UpdateUserBody = z.infer<typeof updateUserSchema>['body'];
 type AssignRoleParams = z.infer<typeof assignRoleSchema>['params'];
 type AssignRoleBody = z.infer<typeof assignRoleSchema>['body'];
 type RemoveRoleParams = z.infer<typeof removeRoleParamSchema>['params'];
+type ResetPasswordParams = z.infer<typeof resetPasswordParamSchema>['params'];
 
 export const postUser = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateUserBody;
@@ -105,5 +108,17 @@ export const deleteUserRole = async (req: Request, res: Response) => {
       success: true,
       message: 'Role removed successfully',
       data: formatUserDetail(user),
+   });
+};
+
+export const postResetPassword = async (req: Request, res: Response) => {
+   const { id } = req.validatedParams as ResetPasswordParams;
+
+   const data = await resetLocalPassword(id, req.session.userId!);
+
+   return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully',
+      data,
    });
 };

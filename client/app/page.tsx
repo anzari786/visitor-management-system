@@ -6,6 +6,10 @@ export default async function HomePage() {
    const user = await getServerUser();
 
    if (user) {
+      if (user.mustChangePassword) {
+         redirect('/change-password');
+      }
+
       redirect(homePathForRoles(user.roles));
    }
 

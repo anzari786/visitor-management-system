@@ -43,6 +43,50 @@ export function establishUserSession(
    });
 }
 
+function isSessionPayload(value: unknown): value is { userId?: unknown } {
+   return typeof value === 'object' && value !== null;
+}
+
+function sessionBelongsToUser(data: string | null, userId: number): boolean {
+   if (!data) return false;
+
+   try {
+      const parsed: unknown = JSON.parse(data);
+      return isSessionPayload(parsed) && parsed.userId === userId;
+   } catch {
+      return false;
+   }
+}
+
+/**
+ * Removes persisted sessions for a user. Pass `exceptSessionId` to keep
+ * the caller's current session (e.g. after a self-service password change).
+ */
+export async function destroySessionsForUser(
+   userId: number,
+   exceptSessionId?: string,
+): Promise<void> {
+   const rows = await prisma.session.findMany({
+      select: { session_id: true, data: true },
+   });
+
+   const sessionIds = rows
+      .filter(
+         (row) =>
+            row.session_id !== exceptSessionId &&
+            sessionBelongsToUser(row.data, userId),
+      )
+      .map((row) => row.session_id);
+
+   if (sessionIds.length === 0) {
+      return;
+   }
+
+   await prisma.session.deleteMany({
+      where: { session_id: { in: sessionIds } },
+   });
+}
+
 /** Destroys the store row and clears the auth cookie. */
 export function destroyUserSession(
    req: Request,

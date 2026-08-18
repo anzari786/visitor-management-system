@@ -3,6 +3,9 @@ import {
    ssoCallback,
    localLogin,
    changePassword,
+   forceChangePassword,
+   patchCurrentUser,
+   checkUsername,
    logout,
    getCurrentUser,
 } from './auth.controller.js';
@@ -12,6 +15,9 @@ import {
    ssoCallbackSchema,
    localLoginSchema,
    changePasswordSchema,
+   forceChangePasswordSchema,
+   updateProfileSchema,
+   checkUsernameSchema,
    meQuerySchema,
 } from './auth.validation.js';
 
@@ -25,11 +31,30 @@ router.post(
    validate(changePasswordSchema),
    changePassword,
 );
+router.post(
+   '/force-change-password',
+   requireAuth,
+   validate(forceChangePasswordSchema),
+   forceChangePassword,
+);
+
+router.get(
+   '/check-username',
+   requireAuth,
+   validate(checkUsernameSchema),
+   checkUsername,
+);
 
 // Company SSO (including host employees with linked User accounts)
 router.post('/sso/callback', validate(ssoCallbackSchema), ssoCallback);
 
 router.post('/logout', requireAuth, logout);
 router.get('/me', requireAuth, validate(meQuerySchema), getCurrentUser);
+router.patch(
+   '/me',
+   requireAuth,
+   validate(updateProfileSchema),
+   patchCurrentUser,
+);
 
 export default router;

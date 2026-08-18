@@ -1,6 +1,15 @@
 import { Prisma, type RoleName } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
-import { ConflictError, NotFoundError } from '../../lib/errors.js';
+import {
+   BadRequestError,
+   ConflictError,
+   NotFoundError,
+} from '../../lib/errors.js';
+import {
+   generateTempPassword,
+   hashPassword,
+} from '../../lib/password.js';
+import { destroySessionsForUser } from '../../lib/session.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
 import type { PaginationParams } from '../../utils/pagination.js';
 import { userDetailSelect, userSummarySelect } from './user.types.js';
@@ -60,6 +69,14 @@ export const createUser = async (
 
    const roleIds = input.roles?.length ? await resolveRoleIds(input.roles) : [];
 
+   let passwordHash: string | undefined;
+   let mustChangePassword = false;
+
+   if (input.password) {
+      passwordHash = await hashPassword(input.password);
+      mustChangePassword = true;
+   }
+
    let firstName = input.firstName;
    let lastName = input.lastName;
    let email = input.email;
@@ -83,6 +100,8 @@ export const createUser = async (
             email,
             phone,
             username: input.username,
+            passwordHash,
+            mustChangePassword,
             externalSubject: input.externalSubject,
             employeeId: input.employeeId,
             userRoles: {
@@ -236,6 +255,51 @@ export const removeRole = async (
    });
 
    return getUserById(userId);
+};
+
+export const resetLocalPassword = async (
+   userId: number,
+   actorId: number,
+): Promise<{ tempPassword: string }> => {
+   if (userId === actorId) {
+      throw new BadRequestError(
+         'Use the change-password endpoint to update your own password',
+      );
+   }
+
+   const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+         id: true,
+         username: true,
+         passwordHash: true,
+      },
+   });
+
+   if (!user) {
+      throw new NotFoundError('User not found');
+   }
+
+   if (!user.username || !user.passwordHash) {
+      throw new BadRequestError(
+         'Local authentication is not enabled for this account',
+      );
+   }
+
+   const tempPassword = generateTempPassword();
+   const passwordHash = await hashPassword(tempPassword);
+
+   await prisma.user.update({
+      where: { id: userId },
+      data: {
+         passwordHash,
+         mustChangePassword: true,
+      },
+   });
+
+   await destroySessionsForUser(userId);
+
+   return { tempPassword };
 };
 
 export const formatUserDetail = (user: UserDetail) => ({

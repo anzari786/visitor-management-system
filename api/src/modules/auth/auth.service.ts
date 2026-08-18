@@ -1,11 +1,13 @@
-import bcrypt from 'bcrypt';
-import type { RoleName } from '../../generated/prisma/client.js';
+import { Prisma, type RoleName } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import {
    UnauthorizedError,
    ForbiddenError,
    BadRequestError,
+   ConflictError,
 } from '../../lib/errors.js';
+import { hashPassword, verifyPassword } from '../../lib/password.js';
+import { destroySessionsForUser } from '../../lib/session.js';
 import { authUserSelect, localCredentialSelect } from './auth.types.js';
 import type {
    AuthUserWithRelations,
@@ -13,8 +15,6 @@ import type {
    SessionUser,
    SsoTokenPayload,
 } from './auth.types.js';
-
-const SALT_ROUNDS = 12;
 
 /**
  * Exchanges the authorization code returned by the identity provider
@@ -70,7 +70,7 @@ export const verifyCredentials = async (
       );
    }
 
-   const isMatch = await bcrypt.compare(password, user.passwordHash);
+   const isMatch = await verifyPassword(password, user.passwordHash);
    if (!isMatch) {
       throw new UnauthorizedError(
          'Invalid username or password',
@@ -89,6 +89,7 @@ export const changePassword = async (
    userId: number,
    currentPassword: string,
    newPassword: string,
+   currentSessionId?: string,
 ): Promise<void> => {
    const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -101,7 +102,7 @@ export const changePassword = async (
       );
    }
 
-   const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+   const isMatch = await verifyPassword(currentPassword, user.passwordHash);
    if (!isMatch) {
       throw new UnauthorizedError(
          'Current password is incorrect',
@@ -109,7 +110,7 @@ export const changePassword = async (
       );
    }
 
-   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+   const passwordHash = await hashPassword(newPassword);
 
    await prisma.user.update({
       where: { id: userId },
@@ -118,6 +119,121 @@ export const changePassword = async (
          mustChangePassword: false,
       },
    });
+
+   await destroySessionsForUser(userId, currentSessionId);
+};
+
+/**
+ * First-login / admin-reset password set. Requires mustChangePassword and
+ * does not ask for the current (temporary) password.
+ */
+export const forceChangePassword = async (
+   userId: number,
+   newPassword: string,
+   currentSessionId?: string,
+): Promise<AuthUserWithRelations> => {
+   const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: localCredentialSelect,
+   });
+
+   if (!user || !user.passwordHash) {
+      throw new BadRequestError(
+         'Local authentication is not enabled for this account',
+      );
+   }
+
+   if (!user.mustChangePassword) {
+      throw new BadRequestError('Password change is not required');
+   }
+
+   const isSamePassword = await verifyPassword(newPassword, user.passwordHash);
+   if (isSamePassword) {
+      throw new BadRequestError(
+         'New password must be different from the current password',
+      );
+   }
+
+   const passwordHash = await hashPassword(newPassword);
+
+   await prisma.user.update({
+      where: { id: userId },
+      data: {
+         passwordHash,
+         mustChangePassword: false,
+      },
+   });
+
+   await destroySessionsForUser(userId, currentSessionId);
+
+   const updated = await getAuthUserById(userId);
+   if (!updated) {
+      throw new BadRequestError('User record inconsistent');
+   }
+
+   return updated;
+};
+
+export const updateProfile = async (
+   userId: number,
+   input: {
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      phone?: string | null;
+   },
+): Promise<AuthUserWithRelations> => {
+   if (input.username) {
+      const taken = await prisma.user.findFirst({
+         where: {
+            username: input.username,
+            NOT: { id: userId },
+         },
+         select: { id: true },
+      });
+
+      if (taken) {
+         throw new ConflictError('Username is already taken');
+      }
+   }
+
+   try {
+      return await prisma.user.update({
+         where: { id: userId },
+         data: {
+            ...(input.firstName !== undefined && { firstName: input.firstName }),
+            ...(input.lastName !== undefined && { lastName: input.lastName }),
+            ...(input.username !== undefined && { username: input.username }),
+            ...(input.phone !== undefined && { phone: input.phone }),
+         },
+         select: authUserSelect,
+      });
+   } catch (error) {
+      const isUniqueConflict =
+         error instanceof Prisma.PrismaClientKnownRequestError &&
+         error.code === 'P2002';
+
+      if (isUniqueConflict) {
+         throw new ConflictError('Username is already taken');
+      }
+
+      throw error;
+   }
+};
+
+export const checkUsernameAvailability = async (
+   username: string,
+   excludeUserId?: number,
+): Promise<{ available: boolean }> => {
+   const existing = await prisma.user.findFirst({
+      where: {
+         username,
+         ...(excludeUserId !== undefined && { NOT: { id: excludeUserId } }),
+      },
+      select: { id: true },
+   });
+
+   return { available: !existing };
 };
 
 export const getAuthUserById = async (

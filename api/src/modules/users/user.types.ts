@@ -77,6 +77,7 @@ export interface CreateUserInput {
    email?: string;
    phone?: string;
    username?: string;
+   password?: string;
    externalSubject?: string;
    employeeId?: number;
    roles?: RoleName[];

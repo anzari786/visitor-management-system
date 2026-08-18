@@ -21,6 +21,10 @@ export default async function RootLayout({
       redirect('/login');
    }
 
+   if (user.mustChangePassword) {
+      redirect('/change-password');
+   }
+
    return (
       <DashboardAccessGuard roles={user.roles}>
          <div>

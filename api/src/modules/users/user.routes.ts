@@ -6,6 +6,7 @@ import {
    patchUser,
    postUserRole,
    deleteUserRole,
+   postResetPassword,
 } from './user.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/permission.middleware.js';
@@ -17,6 +18,7 @@ import {
    updateUserSchema,
    assignRoleSchema,
    removeRoleParamSchema,
+   resetPasswordParamSchema,
 } from './user.validation.js';
 
 const router = Router();
@@ -33,6 +35,11 @@ router.delete(
    '/:id/roles/:role',
    validate(removeRoleParamSchema),
    deleteUserRole,
+);
+router.post(
+   '/:id/reset-password',
+   validate(resetPasswordParamSchema),
+   postResetPassword,
 );
 
 export default router;

@@ -9,6 +9,9 @@ import {
    resolveUserBySubject,
    verifyCredentials,
    changePassword as changePasswordService,
+   forceChangePassword as forceChangePasswordService,
+   updateProfile as updateProfileService,
+   checkUsernameAvailability,
    getAuthUserById,
    buildSessionUser,
    formatAuthUser,
@@ -17,12 +20,20 @@ import type {
    ssoCallbackSchema,
    localLoginSchema,
    changePasswordSchema,
+   forceChangePasswordSchema,
+   updateProfileSchema,
+   checkUsernameSchema,
 } from './auth.validation.js';
 import type { z } from 'zod';
 
 type SsoCallbackBody = z.infer<typeof ssoCallbackSchema>['body'];
 type LocalLoginBody = z.infer<typeof localLoginSchema>['body'];
 type ChangePasswordBody = z.infer<typeof changePasswordSchema>['body'];
+type ForceChangePasswordBody = z.infer<
+   typeof forceChangePasswordSchema
+>['body'];
+type UpdateProfileBody = z.infer<typeof updateProfileSchema>['body'];
+type CheckUsernameQuery = z.infer<typeof checkUsernameSchema>['query'];
 
 const loginResponse = (
    res: Response,
@@ -88,11 +99,51 @@ export const changePassword = async (req: Request, res: Response) => {
       req.session.userId!,
       currentPassword,
       newPassword,
+      req.sessionID,
    );
 
    return res.status(200).json({
       success: true,
       message: 'Password changed successfully',
+   });
+};
+
+export const forceChangePassword = async (req: Request, res: Response) => {
+   const { newPassword } = req.validatedBody as ForceChangePasswordBody;
+
+   const user = await forceChangePasswordService(
+      req.session.userId!,
+      newPassword,
+      req.sessionID,
+   );
+
+   return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
+      data: formatAuthUser(user),
+   });
+};
+
+export const patchCurrentUser = async (req: Request, res: Response) => {
+   const input = req.validatedBody as UpdateProfileBody;
+
+   const user = await updateProfileService(req.session.userId!, input);
+
+   return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: formatAuthUser(user),
+   });
+};
+
+export const checkUsername = async (req: Request, res: Response) => {
+   const { username } = req.validatedQuery as CheckUsernameQuery;
+
+   const data = await checkUsernameAvailability(username, req.session.userId);
+
+   return res.status(200).json({
+      success: true,
+      data,
    });
 };
 

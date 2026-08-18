@@ -9,6 +9,7 @@ import {
    CommandList,
    CommandSeparator,
 } from '@/components/ui/command';
+import { hasAnyRole } from '@/lib/access';
 import { navigation } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
@@ -62,7 +63,7 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    }
 
    const filteredNav = user
-      ? navigation.filter((item) => item.roles.includes(user.role))
+      ? navigation.filter((item) => hasAnyRole(user.roles, item.roles))
       : [];
 
    const workspaceItems = filteredNav.filter((i) => i.group === 'Workspace');

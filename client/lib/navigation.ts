@@ -1,4 +1,6 @@
 import type { NavItem } from '@/components/layout/nav-main';
+import { STAFF_ROLES } from '@/constants/user';
+import { hasAnyRole } from '@/lib/access';
 import { UserRole } from '@/types/user.types';
 import {
    Briefcase,
@@ -22,7 +24,7 @@ type NavigationItem = {
    roles: UserRole[];
    isGradient?: boolean;
    isRoot?: boolean;
-   hidden?: boolean; // excluded from sidebar rendering, still resolvable by getNavigationItem
+   hidden?: boolean;
 };
 
 const SIDEBAR_GROUPS = ['Workspace', 'Administration'] as const;
@@ -34,49 +36,49 @@ export const navigation: NavigationItem[] = [
       href: '/dashboard',
       isRoot: true,
       group: 'Workspace',
-      roles: ['admin', 'front_desk'],
+      roles: STAFF_ROLES,
    },
    {
       title: 'Visits',
       icon: ClipboardList,
       href: '/visits',
       group: 'Workspace',
-      roles: ['admin', 'front_desk'],
+      roles: STAFF_ROLES,
    },
    {
       title: 'Badges',
       icon: IdCard,
       href: '/badge',
       group: 'Workspace',
-      roles: ['admin', 'front_desk'],
+      roles: STAFF_ROLES,
    },
    {
       title: 'Visit Requests',
       icon: Inbox,
       href: '/visit-requests',
       group: 'Workspace',
-      roles: ['admin', 'front_desk'],
+      roles: STAFF_ROLES,
    },
    {
       title: 'Departments',
       icon: Briefcase,
       href: '/departments',
       group: 'Administration',
-      roles: ['admin', 'front_desk'],
+      roles: STAFF_ROLES,
    },
    {
       title: 'Users',
       icon: Users,
       href: '/users',
       group: 'Administration',
-      roles: ['admin'],
+      roles: ['ADMIN'],
    },
    {
       title: 'Settings',
       icon: Settings,
       action: 'open-settings',
       group: 'Administration',
-      roles: ['admin'],
+      roles: ['ADMIN'],
    },
 ];
 
@@ -88,9 +90,9 @@ export const getNavigationItem = (pathname: string) => {
    );
 };
 
-export function getSidebarNavItems(role: UserRole): NavItem[] {
+export function getSidebarNavItems(roles: UserRole[]): NavItem[] {
    const visible = navigation.filter(
-      (item) => item.roles.includes(role) && !item.hidden,
+      (item) => hasAnyRole(roles, item.roles) && !item.hidden,
    );
 
    return SIDEBAR_GROUPS.flatMap((group) => {

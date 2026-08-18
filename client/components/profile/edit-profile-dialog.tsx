@@ -2,6 +2,7 @@
 
 import { ChangePasswordDialog } from '@/components/profile/change-password-dialog';
 import { ProfileAvatarPicker } from '@/components/profile/profile-avatar-picker';
+import { primaryRole } from '@/lib/access';
 import { getUserFullName } from '@/lib/user';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,7 +84,7 @@ export function EditProfileDialog() {
          setInitialAvatarId(avatarId);
          reset({
             fullName: getUserFullName(user),
-            username: user.username,
+            username: user.username ?? '',
             phone: user.phone ?? '+251 ',
          });
       }
@@ -297,7 +298,7 @@ export function EditProfileDialog() {
                            value={selectedAvatarId}
                            onChange={setSelectedAvatarId}
                            previewName={previewName}
-                           role={user.role}
+                           role={primaryRole(user) ?? 'ADMIN'}
                         />
                      </div>
                   </div>

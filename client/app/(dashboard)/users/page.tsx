@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation';
 export default async function UsersPage() {
    const user = await getServerUser();
 
-   if (!user || !canAccess(user.role, 'users')) {
+   if (!user || !canAccess(user.roles, 'users')) {
       redirect('/');
    }
 

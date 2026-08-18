@@ -21,6 +21,7 @@ import {
    useSyncedRole,
    useToggleUserStatus,
 } from '@/hooks/use-users';
+import { USER_ROLE_CONFIG, USER_ROLES } from '@/constants/user';
 import { getUserFullName } from '@/lib/user';
 import type { User, UserRole } from '@/types/user.types';
 import {
@@ -161,12 +162,11 @@ export function UserActionsMenu({
                                  handleRoleChange(value as UserRole)
                               }
                            >
-                              <DropdownMenuRadioItem value="admin">
-                                 Admin
-                              </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="front_desk">
-                                 Front Desk
-                              </DropdownMenuRadioItem>
+                              {USER_ROLES.map((item) => (
+                                 <DropdownMenuRadioItem key={item} value={item}>
+                                    {USER_ROLE_CONFIG[item].label}
+                                 </DropdownMenuRadioItem>
+                              ))}
                            </DropdownMenuRadioGroup>
                         </DropdownMenuGroup>
                      </DropdownMenuSubContent>

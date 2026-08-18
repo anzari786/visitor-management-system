@@ -7,5 +7,5 @@ export type ApiResponse<T> = {
 export interface ApiErrorResponse {
    success: false;
    message: string;
-   code?: 'INVALID_USERNAME' | 'INVALID_PASSWORD';
+   code?: 'INVALID_USERNAME' | 'INVALID_PASSWORD' | 'INVALID_CREDENTIALS';
 }

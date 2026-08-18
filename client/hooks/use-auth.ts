@@ -25,12 +25,15 @@ export function useLogin() {
          return data.data;
       },
 
-      onSuccess: ({ user }) => {
+      onSuccess: ({ user, mustChangePassword }) => {
          setUser(user);
 
          router.push(
-            user.mustChangePassword ? '/change-password' : '/dashboard',
+            mustChangePassword || user.mustChangePassword
+               ? '/change-password'
+               : '/dashboard',
          );
+         router.refresh();
       },
 
       onError: (error: AxiosError<ApiErrorResponse>) => {
@@ -61,11 +64,12 @@ export function useLogout() {
       onSuccess: () => {
          clearAuth();
          router.push('/login');
+         router.refresh();
       },
       onError: () => {
-         // Clear client state regardless — don't leave the user stuck
          clearAuth();
          router.push('/login');
+         router.refresh();
       },
    });
 }

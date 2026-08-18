@@ -119,7 +119,7 @@ export function SettingsDialog() {
    const open = useSettingsDialogStore((s) => s.open);
    const setOpen = useSettingsDialogStore((s) => s.setOpen);
    const user = useAuthStore((s) => s.user);
-   const canOpen = !!user && canAccess(user.role, 'settings');
+   const canOpen = !!user && canAccess(user.roles, 'settings');
 
    const [activeTab, setActiveTab] = React.useState<TabId>('general');
    const [direction, setDirection] = React.useState(1);

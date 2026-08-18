@@ -1,16 +1,28 @@
-import { UserRole } from '@/types/user.types';
+import type { AuthUser, UserRole } from '@/types/user.types';
 
-// Maps resource keys to the roles that can access them.
-
-// Add new resources here as the app grows.
 const ACCESS_MAP: Record<string, UserRole[]> = {
-   users: ['admin'],
-   settings: ['admin'],
+   users: ['ADMIN'],
+   settings: ['ADMIN'],
 };
 
-export function canAccess(role: UserRole, resource: string): boolean {
+export function hasAnyRole(
+   userRoles: UserRole[] | undefined,
+   allowed: UserRole[],
+): boolean {
+   if (!userRoles?.length) return false;
+   return allowed.some((role) => userRoles.includes(role));
+}
+
+export function primaryRole(user: Pick<AuthUser, 'roles'>): UserRole | undefined {
+   return user.roles[0];
+}
+
+export function canAccess(
+   roles: UserRole[] | UserRole | undefined,
+   resource: string,
+): boolean {
+   const list = roles == null ? [] : Array.isArray(roles) ? roles : [roles];
    const allowed = ACCESS_MAP[resource];
-   // If resource has no restriction, all authenticated users can access it
    if (!allowed) return true;
-   return allowed.includes(role);
+   return hasAnyRole(list, allowed);
 }

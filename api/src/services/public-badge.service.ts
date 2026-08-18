@@ -1,46 +1,111 @@
-import { prisma } from '../lib/prisma.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { prisma } from '../config/prisma.js';
 import { NotFoundError } from '../lib/errors.js';
 import {
    computeStatus,
-   formatBadge,
    getSettings,
-   visitInclude,
-   type VisitWithRelations,
 } from '../utils/visit.js';
 
-function extractBadgeNumeric(badgeNumber: string): number | null {
-   const match = badgeNumber.trim().match(/(\d+)$/);
-   if (!match) return null;
-   const value = Number(match[1]);
-   return Number.isFinite(value) ? value : null;
+const publicBadgeAttendanceSelect = {
+   status: true,
+   checkInAt: true,
+   checkOutAt: true,
+   visitDay: {
+      select: { date: true },
+   },
+   participant: {
+      select: {
+         visitor: {
+            select: {
+               firstName: true,
+               lastName: true,
+               phone: true,
+               organization: true,
+            },
+         },
+         visit: {
+            select: {
+               status: true,
+               purpose: true,
+               floor: true,
+               room: true,
+               hostNameSnapshot: true,
+               departmentNameSnapshot: true,
+               hostEmployee: {
+                  select: {
+                     firstName: true,
+                     lastName: true,
+                     departmentName: true,
+                  },
+               },
+            },
+         },
+      },
+   },
+} satisfies Prisma.VisitAttendanceSelect;
+
+type PublicBadgeAttendance = Prisma.VisitAttendanceGetPayload<{
+   select: typeof publicBadgeAttendanceSelect;
+}>;
+
+function hostDisplayName(visit: PublicBadgeAttendance['participant']['visit']) {
+   if (visit.hostNameSnapshot) {
+      return visit.hostNameSnapshot;
+   }
+
+   if (visit.hostEmployee) {
+      return `${visit.hostEmployee.firstName} ${visit.hostEmployee.lastName}`;
+   }
+
+   return '';
 }
 
 function formatPublicBadgeInfo(
    badgeNumber: string,
-   visit: VisitWithRelations,
+   attendance: PublicBadgeAttendance,
    settings: Awaited<ReturnType<typeof getSettings>>,
 ) {
-   const status = computeStatus(visit, settings);
-   const checkedInAt = visit.checkedInAt;
+   const visitor = attendance.participant.visitor;
+   const visit = attendance.participant.visit;
+   const checkedInAt = attendance.checkInAt;
+
+   if (!checkedInAt) {
+      throw new NotFoundError('No active visitor assignment for this badge');
+   }
+
+   const status = computeStatus(
+      {
+         visitStatus: visit.status,
+         attendanceStatus: attendance.status,
+         checkInAt: attendance.checkInAt,
+         checkOutAt: attendance.checkOutAt,
+      },
+      settings,
+   );
+
+   const visitDate = attendance.visitDay.date;
 
    return {
       badgeNumber,
       visitor: {
-         fullName: visit.visitor.fullName,
-         phone: visit.visitor.phone ?? null,
-         organization: null as string | null,
+         fullName: `${visitor.firstName} ${visitor.lastName}`,
+         phone: visitor.phone ?? null,
+         organization: visitor.organization ?? null,
       },
       host: {
-         name: visit.hostName,
-         department: visit.department?.name ?? null,
+         name: hostDisplayName(visit),
+         department:
+            visit.departmentNameSnapshot ??
+            visit.hostEmployee?.departmentName ??
+            null,
       },
       visit: {
-         purpose: null as string | null,
-         date: checkedInAt.toISOString().slice(0, 10),
+         purpose: visit.purpose,
+         date: visitDate.toISOString().slice(0, 10),
          startTime: checkedInAt.toISOString(),
-         endTime: visit.checkedOutAt?.toISOString() ?? null,
-         floor: null as string | null,
-         room: null as string | null,
+         endTime: attendance.checkOutAt?.toISOString() ?? null,
+         floor: visit.floor ?? null,
+         room: visit.room ?? null,
          status,
       },
    };
@@ -49,7 +114,7 @@ function formatPublicBadgeInfo(
 export type PublicBadgeInfo = ReturnType<typeof formatPublicBadgeInfo>;
 
 /**
- * Resolve a physical badge QR token to the currently active visit assignment.
+ * Resolve a physical badge QR token to the currently checked-in attendance.
  * Returns only public-safe visitor/visit fields (no internal IDs or personal ID docs).
  */
 export async function getPublicBadgeInfoByQrToken(
@@ -64,6 +129,7 @@ export async function getPublicBadgeInfoByQrToken(
    const badge = await prisma.badge.findUnique({
       where: { qrToken },
       select: {
+         id: true,
          badgeNumber: true,
          status: true,
       },
@@ -73,61 +139,24 @@ export async function getPublicBadgeInfoByQrToken(
       throw new NotFoundError('Badge not found');
    }
 
-   if (badge.status === 'lost' || badge.status === 'inactive') {
+   if (badge.status === 'LOST' || badge.status === 'DISABLED') {
       throw new NotFoundError('This badge is not available for visitor lookup');
    }
 
-   const settings = await getSettings();
-   const numeric = extractBadgeNumeric(badge.badgeNumber);
-   let visit: VisitWithRelations | null = null;
+   const attendance = await prisma.visitAttendance.findFirst({
+      where: {
+         badgeId: badge.id,
+         status: 'CHECKED_IN',
+      },
+      select: publicBadgeAttendanceSelect,
+      orderBy: { checkInAt: 'desc' },
+   });
 
-   if (numeric != null) {
-      const candidate = await prisma.visit.findFirst({
-         where: { badgeNumber: numeric, status: 'active' },
-         include: visitInclude,
-      });
-
-      if (candidate) {
-         const formatted = formatBadge(
-            settings.badgePrefix,
-            candidate.badgeNumber,
-         ).toUpperCase();
-         const inventoryLabel = badge.badgeNumber.toUpperCase();
-         const numericOnly = String(numeric);
-
-         // Accept prefix match (VMS-012) or plain numeric inventory labels (12).
-         if (
-            formatted === inventoryLabel ||
-            inventoryLabel === numericOnly ||
-            inventoryLabel.endsWith(`-${numericOnly.padStart(3, '0')}`) ||
-            inventoryLabel.endsWith(`-${numericOnly}`)
-         ) {
-            visit = candidate;
-         }
-      }
-   }
-
-   if (!visit) {
-      const activeVisits = await prisma.visit.findMany({
-         where: { status: 'active' },
-         include: visitInclude,
-         take: 500,
-         orderBy: { checkedInAt: 'desc' },
-      });
-
-      visit =
-         activeVisits.find(
-            (candidate) =>
-               formatBadge(
-                  settings.badgePrefix,
-                  candidate.badgeNumber,
-               ).toUpperCase() === badge.badgeNumber.toUpperCase(),
-         ) ?? null;
-   }
-
-   if (!visit) {
+   if (!attendance) {
       throw new NotFoundError('No active visitor assignment for this badge');
    }
 
-   return formatPublicBadgeInfo(badge.badgeNumber, visit, settings);
+   const settings = await getSettings();
+
+   return formatPublicBadgeInfo(badge.badgeNumber, attendance, settings);
 }

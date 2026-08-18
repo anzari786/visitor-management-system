@@ -15,11 +15,15 @@ import visitAttendanceRoutes from '../modules/visit-attendances/visit-attendance
 
 import badgeRoutes from '../modules/badges/badge.routes.js';
 import notificationRoutes from '../modules/notifications/notification.routes.js';
+import publicRoutes from './public.routes.js';
 
 const router = Router();
 
 // Authentication (local login + company SSO)
 router.use('/auth', authRoutes);
+
+// Unauthenticated physical-badge QR lookup
+router.use('/public', publicRoutes);
 
 // Dashboard & Reports
 router.use('/dashboard', dashboardRoutes);

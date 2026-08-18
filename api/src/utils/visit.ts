@@ -1,5 +1,15 @@
-import { Prisma } from '../generated/prisma/client.js';
+import {
+   type AttendanceStatus,
+   Prisma,
+   type VisitStatus,
+} from '../generated/prisma/client.js';
 import { prisma } from '../config/prisma.js';
+
+export type PublicVisitStatus =
+   | 'active'
+   | 'overstay'
+   | 'completed'
+   | 'cancelled';
 
 export const visitInclude = {
    participants: {
@@ -41,6 +51,41 @@ export function formatBadge(prefix: string, badgeNumber: string | number) {
       return badgeNumber;
    }
    return `${prefix}-${String(badgeNumber).padStart(3, '0')}`;
+}
+
+/**
+ * Public-facing visit status for badge QR lookup.
+ * Derived from V2 visit + attendance rows (not the legacy Visit.status field).
+ */
+export function computeStatus(
+   input: {
+      visitStatus: VisitStatus;
+      attendanceStatus: AttendanceStatus;
+      checkInAt: Date | null;
+      checkOutAt: Date | null;
+   },
+   settings: Awaited<ReturnType<typeof getSettings>>,
+): PublicVisitStatus {
+   if (input.visitStatus === 'CANCELLED') {
+      return 'cancelled';
+   }
+
+   if (input.attendanceStatus === 'CHECKED_OUT' || input.checkOutAt) {
+      return 'completed';
+   }
+
+   if (
+      input.attendanceStatus === 'CHECKED_IN' &&
+      input.checkInAt &&
+      settings.overstayEnabled
+   ) {
+      const overstayMs = settings.overstayAfterMins * 60_000;
+      if (Date.now() - input.checkInAt.getTime() >= overstayMs) {
+         return 'overstay';
+      }
+   }
+
+   return 'active';
 }
 
 export function toVisitDTO(visit: VisitWithRelations) {

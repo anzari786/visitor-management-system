@@ -1,7 +1,20 @@
-import { Prisma } from '../generated/prisma/client.js';
-import { prisma } from '../lib/prisma.js';
+import { type BadgeStatus, Prisma } from '../generated/prisma/client.js';
+import { prisma } from '../config/prisma.js';
 import { ConflictError, NotFoundError } from '../lib/errors.js';
 import type { CreateBadgeBody } from '../validations/badge.validation.js';
+
+/** Query-string status values from the older badge list API. */
+const BADGE_STATUS_FILTER_MAP = {
+   available: 'AVAILABLE',
+   assigned: 'ASSIGNED',
+   lost: 'LOST',
+   inactive: 'DISABLED',
+} as const satisfies Record<
+   'available' | 'assigned' | 'lost' | 'inactive',
+   BadgeStatus
+>;
+
+type BadgeStatusFilter = keyof typeof BADGE_STATUS_FILTER_MAP;
 
 const badgeSelect = {
    id: true,
@@ -55,13 +68,15 @@ export async function createBadge(input: CreateBadgeBody): Promise<BadgeRecord> 
 }
 
 export async function listBadges(filters: {
-   status?: BadgeRecord['status'];
+   status?: BadgeStatusFilter;
    badgeNumber?: string;
    page: number;
    limit: number;
 }) {
    const where: Prisma.BadgeWhereInput = {
-      ...(filters.status && { status: filters.status }),
+      ...(filters.status && {
+         status: BADGE_STATUS_FILTER_MAP[filters.status],
+      }),
       ...(filters.badgeNumber && {
          badgeNumber: filters.badgeNumber.trim().toUpperCase(),
       }),

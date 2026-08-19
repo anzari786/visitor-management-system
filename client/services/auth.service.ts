@@ -10,7 +10,7 @@ import type {
    CheckUsernameData,
 } from '@/types/auth.types';
 
-import type { User } from '@/types/user.types';
+import type { AuthUser } from '@/types/user.types';
 
 export const authService = {
    login(payload: LoginPayload) {
@@ -22,11 +22,11 @@ export const authService = {
    },
 
    getMe() {
-      return api.get<ApiResponse<User>>('/auth/me');
+      return api.get<ApiResponse<AuthUser>>('/auth/me');
    },
 
    updateProfile(payload: UpdateProfilePayload) {
-      return api.patch<ApiResponse<User>>('/auth/me', payload);
+      return api.patch<ApiResponse<AuthUser>>('/auth/me', payload);
    },
 
    changePassword(payload: ChangePasswordPayload) {
@@ -34,7 +34,7 @@ export const authService = {
    },
 
    forceChangePassword(payload: ForceChangePasswordPayload) {
-      return api.post<ApiResponse<User>>(
+      return api.post<ApiResponse<AuthUser>>(
          '/auth/force-change-password',
          payload,
       );

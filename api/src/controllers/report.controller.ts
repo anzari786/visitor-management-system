@@ -1,27 +1,29 @@
 import { format as formatCsvRow } from '@fast-csv/format';
 import { differenceInCalendarDays, format, startOfMonth } from 'date-fns';
 import type { Request, Response } from 'express';
-import { prisma } from '../lib/prisma.js';
-import {
-   buildCsvFilename,
-   formatDuration,
-   resolveDateRange,
-} from '../utils/report.js';
-import {
-   calculateAverageDuration,
-   formatVisitDuration,
-} from '../utils/shared.js';
-import { computeStatus, getSettings } from '../utils/visit.js';
+import { prisma } from '../config/prisma.js';
+import { buildCsvFilename, resolveDateRange } from '../utils/report.js';
+import { formatVisitDuration, calculateAverageDuration } from '../utils/shared.js';
 import type { ExportVisitLogQuery } from '../validations/report.validation.js';
 
 export async function getReportStats(_req: Request, res: Response) {
    const now = new Date();
    const monthStart = startOfMonth(now);
 
-   const visits = await prisma.visit.findMany({
-      where: { checkedInAt: { gte: monthStart, lte: now } },
-      select: { checkedInAt: true, checkedOutAt: true },
-   });
+   const [visits, durations] = await Promise.all([
+      prisma.visit.findMany({
+         where: { createdAt: { gte: monthStart, lte: now } },
+         select: { createdAt: true },
+      }),
+      prisma.visitAttendance.findMany({
+         where: {
+            status: 'CHECKED_OUT',
+            checkOutAt: { gte: monthStart, lte: now },
+            checkInAt: { not: null },
+         },
+         select: { checkInAt: true, checkOutAt: true },
+      }),
+   ]);
 
    const totalVisits = visits.length;
    const daysElapsed = differenceInCalendarDays(now, monthStart) + 1;
@@ -29,7 +31,7 @@ export async function getReportStats(_req: Request, res: Response) {
 
    const dayBuckets = new Map<string, number>();
    for (const visit of visits) {
-      const key = format(visit.checkedInAt, 'yyyy-MM-dd');
+      const key = format(visit.createdAt, 'yyyy-MM-dd');
       dayBuckets.set(key, (dayBuckets.get(key) ?? 0) + 1);
    }
 
@@ -38,8 +40,12 @@ export async function getReportStats(_req: Request, res: Response) {
       if (count > peakDay.count) peakDay = { date, count };
    }
 
-   const completedVisits = visits.filter((v) => v.checkedOutAt);
-   const averageVisitDuration = calculateAverageDuration(completedVisits);
+   const averageMinutes = calculateAverageDuration(
+      durations.map((row) => ({
+         checkedInAt: row.checkInAt!,
+         checkedOutAt: row.checkOutAt,
+      })),
+   );
 
    return res.status(200).json({
       success: true,
@@ -52,28 +58,35 @@ export async function getReportStats(_req: Request, res: Response) {
             date: peakDay.date,
             label: format(new Date(peakDay.date), 'EEE MMM d'),
          },
-         averageVisitDuration: formatVisitDuration(averageVisitDuration),
+         averageVisitDuration: formatVisitDuration(averageMinutes),
       },
    });
 }
 
 export async function exportVisitLog(req: Request, res: Response) {
-   const { period, departmentId, from, to } =
+   const { period, departmentName, from, to } =
       req.validatedQuery as ExportVisitLogQuery;
 
    const range = resolveDateRange(period, from, to);
-   const settings = await getSettings();
 
    const visits = await prisma.visit.findMany({
       where: {
-         departmentId,
-         checkedInAt: range ? { gte: range.start, lte: range.end } : undefined,
+         ...(departmentName
+            ? { departmentNameSnapshot: departmentName }
+            : {}),
+         createdAt: range ? { gte: range.start, lte: range.end } : undefined,
       },
-      include: { visitor: true, department: true },
-      orderBy: { checkedInAt: 'desc' },
+      include: {
+         hostEmployee: true,
+         participants: {
+            include: { visitor: true },
+            take: 1,
+         },
+      },
+      orderBy: { createdAt: 'desc' },
    });
 
-   const filename = buildCsvFilename(departmentId);
+   const filename = buildCsvFilename(departmentName);
 
    res.setHeader('Content-Type', 'text/csv');
    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -82,23 +95,23 @@ export async function exportVisitLog(req: Request, res: Response) {
    csvStream.pipe(res);
 
    for (const visit of visits) {
-      const checkedInAt = format(visit.checkedInAt, 'yyyy-MM-dd HH:mm');
-      const checkedOutAt = visit.checkedOutAt
-         ? format(visit.checkedOutAt, 'yyyy-MM-dd HH:mm')
-         : '';
+      const primaryVisitor = visit.participants[0]?.visitor;
+      const hostName =
+         visit.hostNameSnapshot ??
+         (visit.hostEmployee
+            ? `${visit.hostEmployee.firstName} ${visit.hostEmployee.lastName}`
+            : '');
 
       csvStream.write({
-         visitor: visit.visitor.fullName,
-         phone: visit.visitor.phone,
-         department: visit.department.name,
-         host: visit.hostName,
-         badge: visit.badgeNumber,
-         status: computeStatus(visit, settings),
-         checkedInAt: `="${checkedInAt}"`,
-         checkedOutAt: checkedOutAt ? `="${checkedOutAt}"` : '',
-         duration: visit.checkedOutAt
-            ? formatDuration(visit.checkedInAt, visit.checkedOutAt)
-            : '-',
+         visitCode: visit.visitCode,
+         visitor: primaryVisitor
+            ? `${primaryVisitor.firstName} ${primaryVisitor.lastName}`
+            : '',
+         phone: primaryVisitor?.phone ?? '',
+         department: visit.departmentNameSnapshot ?? '',
+         host: hostName,
+         status: visit.status,
+         createdAt: `="${format(visit.createdAt, 'yyyy-MM-dd HH:mm')}"`,
       });
    }
 

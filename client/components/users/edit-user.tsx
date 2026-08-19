@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { useUpdateUser } from '@/hooks/use-users';
 import { formatEthiopianPhone } from '@/lib/phone';
+import { USER_ROLE_CONFIG, USER_ROLES } from '@/constants/user';
 import { getUserFullName } from '@/lib/user';
 import { createUserSchema } from '@/lib/validations/user.schema';
 import type { User } from '@/types/user.types';
@@ -201,10 +202,11 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
-                                 </SelectItem>
+                                 {USER_ROLES.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                       {USER_ROLE_CONFIG[role].label}
+                                    </SelectItem>
+                                 ))}
                               </SelectContent>
                            </Select>
                         )}

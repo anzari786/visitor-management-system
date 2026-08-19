@@ -98,7 +98,7 @@ export function QrScannerDialog({
 
             const config: Html5QrcodeCameraScanConfig = {
                fps: 10,
-               qrbox: (viewfinderWidth, viewfinderHeight) => {
+               qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
                   const edge = Math.floor(
                      Math.min(viewfinderWidth, viewfinderHeight) * 0.72,
                   );

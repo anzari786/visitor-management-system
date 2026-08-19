@@ -31,6 +31,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from '../ui/select';
+import { USER_ROLE_CONFIG, USER_ROLES } from '@/constants/user';
 import { formatEthiopianPhone } from '@/lib/phone';
 
 type CreateUserProps = {
@@ -53,7 +54,7 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
          lastName: '',
          username: '',
          phone: '+251 ',
-         role: 'front_desk',
+         role: 'RECEPTION',
          password: '',
       },
    });
@@ -186,10 +187,11 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
-                                 </SelectItem>
+                                 {USER_ROLES.map((role) => (
+                                    <SelectItem key={role} value={role}>
+                                       {USER_ROLE_CONFIG[role].label}
+                                    </SelectItem>
+                                 ))}
                               </SelectContent>
                            </Select>
                         )}

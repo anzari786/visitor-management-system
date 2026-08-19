@@ -38,9 +38,11 @@ export function resolveDateRange(
    };
 }
 
-export function buildCsvFilename(departmentId?: number) {
+export function buildCsvFilename(departmentName?: string) {
    const dateStr = format(new Date(), 'yyyy-MM-dd');
-   const deptSuffix = departmentId ? `-dept-${departmentId}` : '';
+   const deptSuffix = departmentName
+      ? `-dept-${departmentName.replace(/\s+/g, '-').toLowerCase()}`
+      : '';
    return `visit-log${deptSuffix}-${dateStr}.csv`;
 }
 

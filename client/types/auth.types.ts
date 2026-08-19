@@ -1,4 +1,4 @@
-import type { User } from './user.types';
+import type { AuthUser } from './user.types';
 
 export type LoginPayload = {
    username: string;
@@ -6,7 +6,8 @@ export type LoginPayload = {
 };
 
 export type LoginData = {
-   user: User;
+   user: AuthUser;
+   mustChangePassword?: boolean;
 };
 
 export type UpdateProfilePayload = {

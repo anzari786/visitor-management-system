@@ -21,6 +21,16 @@ api.interceptors.response.use(
    (error) => {
       const url = error.config?.url ?? '';
       const isPublicApiCall = PUBLIC_API_PATHS.some((p) => url.includes(p));
+      const errorCode = error.response?.data?.code;
+
+      if (
+         error.response?.status === 403 &&
+         errorCode === 'PASSWORD_CHANGE_REQUIRED' &&
+         window.location.pathname !== '/change-password'
+      ) {
+         window.location.href = '/change-password';
+         return Promise.reject(error);
+      }
 
       if (error.response?.status === 401 && !isPublicApiCall) {
          useAuthStore.getState().clearAuth();

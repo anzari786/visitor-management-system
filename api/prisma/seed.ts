@@ -1,370 +1,659 @@
 // prisma/seed.ts
-import { IdType, VisitStatus } from '../src/generated/prisma/client.js';
+import {
+   RoleName,
+   BadgeStatus,
+   VisitSource,
+   VisitStatus,
+   VisitorGroupType,
+   VisitDurationType,
+   VisitPurpose,
+   IdType,
+   AttendanceStatus,
+} from '../src/generated/prisma/client.js';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
-import {
-   subMonths,
-   addDays,
-   addMinutes,
-   setHours,
-   setMinutes,
-   setSeconds,
-   isWeekend,
-   isBefore,
-   isAfter,
-   differenceInMinutes,
-} from 'date-fns';
-import { prisma } from '../src/lib/prisma.js';
+import { addDays, format, isBefore, isWeekend, subMonths } from 'date-fns';
+import { prisma } from '../src/config/prisma.js';
+import { randomBytes } from 'node:crypto';
 
 const BCRYPT_COST = 12;
-const MONTHS_OF_HISTORY = 11;
-const OVERSTAY_AFTER_MINS = 120;
-const BADGE_PREFIX = 'ATI';
+const DEFAULT_PASSWORD = 'Password123!';
 const ORG_NAME = 'Ethiopian Agricultural Transformation Institute';
+const BADGE_PREFIX = 'ATI';
+const OVERSTAY_AFTER_MINS = 120;
 
-// ── Roles ─────────────────────────────────────
-const ROLE_NAMES = ['admin', 'front_desk'] as const;
-
-// ── Departments ───────────────────────────────
 const DEPARTMENTS = [
-   { name: 'Human Resources', shortName: 'HR', color: '#35B9E9' },
-   { name: 'Finance', shortName: 'FIN', color: '#6E3FF3' },
-   { name: 'Information Technology', shortName: 'IT', color: '#375DFB' },
-   { name: 'Research & Development', shortName: 'R&D', color: '#00D084' },
-   { name: 'Procurement', shortName: 'PROC', color: '#FF6900' },
-   { name: 'Legal Affairs', shortName: 'LEGAL', color: '#EB144C' },
-];
+   { name: 'Human Resources', shortName: 'HR' },
+   { name: 'Finance', shortName: 'FIN' },
+   { name: 'Information Technology', shortName: 'IT' },
+   { name: 'Research & Development', shortName: 'R&D' },
+   { name: 'Procurement', shortName: 'PROC' },
+   { name: 'Legal Affairs', shortName: 'LEGAL' },
+] as const;
 
-// ── Users ─────────────────────────────────────
-const USERS: Array<{
+const STAFF_USERS: Array<{
    firstName: string;
    lastName: string;
    username: string;
-   role: (typeof ROLE_NAMES)[number];
+   email: string;
+   role: RoleName;
    phone: string;
 }> = [
    {
       firstName: 'System',
       lastName: 'Administrator',
       username: 'admin',
-      role: 'admin',
+      email: 'admin@ati.gov.et',
+      role: RoleName.ADMIN,
       phone: '+251 911 223 344',
    },
    {
       firstName: 'Operations',
       lastName: 'Manager',
       username: 'manager',
-      role: 'admin',
+      email: 'manager@ati.gov.et',
+      role: RoleName.MANAGER,
       phone: '+251 911 556 677',
    },
    {
       firstName: 'Abel',
       lastName: 'Tesfaye',
-      username: 'reception1',
-      role: 'front_desk',
+      username: 'guard1',
+      email: 'guard1@ati.gov.et',
+      role: RoleName.GUARD,
       phone: '+251 922 334 455',
    },
    {
       firstName: 'Sara',
       lastName: 'Bekele',
-      username: 'reception2',
-      role: 'front_desk',
+      username: 'reception1',
+      email: 'reception1@ati.gov.et',
+      role: RoleName.RECEPTION,
       phone: '+251 933 445 566',
    },
 ];
 
-const DEFAULT_PASSWORD = 'Password123!';
-
-// ── Helpers ───────────────────────────────────
-
-function randomBusinessHourTimestamp(day: Date): Date {
-   // Weighted toward 9am–11am and 1pm–3pm arrival clusters, spread 8am–5pm
-   const clusters = [
-      { start: 8, end: 9, weight: 1 },
-      { start: 9, end: 11, weight: 3 },
-      { start: 11, end: 13, weight: 2 },
-      { start: 13, end: 15, weight: 3 },
-      { start: 15, end: 17, weight: 1 },
-   ];
-   const totalWeight = clusters.reduce((sum, c) => sum + c.weight, 0);
-   let roll = Math.random() * totalWeight;
-   const cluster = clusters.find((c) => {
-      roll -= c.weight;
-      return roll <= 0;
-   })!;
-
-   const hour = faker.number.int({ min: cluster.start, max: cluster.end - 1 });
-   const minute = faker.number.int({ min: 0, max: 59 });
-
-   return setSeconds(setMinutes(setHours(day, hour), minute), 0);
+function token(bytes = 24) {
+   return randomBytes(bytes).toString('hex');
 }
 
-function randomVisitDurationMins(overstay: boolean): number {
-   if (overstay) {
-      // Overstay: 2h05m to 5h
-      return faker.number.int({ min: OVERSTAY_AFTER_MINS + 5, max: 300 });
-   }
-   // Normal: 10 minutes to just under 2 hours
-   return faker.number.int({ min: 10, max: OVERSTAY_AFTER_MINS - 5 });
+function visitCode() {
+   return `VIS-${faker.string.alphanumeric({ length: 6, casing: 'upper' })}`;
 }
 
-async function hashPassword(password: string): Promise<string> {
-   return bcrypt.hash(password, BCRYPT_COST);
+function startOf(date: Date) {
+   const d = new Date(date);
+   d.setHours(0, 0, 0, 0);
+   return d;
 }
-
-// ── Seed ──────────────────────────────────────
 
 async function main() {
    console.log('Seeding started...\n');
 
-   // Clear existing data (respecting FK order)
+   await prisma.visitAttendance.deleteMany();
+   await prisma.visitStatusHistory.deleteMany();
+   await prisma.notification.deleteMany();
+   await prisma.visitParticipant.deleteMany();
+   await prisma.visitDay.deleteMany();
    await prisma.visit.deleteMany();
+   await prisma.badge.deleteMany();
    await prisma.visitor.deleteMany();
-   await prisma.department.deleteMany();
    await prisma.userRole.deleteMany();
    await prisma.user.deleteMany();
+   await prisma.employee.deleteMany();
    await prisma.role.deleteMany();
-   await prisma.setting.deleteMany();
+   await prisma.systemSetting.deleteMany();
 
-   // ── Settings ──
-   await prisma.setting.create({
-      data: {
-         id: 1,
-         orgName: ORG_NAME,
-         badgePrefix: BADGE_PREFIX,
-         overstayEnabled: true,
-         overstayAfterMins: OVERSTAY_AFTER_MINS,
-      },
+   await prisma.systemSetting.createMany({
+      data: [
+         { key: 'orgName', value: ORG_NAME },
+         { key: 'badgePrefix', value: BADGE_PREFIX },
+         { key: 'overstayEnabled', value: 'true' },
+         { key: 'overstayAfterMins', value: String(OVERSTAY_AFTER_MINS) },
+      ],
    });
-   console.log('Created settings');
+   console.log('Created system settings');
 
-   // ── Roles ──
    const roles = await Promise.all(
-      ROLE_NAMES.map((name) => prisma.role.create({ data: { name } })),
-   );
-   const roleByName = Object.fromEntries(
-      roles.map((role) => [role.name, role]),
-   ) as Record<(typeof ROLE_NAMES)[number], (typeof roles)[number]>;
-   console.log(`Created ${roles.length} roles (${ROLE_NAMES.join(', ')})`);
-
-   // ── Departments ──
-   const departments = await Promise.all(
-      DEPARTMENTS.map((d) =>
-         prisma.department.create({
+      (
+         [
+            RoleName.GUARD,
+            RoleName.RECEPTION,
+            RoleName.ADMIN,
+            RoleName.MANAGER,
+         ] as const
+      ).map((name) =>
+         prisma.role.create({
             data: {
-               name: d.name,
-               shortName: d.shortName,
-               color: d.color,
-               isActive: true,
+               name,
+               description: `${name} role`,
             },
          }),
       ),
    );
-   console.log(`Created ${departments.length} departments`);
+   const roleByName = Object.fromEntries(roles.map((r) => [r.name, r])) as Record<
+      RoleName,
+      (typeof roles)[number]
+   >;
+   console.log(`Created ${roles.length} roles`);
 
-   // ── Users ──
-   const passwordHash = await hashPassword(DEFAULT_PASSWORD);
-   const users = await Promise.all(
-      USERS.map((u) =>
+   const employees = await Promise.all(
+      DEPARTMENTS.flatMap((dept, deptIndex) =>
+         [0, 1].map(async (i) => {
+            const firstName = faker.person.firstName();
+            const lastName = faker.person.lastName();
+            return prisma.employee.create({
+               data: {
+                  externalEmployeeId: `HR-${dept.shortName}-${i + 1}`,
+                  firstName,
+                  lastName,
+                  email: `${firstName}.${lastName}.${deptIndex}${i}@ati.gov.et`
+                     .toLowerCase()
+                     .replace(/[^a-z0-9.@]/g, ''),
+                  phone: `+251 9${faker.string.numeric(8)}`,
+                  position: faker.person.jobTitle(),
+                  departmentName: dept.name,
+                  departmentCode: dept.shortName,
+                  isActive: true,
+                  lastSyncedAt: new Date(),
+               },
+            });
+         }),
+      ),
+   );
+   console.log(`Created ${employees.length} employees (hosts)`);
+
+   const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, BCRYPT_COST);
+
+   // Dashboard staff — local username/password auth
+   const staffUsers = await Promise.all(
+      STAFF_USERS.map((u) =>
          prisma.user.create({
             data: {
                firstName: u.firstName,
                lastName: u.lastName,
                username: u.username,
-               passwordHash,
+               email: u.email,
                phone: u.phone,
-               isActive: true,
+               passwordHash,
                mustChangePassword: false,
+               isActive: true,
                lastLoginAt: faker.date.recent({ days: 3 }),
             },
          }),
       ),
    );
-
-   // ── UserRoles ──
    await Promise.all(
-      USERS.map((u, i) =>
+      STAFF_USERS.map((u, i) =>
          prisma.userRole.create({
             data: {
-               userId: users[i].id,
+               userId: staffUsers[i].id,
                roleId: roleByName[u.role].id,
             },
          }),
       ),
    );
 
-   const adminUsers = users.filter((_, i) => USERS[i].role === 'admin');
-   const frontDeskUsers = users.filter((_, i) => USERS[i].role === 'front_desk');
-   console.log(`Created ${users.length} users (2 admin, 2 front desk)`);
-   console.log(`Default password for all users: ${DEFAULT_PASSWORD}\n`);
-
-   // ── Visitor pool ──
-   // A mix of one-time visitors and repeat visitors (~30% repeat rate)
-   const VISITOR_POOL_SIZE = 220;
-   const visitorPool = await Promise.all(
-      Array.from({ length: VISITOR_POOL_SIZE }).map(async () => {
-         const idType = faker.helpers.weightedArrayElement([
-            { value: IdType.national_id, weight: 5 },
-            { value: IdType.kebele_id, weight: 3 },
-            { value: IdType.passport, weight: 1 },
-            { value: IdType.drivers_license, weight: 1 },
-         ]);
-         return prisma.visitor.create({
+   // Hosts authenticate via company SSO (externalSubject + employee link)
+   const hostEmployees = employees.slice(0, 2);
+   const hostUsers = await Promise.all(
+      hostEmployees.map((employee, index) =>
+         prisma.user.create({
             data: {
-               fullName: faker.person.fullName(),
-               phone: faker.helpers.maybe(
-                  () =>
-                     `+251 ${faker.helpers.arrayElement(['91', '92', '93', '94', '95'])} ${faker.string.numeric(3)} ${faker.string.numeric(3)}`,
-                  {
-                     probability: 0.85,
-                  },
-               ),
-               idType,
-               idNumber: faker.string.alphanumeric({
-                  length: 9,
-                  casing: 'upper',
-               }),
+               externalSubject: `sso-host-${index + 1}`,
+               firstName: employee.firstName,
+               lastName: employee.lastName,
+               email: employee.email,
+               phone: employee.phone,
+               employeeId: employee.id,
+               isActive: true,
+               mustChangePassword: false,
+            },
+         }),
+      ),
+   );
+
+   const guardUsers = staffUsers.filter(
+      (_, i) => STAFF_USERS[i].role === RoleName.GUARD,
+   );
+   const receptionUsers = staffUsers.filter(
+      (_, i) => STAFF_USERS[i].role === RoleName.RECEPTION,
+   );
+   const adminUser = staffUsers.find(
+      (_, i) => STAFF_USERS[i].role === RoleName.ADMIN,
+   )!;
+
+   console.log(`Created ${staffUsers.length} staff users + ${hostUsers.length} SSO host users`);
+   console.log(`Default local password: ${DEFAULT_PASSWORD}\n`);
+
+   // Badges — mostly available, some assigned / lost / disabled
+   const badges = await Promise.all(
+      Array.from({ length: 60 }).map((_, i) => {
+         let status: BadgeStatus = BadgeStatus.AVAILABLE;
+         if (i === 58) status = BadgeStatus.LOST;
+         if (i === 59) status = BadgeStatus.DISABLED;
+
+         return prisma.badge.create({
+            data: {
+               badgeNumber: `${BADGE_PREFIX}-${String(i + 1).padStart(3, '0')}`,
+               qrToken: token(16),
+               status,
+               notes:
+                  status === BadgeStatus.DISABLED
+                     ? 'Retired from circulation'
+                     : status === BadgeStatus.LOST
+                       ? 'Reported missing'
+                       : undefined,
             },
          });
       }),
    );
-   console.log(`Created ${visitorPool.length} visitor records`);
+   console.log(`Created ${badges.length} badges`);
 
-   // ── Visits across 11 months ──
-   const now = new Date();
-   const startDate = subMonths(now, MONTHS_OF_HISTORY);
+   const today = startOf(new Date());
+   const tomorrow = addDays(today, 1);
+   const dayAfter = addDays(today, 2);
+   let badgeCursor = 0;
+   const nextAssignableBadge = () => badges[badgeCursor++];
 
-   type PendingVisit = {
-      badgeNumber: number;
-      visitorId: number;
-      departmentId: number;
-      hostName: string;
-      checkedInAt: Date;
-      checkedInById: number;
+   const createVisitor = async (overrides?: {
+      firstName?: string;
+      lastName?: string;
+      idNumber?: string;
+   }) =>
+      prisma.visitor.create({
+         data: {
+            firstName: overrides?.firstName ?? faker.person.firstName(),
+            lastName: overrides?.lastName ?? faker.person.lastName(),
+            email: faker.internet.email().toLowerCase(),
+            phone: `+251 9${faker.string.numeric(8)}`,
+            organization: faker.company.name(),
+            idType: IdType.NATIONAL_ID,
+            idNumber:
+               overrides?.idNumber ??
+               faker.string.alphanumeric({ length: 10, casing: 'upper' }),
+         },
+      });
+
+   type SeedVisitInput = {
+      source: VisitSource;
+      groupType: VisitorGroupType;
+      durationType: VisitDurationType;
       status: VisitStatus;
-      checkedOutAt: Date | null;
-      checkedOutById: number | null;
-      checkoutNote: string | null;
+      purpose: VisitPurpose;
+      host: (typeof employees)[number];
+      days: Date[];
+      visitors: Array<Awaited<ReturnType<typeof createVisitor>>>;
+      floor?: string;
+      room?: string;
+      createdById?: number;
+      decidedById?: number;
    };
 
-   const visitsToCreate: PendingVisit[] = [];
+   const createSeedVisit = async (input: SeedVisitInput) => {
+      const needsDecision =
+         input.status !== VisitStatus.PENDING_APPROVAL;
 
-   let cursor = new Date(startDate);
-   while (isBefore(cursor, now)) {
-      // Skip weekends — government intranet, low/no weekend traffic
+      return prisma.visit.create({
+         data: {
+            visitCode: visitCode(),
+            qrToken: token(),
+            source: input.source,
+            groupType: input.groupType,
+            durationType: input.durationType,
+            status: input.status,
+            purpose: input.purpose,
+            hostEmployeeId: input.host.id,
+            hostNameSnapshot: `${input.host.firstName} ${input.host.lastName}`,
+            hostEmailSnapshot: input.host.email,
+            departmentNameSnapshot: input.host.departmentName,
+            departmentCodeSnapshot: input.host.departmentCode,
+            floor: input.floor,
+            room: input.room,
+            startDate: input.days[0],
+            endDate: input.days[input.days.length - 1],
+            startTime: '09:00',
+            endTime: '17:00',
+            expectedVisitorCount: input.visitors.length,
+            createdById: input.createdById,
+            decidedById: needsDecision ? input.decidedById : undefined,
+            decisionAt: needsDecision ? new Date() : undefined,
+            decisionNote:
+               input.status === VisitStatus.REJECTED
+                  ? 'Host unavailable'
+                  : input.status === VisitStatus.CANCELLED
+                    ? 'Visit cancelled'
+                    : undefined,
+            days: { create: input.days.map((date) => ({ date })) },
+            participants: {
+               create: input.visitors.map((v) => ({ visitorId: v.id })),
+            },
+            statusHistory: {
+               create: [
+                  {
+                     fromStatus: null,
+                     toStatus: VisitStatus.PENDING_APPROVAL,
+                     changedById: input.createdById,
+                  },
+                  ...(input.status !== VisitStatus.PENDING_APPROVAL
+                     ? [
+                          {
+                             fromStatus: VisitStatus.PENDING_APPROVAL,
+                             toStatus:
+                                input.status === VisitStatus.RESCHEDULED
+                                   ? VisitStatus.APPROVED
+                                   : input.status ===
+                                          VisitStatus.PARTIALLY_CHECKED_IN ||
+                                       input.status === VisitStatus.CHECKED_IN ||
+                                       input.status ===
+                                          VisitStatus.PARTIALLY_CHECKED_OUT ||
+                                       input.status === VisitStatus.CHECKED_OUT
+                                     ? VisitStatus.APPROVED
+                                     : input.status,
+                             changedById: input.decidedById,
+                          },
+                       ]
+                     : []),
+                  ...(input.status === VisitStatus.PARTIALLY_CHECKED_IN ||
+                  input.status === VisitStatus.CHECKED_IN ||
+                  input.status === VisitStatus.PARTIALLY_CHECKED_OUT ||
+                  input.status === VisitStatus.CHECKED_OUT
+                     ? [
+                          {
+                             fromStatus: VisitStatus.APPROVED,
+                             toStatus: input.status,
+                             changedById: guardUsers[0]?.id,
+                          },
+                       ]
+                     : []),
+                  ...(input.status === VisitStatus.RESCHEDULED
+                     ? [
+                          {
+                             fromStatus: VisitStatus.APPROVED,
+                             toStatus: VisitStatus.RESCHEDULED,
+                             changedById: input.decidedById,
+                             note: 'Moved to new dates',
+                          },
+                       ]
+                     : []),
+               ],
+            },
+         },
+         include: { days: true, participants: true },
+      });
+   };
+
+   // ── Sample visits covering current workflow ───────────────────────────
+
+   // 1) Single-day individual — currently checked in (QR check-out demo)
+   const visitorA = await createVisitor({
+      firstName: 'Kidist',
+      lastName: 'Alemu',
+      idNumber: 'ID-SEED-001',
+   });
+   const activeSingle = await createSeedVisit({
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.CHECKED_IN,
+      purpose: VisitPurpose.MEETING,
+      host: employees[0],
+      days: [today],
+      visitors: [visitorA],
+      floor: '1st Floor',
+      room: 'Conference Room A',
+      createdById: receptionUsers[0]?.id,
+      decidedById: hostUsers[0]?.id ?? receptionUsers[0]?.id,
+   });
+   const assignedBadge = nextAssignableBadge();
+   await prisma.badge.update({
+      where: { id: assignedBadge.id },
+      data: { status: BadgeStatus.ASSIGNED },
+   });
+   await prisma.visitAttendance.create({
+      data: {
+         participantId: activeSingle.participants[0].id,
+         visitDayId: activeSingle.days[0].id,
+         status: AttendanceStatus.CHECKED_IN,
+         badgeId: assignedBadge.id,
+         badgeAssignedAt: new Date(),
+         personalIdRetained: true,
+         checkInAt: new Date(),
+         checkedInById: guardUsers[0]?.id,
+      },
+   });
+
+   // 2) Group single-day — approved, ready for QR check-in (mixed expected)
+   const groupVisitors = await Promise.all([
+      createVisitor({ firstName: 'Yonas', lastName: 'Hailu', idNumber: 'ID-SEED-G1' }),
+      createVisitor({ firstName: 'Marta', lastName: 'Gebre', idNumber: 'ID-SEED-G2' }),
+      createVisitor({ firstName: 'Daniel', lastName: 'Kebede', idNumber: 'ID-SEED-G3' }),
+   ]);
+   const approvedGroup = await createSeedVisit({
+      source: VisitSource.RECEPTION,
+      groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.APPROVED,
+      purpose: VisitPurpose.OFFICIAL_VISIT,
+      host: employees[1],
+      days: [today],
+      visitors: groupVisitors,
+      floor: '2nd Floor',
+      room: 'Board Room',
+      createdById: receptionUsers[0]?.id,
+      decidedById: hostUsers[1]?.id ?? adminUser.id,
+   });
+   for (const participant of approvedGroup.participants) {
+      await prisma.visitAttendance.create({
+         data: {
+            participantId: participant.id,
+            visitDayId: approvedGroup.days[0].id,
+            status: AttendanceStatus.EXPECTED,
+         },
+      });
+   }
+
+   // 3) Multi-day group — partially checked in today
+   const multiVisitors = await Promise.all([
+      createVisitor({ idNumber: 'ID-SEED-M1' }),
+      createVisitor({ idNumber: 'ID-SEED-M2' }),
+   ]);
+   const multiDay = await createSeedVisit({
+      source: VisitSource.HOST_INVITATION,
+      groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.MULTI_DAY,
+      status: VisitStatus.PARTIALLY_CHECKED_IN,
+      purpose: VisitPurpose.INTERVIEW,
+      host: employees[2],
+      days: [today, tomorrow, dayAfter],
+      visitors: multiVisitors,
+      floor: 'Ground Floor',
+      room: 'Interview Suite',
+      createdById: hostUsers[0]?.id,
+      decidedById: hostUsers[0]?.id,
+   });
+   const multiBadge = nextAssignableBadge();
+   await prisma.badge.update({
+      where: { id: multiBadge.id },
+      data: { status: BadgeStatus.ASSIGNED },
+   });
+   for (const day of multiDay.days) {
+      for (const [index, participant] of multiDay.participants.entries()) {
+         const isToday = startOf(day.date).getTime() === today.getTime();
+         if (isToday && index === 0) {
+            await prisma.visitAttendance.create({
+               data: {
+                  participantId: participant.id,
+                  visitDayId: day.id,
+                  status: AttendanceStatus.CHECKED_IN,
+                  badgeId: multiBadge.id,
+                  badgeAssignedAt: new Date(),
+                  personalIdRetained: true,
+                  checkInAt: new Date(),
+                  checkedInById: guardUsers[0]?.id,
+               },
+            });
+         } else {
+            await prisma.visitAttendance.create({
+               data: {
+                  participantId: participant.id,
+                  visitDayId: day.id,
+                  status: AttendanceStatus.EXPECTED,
+               },
+            });
+         }
+      }
+   }
+
+   // 4) Pending approval (public request)
+   await createSeedVisit({
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.PENDING_APPROVAL,
+      purpose: VisitPurpose.DELIVERY,
+      host: employees[3],
+      days: [tomorrow],
+      visitors: [await createVisitor({ idNumber: 'ID-SEED-P1' })],
+   });
+
+   // 5) Rejected
+   await createSeedVisit({
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.REJECTED,
+      purpose: VisitPurpose.OTHER,
+      host: employees[4],
+      days: [today],
+      visitors: [await createVisitor({ idNumber: 'ID-SEED-R1' })],
+      decidedById: hostUsers[0]?.id ?? adminUser.id,
+   });
+
+   // 6) Cancelled invitation
+   await createSeedVisit({
+      source: VisitSource.HOST_INVITATION,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.CANCELLED,
+      purpose: VisitPurpose.MEETING,
+      host: employees[5],
+      days: [tomorrow],
+      visitors: [await createVisitor({ idNumber: 'ID-SEED-C1' })],
+      floor: '3rd Floor',
+      room: 'Office 312',
+      createdById: hostUsers[1]?.id,
+      decidedById: hostUsers[1]?.id,
+   });
+
+   // 7) Rescheduled multi-day individual
+   await createSeedVisit({
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.MULTI_DAY,
+      status: VisitStatus.RESCHEDULED,
+      purpose: VisitPurpose.MAINTENANCE,
+      host: employees[0],
+      days: [tomorrow, dayAfter],
+      visitors: [await createVisitor({ idNumber: 'ID-SEED-RS1' })],
+      floor: 'Basement',
+      room: 'Plant Room',
+      createdById: receptionUsers[0]?.id,
+      decidedById: adminUser.id,
+   });
+
+   // Historical checked-out visits
+   const historyStart = subMonths(new Date(), 2);
+   let cursor = new Date(historyStart);
+   let createdHistory = 0;
+
+   while (isBefore(cursor, today) && createdHistory < 18) {
       if (isWeekend(cursor)) {
          cursor = addDays(cursor, 1);
          continue;
       }
 
-      const isToday =
-         cursor.getFullYear() === now.getFullYear() &&
-         cursor.getMonth() === now.getMonth() &&
-         cursor.getDate() === now.getDate();
+      const start = startOf(cursor);
+      const end = addDays(start, faker.number.int({ min: 0, max: 2 }));
+      const hostEmp = faker.helpers.arrayElement(employees);
+      const visitorCount = faker.number.int({ min: 1, max: 3 });
 
-      // 8–35 visits per business day
-      const visitsToday = faker.number.int({ min: 8, max: 35 });
-      let dailyBadgeCounter = 1;
+      const visitors = await Promise.all(
+         Array.from({ length: visitorCount }).map(() => createVisitor()),
+      );
 
-      for (let i = 0; i < visitsToday; i++) {
-         const checkedInAt = randomBusinessHourTimestamp(cursor);
-
-         // Don't create check-ins in the future
-         if (isAfter(checkedInAt, now)) continue;
-
-         const department = faker.helpers.arrayElement(departments);
-         const checkedInBy = faker.helpers.arrayElement(frontDeskUsers);
-         const visitor = faker.helpers.arrayElement(visitorPool);
-
-         // Status distribution
-         // - Rare cancellations (~3%)
-         // - If it's today and recent, some remain active
-         // - ~8% of completed visits overstayed before checkout
-         const isCancelled = faker.number.int({ min: 1, max: 100 }) <= 3;
-
-         const minutesSinceCheckIn = differenceInMinutes(now, checkedInAt);
-         const stillOpenCandidate =
-            isToday &&
-            minutesSinceCheckIn < 480 &&
-            faker.number.int({ min: 1, max: 100 }) <= 25;
-
-         let status: VisitStatus;
-         let checkedOutAt: Date | null = null;
-         let checkedOutById: number | null = null;
-         let checkoutNote: string | null = null;
-
-         if (isCancelled) {
-            status = VisitStatus.cancelled;
-         } else if (stillOpenCandidate) {
-            status = VisitStatus.active;
-            // If open long enough, this becomes an overstay case naturally
-         } else {
-            status = VisitStatus.completed;
-            const overstay = faker.number.int({ min: 1, max: 100 }) <= 8;
-            const durationMins = randomVisitDurationMins(overstay);
-            checkedOutAt = addMinutes(checkedInAt, durationMins);
-
-            if (isAfter(checkedOutAt, now)) {
-               // Clamp — shouldn't check out in the future
-               checkedOutAt = now;
-            }
-
-            checkedOutById = faker.helpers.arrayElement(
-               faker.datatype.boolean({ probability: 0.9 })
-                  ? frontDeskUsers
-                  : adminUsers,
-            ).id;
-
-            if (overstay) {
-               checkoutNote = faker.helpers.arrayElement([
-                  'Meeting ran longer than scheduled.',
-                  'Waited for host availability.',
-                  'Extended discussion with department head.',
-                  null,
-               ]);
-            }
-         }
-
-         visitsToCreate.push({
-            badgeNumber: dailyBadgeCounter++,
-            visitorId: visitor.id,
-            departmentId: department.id,
-            hostName: faker.person.fullName(),
-            checkedInAt,
-            checkedInById: checkedInBy.id,
-            status,
-            checkedOutAt,
-            checkedOutById,
-            checkoutNote,
-         });
-
-         if (dailyBadgeCounter > 999) dailyBadgeCounter = 1; // wrap, matches 3-digit badge constraint
+      const days: Date[] = [];
+      for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+         days.push(new Date(d));
       }
 
-      cursor = addDays(cursor, 1);
-   }
+      const histVisit = await createSeedVisit({
+         source: faker.helpers.arrayElement([
+            VisitSource.PUBLIC,
+            VisitSource.RECEPTION,
+            VisitSource.HOST_INVITATION,
+         ]),
+         groupType:
+            visitorCount > 1
+               ? VisitorGroupType.GROUP
+               : VisitorGroupType.SINGLE,
+         durationType:
+            days.length > 1
+               ? VisitDurationType.MULTI_DAY
+               : VisitDurationType.SINGLE_DAY,
+         status: VisitStatus.CHECKED_OUT,
+         purpose: faker.helpers.arrayElement([
+            VisitPurpose.MEETING,
+            VisitPurpose.INTERVIEW,
+            VisitPurpose.OFFICIAL_VISIT,
+         ]),
+         host: hostEmp,
+         days,
+         visitors,
+         floor: 'Ground Floor',
+         room: 'Meeting Room 1',
+         createdById: receptionUsers[0]?.id,
+         decidedById: adminUser.id,
+      });
 
-   console.log(`Prepared ${visitsToCreate.length} visits, inserting...`);
+      for (const participant of histVisit.participants) {
+         for (const day of histVisit.days) {
+            const checkIn = new Date(day.date);
+            checkIn.setHours(9, faker.number.int({ min: 0, max: 30 }), 0, 0);
+            const checkOut = new Date(day.date);
+            checkOut.setHours(15, faker.number.int({ min: 0, max: 59 }), 0, 0);
 
-   // Batch insert in chunks to avoid overwhelming MySQL connection/packet limits
-   const CHUNK_SIZE = 500;
-   for (let i = 0; i < visitsToCreate.length; i += CHUNK_SIZE) {
-      const chunk = visitsToCreate.slice(i, i + CHUNK_SIZE);
-      await prisma.visit.createMany({ data: chunk });
-      console.log(
-         `  Inserted ${Math.min(i + CHUNK_SIZE, visitsToCreate.length)} / ${visitsToCreate.length}`,
-      );
+            await prisma.visitAttendance.create({
+               data: {
+                  participantId: participant.id,
+                  visitDayId: day.id,
+                  status: AttendanceStatus.CHECKED_OUT,
+                  checkInAt: checkIn,
+                  checkOutAt: checkOut,
+                  checkedInById: guardUsers[0]?.id,
+                  checkedOutById: guardUsers[0]?.id,
+                  personalIdRetained: false,
+                  personalIdReturnedAt: checkOut,
+               },
+            });
+         }
+      }
+
+      createdHistory += 1;
+      cursor = addDays(end, 1);
    }
 
    console.log('\nSeeding complete.');
    console.log(`- Org: ${ORG_NAME}`);
-   console.log(`- Badge prefix: ${BADGE_PREFIX}`);
-   console.log(`- Overstay threshold: ${OVERSTAY_AFTER_MINS} mins (2 hours)`);
-   console.log(
-      `- Departments: ${departments.map((d) => d.shortName).join(', ')}`,
-   );
-   console.log(`- Users: ${users.map((u) => u.username).join(', ')}`);
-   console.log(`- Total visits: ${visitsToCreate.length}`);
+   console.log(`- Roles: GUARD, RECEPTION, ADMIN, MANAGER`);
+   console.log(`- Staff logins: ${STAFF_USERS.map((u) => u.username).join(', ')}`);
+   console.log(`- SSO host subjects: sso-host-1, sso-host-2`);
+   console.log(`- Checked-in visit QR token: ${activeSingle.qrToken}`);
+   console.log(`- Checked-in visit code: ${activeSingle.visitCode}`);
+   console.log(`- Approved group visit code (check-in ready): ${approvedGroup.visitCode}`);
+   console.log(`- Assigned badge QR: ${assignedBadge.qrToken} (${assignedBadge.badgeNumber})`);
+   console.log(`- Historical visits: ${createdHistory}`);
+   console.log(`- Seed date: ${format(today, 'yyyy-MM-dd')}`);
 }
 
 main()

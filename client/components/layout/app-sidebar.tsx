@@ -26,7 +26,7 @@ import { AppSidebarSkeleton } from './app-sidebar-skeleton';
 import { NavMain } from './nav-main';
 import ProfileDropdown from './profile-dropdown';
 import { getUserFullName } from '@/lib/user';
-import type { User } from '@/types/user.types';
+import type { AuthUser } from '@/types/user.types';
 
 function SidebarBrand() {
    return (
@@ -62,7 +62,7 @@ function SidebarBrand() {
    );
 }
 
-function NavUser({ user }: { user: User }) {
+function NavUser({ user }: { user: AuthUser }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
    const avatarId = useProfileAvatarStore(
@@ -94,8 +94,8 @@ function NavUser({ user }: { user: User }) {
                         <span className="truncate font-semibold">
                            {fullName}
                         </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                           {user.username}
+                         <span className="truncate text-xs text-muted-foreground">
+                           {user.username ?? user.email ?? ''}
                         </span>
                      </div>
                      <ChevronsUpDown className="ml-auto size-4 group-data-[collapsible=icon]:hidden" />
@@ -119,7 +119,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       return null;
    }
 
-   const navItems = getSidebarNavItems(user.role);
+   const navItems = getSidebarNavItems(user.roles);
 
    return (
       <Sidebar

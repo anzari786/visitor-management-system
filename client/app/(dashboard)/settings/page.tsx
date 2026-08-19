@@ -1,18 +1,14 @@
-'use client';
+import { OpenSettingsThenRedirect } from '@/components/settings/settings-dialog';
+import { canAccessPath, homePathForRoles } from '@/lib/access';
+import { getServerUser } from '@/lib/auth-server';
+import { redirect } from 'next/navigation';
 
-import { useSettingsDialogStore } from '@/store/settings-dialog-store';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+export default async function SettingsPage() {
+   const user = await getServerUser();
 
-/** Settings is a dialog; open it and return to the dashboard. */
-export default function SettingsPage() {
-   const router = useRouter();
-   const setOpen = useSettingsDialogStore((s) => s.setOpen);
+   if (!user || !canAccessPath(user.roles, '/settings')) {
+      redirect(homePathForRoles(user?.roles));
+   }
 
-   useEffect(() => {
-      setOpen(true);
-      router.replace('/dashboard');
-   }, [router, setOpen]);
-
-   return null;
+   return <OpenSettingsThenRedirect homePath={homePathForRoles(user.roles)} />;
 }

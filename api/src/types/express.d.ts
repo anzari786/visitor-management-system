@@ -1,17 +1,18 @@
 import 'express-session';
+import type { RoleName } from '../generated/prisma/client.js';
 
 declare module 'express-session' {
    interface SessionData {
       userId: number;
-      roles: string[];
+      roleCodes: RoleName[];
    }
 }
 
 declare global {
    namespace Express {
       interface Request {
-         validatedQuery?: unknown;
          validatedBody?: unknown;
+         validatedQuery?: unknown;
          validatedParams?: unknown;
       }
    }

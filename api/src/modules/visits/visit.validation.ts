@@ -42,6 +42,16 @@ const visitorInputSchema = z.object({
    idNumber: z.string().trim().min(1).max(50),
 });
 
+const hostInvitationVisitorSchema = z.object({
+   firstName: z.string().trim().min(1).max(100),
+   lastName: z.string().trim().min(1).max(100),
+   phone: z.string().trim().min(7).max(20),
+   email: z.string().trim().email().optional(),
+   organization: z.string().trim().min(1).max(150).optional(),
+   idType: identificationTypeSchema.optional(),
+   idNumber: z.string().trim().min(1).max(50).optional(),
+});
+
 const scheduleDateInputSchema = z.object({
    date: z.coerce.date(),
    expectedStartTime: z.coerce.date().optional(),
@@ -72,6 +82,98 @@ const visitRequestBodySchema = z
       },
    );
 
+const hostInvitationBodySchema = z
+   .object({
+      groupType: groupTypeSchema,
+      durationType: durationTypeSchema,
+      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
+      hostEmployeeId: z.coerce.number().int().positive(),
+      visitors: z.array(hostInvitationVisitorSchema).max(50).default([]),
+      expectedVisitorCount: z.coerce.number().int().min(1).max(50).optional(),
+      organization: z.string().trim().min(1).max(150).optional(),
+      scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
+      floor: z.string().trim().min(1).max(100),
+      room: z.string().trim().min(1).max(100),
+   })
+   .superRefine((body, ctx) => {
+      const hasKnownVisitors = body.visitors.length > 0;
+
+      if (hasKnownVisitors) {
+         if (body.groupType === 'SINGLE' && body.visitors.length !== 1) {
+            ctx.addIssue({
+               code: 'custom',
+               message: 'A SINGLE visit must have exactly one visitor',
+               path: ['visitors'],
+            });
+         }
+      } else {
+         if (!body.expectedVisitorCount) {
+            ctx.addIssue({
+               code: 'custom',
+               message:
+                  'expectedVisitorCount is required when visitor details are not provided',
+               path: ['expectedVisitorCount'],
+            });
+         }
+
+         if (!body.organization) {
+            ctx.addIssue({
+               code: 'custom',
+               message:
+                  'organization is required when visitor details are not provided',
+               path: ['organization'],
+            });
+         }
+
+         if (
+            body.expectedVisitorCount &&
+            body.groupType === 'SINGLE' &&
+            body.expectedVisitorCount !== 1
+         ) {
+            ctx.addIssue({
+               code: 'custom',
+               message:
+                  'A SINGLE visit must have expectedVisitorCount of 1',
+               path: ['expectedVisitorCount'],
+            });
+         }
+
+         if (
+            body.expectedVisitorCount &&
+            body.groupType === 'GROUP' &&
+            body.expectedVisitorCount < 2
+         ) {
+            ctx.addIssue({
+               code: 'custom',
+               message:
+                  'A GROUP visit must expect at least 2 visitors',
+               path: ['expectedVisitorCount'],
+            });
+         }
+      }
+
+      if (
+         body.durationType === 'SINGLE_DAY' &&
+         body.scheduleDates.length !== 1
+      ) {
+         ctx.addIssue({
+            code: 'custom',
+            message: 'A SINGLE_DAY visit must have exactly one scheduled date',
+            path: ['scheduleDates'],
+         });
+      }
+   });
+
+const registerVisitorBodySchema = z.object({
+   firstName: z.string().trim().min(1).max(100),
+   lastName: z.string().trim().min(1).max(100),
+   phone: z.string().trim().min(7).max(20),
+   email: z.string().trim().email().optional(),
+   organization: z.string().trim().min(1).max(150).optional(),
+   idType: identificationTypeSchema,
+   idNumber: z.string().trim().min(1).max(50),
+});
+
 /** Public self-service visitor request — same shape as the walk-in path. */
 export const createVisitRequestSchema = z.object({
    body: visitRequestBodySchema,
@@ -82,9 +184,29 @@ export const createWalkInVisitSchema = z.object({
    body: visitRequestBodySchema,
 });
 
-/** Host invitation — pre-approved visit created by staff on behalf of a host. */
+/** Host invitation — supports known visitors or count-only unknown invitations. */
 export const createHostInvitationSchema = z.object({
-   body: visitRequestBodySchema,
+   body: hostInvitationBodySchema,
+});
+
+export const invitationTokenParamSchema = z.object({
+   params: z.object({
+      token: z.string().trim().min(32).max(128),
+   }),
+});
+
+export const registerViaInvitationSchema = z.object({
+   params: z.object({
+      token: z.string().trim().min(32).max(128),
+   }),
+   body: registerVisitorBodySchema,
+});
+
+export const registerVisitorAtVisitSchema = z.object({
+   params: z.object({
+      id: z.coerce.number().int().positive(),
+   }),
+   body: registerVisitorBodySchema,
 });
 
 export const listVisitsSchema = z.object({

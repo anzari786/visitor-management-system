@@ -13,7 +13,19 @@ import {
    cancelVisit,
    formatVisitDetail,
    formatVisitSummary,
+   assertVisitActorAccess,
 } from './visit.service.js';
+import {
+   formatInvitationCreated,
+   formatInvitationPreview,
+   getInvitationByToken,
+} from './visit-invitation.service.js';
+import {
+   formatRegistrationProgress,
+   formatRegistrationResult,
+   getVisitRegistrationProgress,
+   registerVisitorForVisit,
+} from './visit-registration.service.js';
 import type {
    createVisitRequestSchema,
    createWalkInVisitSchema,
@@ -23,6 +35,9 @@ import type {
    visitDecisionSchema,
    approveVisitSchema,
    rescheduleVisitSchema,
+   invitationTokenParamSchema,
+   registerViaInvitationSchema,
+   registerVisitorAtVisitSchema,
 } from './visit.validation.js';
 
 type CreateVisitRequestBody = z.infer<typeof createVisitRequestSchema>['body'];
@@ -37,6 +52,22 @@ type VisitDecisionBody = z.infer<typeof visitDecisionSchema>['body'];
 type ApproveVisitBody = z.infer<typeof approveVisitSchema>['body'];
 type RescheduleVisitParams = z.infer<typeof rescheduleVisitSchema>['params'];
 type RescheduleVisitBody = z.infer<typeof rescheduleVisitSchema>['body'];
+type InvitationTokenParams = z.infer<
+   typeof invitationTokenParamSchema
+>['params'];
+type RegisterViaInvitationBody = z.infer<
+   typeof registerViaInvitationSchema
+>['body'];
+type RegisterVisitorAtVisitBody = z.infer<
+   typeof registerVisitorAtVisitSchema
+>['body'];
+
+const HOST_VIEW_ROLES: RoleName[] = [
+   'MANAGER',
+   'ADMIN',
+   'RECEPTION',
+   'GUARD',
+];
 
 const INVITE_STAFF_ROLES: RoleName[] = ['RECEPTION', 'ADMIN', 'MANAGER'];
 
@@ -70,7 +101,7 @@ const assertCanCreateInvitation = async (
 export const submitVisitorRequest = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateVisitRequestBody;
 
-   const visit = await createVisit(input, { source: 'PUBLIC' });
+   const { visit } = await createVisit(input, { source: 'PUBLIC' });
 
    return res.status(201).json({
       success: true,
@@ -82,7 +113,7 @@ export const submitVisitorRequest = async (req: Request, res: Response) => {
 export const submitWalkInVisit = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateWalkInVisitBody;
 
-   const visit = await createVisit(input, {
+   const { visit } = await createVisit(input, {
       source: 'RECEPTION',
       createdById: req.session.userId,
    });
@@ -104,7 +135,7 @@ export const submitHostInvitation = async (req: Request, res: Response) => {
       input.hostEmployeeId,
    );
 
-   const visit = await createVisit(input, {
+   const { visit, registrationInvitation } = await createVisit(input, {
       source: 'HOST_INVITATION',
       createdById: req.session.userId,
    });
@@ -112,7 +143,12 @@ export const submitHostInvitation = async (req: Request, res: Response) => {
    return res.status(201).json({
       success: true,
       message: 'Host invitation created successfully',
-      data: formatVisitDetail(visit),
+      data: {
+         ...formatVisitDetail(visit),
+         ...(registrationInvitation && {
+            registration: formatInvitationCreated(registrationInvitation),
+         }),
+      },
    });
 };
 
@@ -228,5 +264,80 @@ export const cancelVisitHandler = async (req: Request, res: Response) => {
       success: true,
       message: 'Visit cancelled successfully',
       data: formatVisitDetail(visit),
+   });
+};
+
+/** Public — preview an invitation before self-registration. */
+export const getInvitationPreview = async (req: Request, res: Response) => {
+   const { token } = req.validatedParams as InvitationTokenParams;
+
+   const { preview } = await getInvitationByToken(token);
+
+   return res.status(200).json({
+      success: true,
+      data: formatInvitationPreview(preview),
+   });
+};
+
+/** Public — visitor self-registers via host-shared invitation link. */
+export const registerViaInvitation = async (req: Request, res: Response) => {
+   const { token } = req.validatedParams as InvitationTokenParams;
+   const body = req.validatedBody as RegisterViaInvitationBody;
+
+   const { visitId } = await getInvitationByToken(token);
+
+   const result = await registerVisitorForVisit(visitId, body);
+
+   return res.status(201).json({
+      success: true,
+      message: 'Registration successful',
+      data: formatRegistrationResult(result),
+   });
+};
+
+/** Reception/guard registers a walk-in visitor against an approved invitation. */
+export const registerVisitorAtVisit = async (req: Request, res: Response) => {
+   const { id } = req.validatedParams as VisitIdParams;
+   const body = req.validatedBody as RegisterVisitorAtVisitBody;
+
+   const visit = await getVisitById(id);
+
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      req.session.userId!,
+      sessionRoles(req),
+      HOST_VIEW_ROLES,
+   );
+
+   const result = await registerVisitorForVisit(id, body);
+
+   return res.status(201).json({
+      success: true,
+      message: 'Visitor registered successfully',
+      data: formatRegistrationResult(result),
+   });
+};
+
+/** Host/staff views registration progress for an invitation visit. */
+export const getVisitRegistrationProgressHandler = async (
+   req: Request,
+   res: Response,
+) => {
+   const { id } = req.validatedParams as VisitIdParams;
+
+   const visit = await getVisitById(id);
+
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      req.session.userId!,
+      sessionRoles(req),
+      HOST_VIEW_ROLES,
+   );
+
+   const progress = await getVisitRegistrationProgress(id);
+
+   return res.status(200).json({
+      success: true,
+      data: formatRegistrationProgress(progress),
    });
 };

@@ -130,6 +130,15 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
                message: 'Enter at least 1 visitor',
             });
          }
+
+         const org = data.visitorOrganization?.trim();
+         if (!org) {
+            ctx.addIssue({
+               code: 'custom',
+               path: ['visitorOrganization'],
+               message: 'Organization is required for unknown visitors',
+            });
+         }
       }
 
       if (data.scheduleType === 'single_day') {

@@ -11,6 +11,7 @@ const notificationTypeSchema = z.enum([
    'VISITOR_CHECKED_OUT',
    'OVERDUE_VISIT',
    'INVITATION_SENT',
+   'VISITOR_REGISTERED',
 ]);
 
 const notificationChannelSchema = z.enum(['EMAIL', 'DASHBOARD']);

@@ -84,6 +84,13 @@ export const visitDetailSelect = {
       },
       orderBy: { createdAt: 'desc' },
    },
+   invitation: {
+      select: {
+         expiresAt: true,
+         revokedAt: true,
+         createdAt: true,
+      },
+   },
 } satisfies Prisma.VisitSelect;
 
 export type VisitDetail = Prisma.VisitGetPayload<{
@@ -105,6 +112,8 @@ export const visitSummarySelect = {
    endDate: true,
    startTime: true,
    endTime: true,
+   expectedVisitorCount: true,
+   organization: true,
    createdAt: true,
    hostEmployee: {
       select: {
@@ -137,8 +146,8 @@ export interface VisitorInputForVisit {
    phone: string;
    email?: string;
    organization?: string;
-   idType: IdType;
-   idNumber: string;
+   idType?: IdType;
+   idNumber?: string;
 }
 
 export interface ScheduleDateInput {
@@ -156,6 +165,10 @@ export interface CreateVisitInput {
    scheduleDates: ScheduleDateInput[];
    floor?: string;
    room?: string;
+   /** Required when visitors array is empty (unknown-visitor invitation). */
+   expectedVisitorCount?: number;
+   /** Required when visitors array is empty (unknown-visitor invitation). */
+   organization?: string;
 }
 
 /** Context that differs between public, walk-in, and host-invitation paths. */
@@ -175,4 +188,11 @@ export interface RescheduleVisitInput {
    floor?: string;
    room?: string;
    note?: string;
+}
+
+import type { InvitationCreated } from './visit-registration.types.js';
+
+export interface CreateVisitResult {
+   visit: VisitDetail;
+   registrationInvitation?: InvitationCreated;
 }

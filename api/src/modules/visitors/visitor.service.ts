@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import type { IdType, Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
@@ -75,7 +75,7 @@ export const getVisitorById = async (
  * duplicate person — the same visitor may return across many visits.
  */
 export const findOrCreateVisitor = async (
-   input: VisitorInput,
+   input: VisitorInput & { idType: IdType; idNumber: string },
    db: VisitorDbClient = prisma,
 ): Promise<VisitorWithSelect> => {
    const existing = await db.visitor.findUnique({
@@ -104,6 +104,42 @@ export const findOrCreateVisitor = async (
 
    return db.visitor.create({
       data: input,
+      select: visitorSelect,
+   });
+};
+
+/**
+ * Resolves or creates a visitor for registration flows.
+ * When idType + idNumber are provided, deduplicates via findOrCreateVisitor.
+ * Otherwise creates a new record (no name/email/phone deduplication).
+ */
+export const resolveVisitorForRegistration = async (
+   input: VisitorInput,
+   db: VisitorDbClient = prisma,
+): Promise<VisitorWithSelect> => {
+   if (input.idType && input.idNumber) {
+      return findOrCreateVisitor(
+         {
+            firstName: input.firstName,
+            lastName: input.lastName,
+            phone: input.phone,
+            email: input.email,
+            organization: input.organization,
+            idType: input.idType,
+            idNumber: input.idNumber,
+         },
+         db,
+      );
+   }
+
+   return db.visitor.create({
+      data: {
+         firstName: input.firstName,
+         lastName: input.lastName,
+         phone: input.phone,
+         email: input.email,
+         organization: input.organization,
+      },
       select: visitorSelect,
    });
 };

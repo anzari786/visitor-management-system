@@ -9,6 +9,10 @@ import {
    decideRejectVisit,
    rescheduleVisitHandler,
    cancelVisitHandler,
+   getInvitationPreview,
+   registerViaInvitation,
+   registerVisitorAtVisit,
+   getVisitRegistrationProgressHandler,
 } from './visit.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/permission.middleware.js';
@@ -22,6 +26,9 @@ import {
    visitDecisionSchema,
    approveVisitSchema,
    rescheduleVisitSchema,
+   invitationTokenParamSchema,
+   registerViaInvitationSchema,
+   registerVisitorAtVisitSchema,
 } from './visit.validation.js';
 
 const router = Router();
@@ -48,8 +55,36 @@ router.post(
    submitHostInvitation,
 );
 
+// Public invitation registration — must be registered before /:id routes.
+router.get(
+   '/invitations/:token',
+   validate(invitationTokenParamSchema),
+   getInvitationPreview,
+);
+
+router.post(
+   '/invitations/:token/register',
+   validate(registerViaInvitationSchema),
+   registerViaInvitation,
+);
+
 router.get('/', requireAuth, validate(listVisitsSchema), getVisits);
 router.get('/:id', requireAuth, validate(visitIdParamSchema), getVisit);
+
+router.get(
+   '/:id/registration-progress',
+   requireAuth,
+   validate(visitIdParamSchema),
+   getVisitRegistrationProgressHandler,
+);
+
+router.post(
+   '/:id/register-visitor',
+   requireAuth,
+   requireRole('GUARD', 'RECEPTION', 'ADMIN'),
+   validate(registerVisitorAtVisitSchema),
+   registerVisitorAtVisit,
+);
 
 // Host (linked employee) or decision staff — enforced in the service layer.
 router.post(

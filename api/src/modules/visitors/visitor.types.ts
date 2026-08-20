@@ -50,6 +50,6 @@ export interface VisitorInput {
    phone: string;
    email?: string;
    organization?: string;
-   idType: IdType;
-   idNumber: string;
+   idType?: IdType;
+   idNumber?: string;
 }

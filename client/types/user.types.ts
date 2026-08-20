@@ -17,6 +17,14 @@ export type User = {
    createdAt: string;
    checkIns: number;
    checkOuts: number;
+   employee?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      departmentName: string;
+      position?: string;
+   };
 };
 
 export type UsersParams = {

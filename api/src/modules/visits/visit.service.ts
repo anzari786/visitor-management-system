@@ -24,12 +24,14 @@ import {
    notifyVisitRescheduled,
    notifyVisitSubmitted,
 } from '../../services/visit-notifications.service.js';
-import { findOrCreateVisitor } from '../visitors/visitor.service.js';
+import { findOrCreateVisitor, resolveVisitorForRegistration } from '../visitors/visitor.service.js';
+import { createVisitInvitation } from './visit-invitation.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
 import type {
    ApproveVisitInput,
    CreateVisitInput,
    CreateVisitMeta,
+   CreateVisitResult,
    RescheduleVisitInput,
    ScheduleDateInput,
    VisitDetail,
@@ -187,13 +189,50 @@ const seedExpectedAttendances = async (visitId: number) => {
    });
 };
 
+const resolveVisitorRecords = async (visitors: CreateVisitInput['visitors']) => {
+   return Promise.all(
+      visitors.map((visitor) => {
+         if (visitor.idType && visitor.idNumber) {
+            return findOrCreateVisitor({
+               firstName: visitor.firstName,
+               lastName: visitor.lastName,
+               phone: visitor.phone,
+               email: visitor.email,
+               organization: visitor.organization,
+               idType: visitor.idType,
+               idNumber: visitor.idNumber,
+            });
+         }
+
+         return resolveVisitorForRegistration({
+            firstName: visitor.firstName,
+            lastName: visitor.lastName,
+            phone: visitor.phone,
+            email: visitor.email,
+            organization: visitor.organization,
+         });
+      }),
+   );
+};
+
+const resolveExpectedVisitorCount = (
+   input: CreateVisitInput,
+   visitorCount: number,
+): number => {
+   if (input.visitors.length > 0) {
+      return Math.max(visitorCount, input.expectedVisitorCount ?? visitorCount);
+   }
+
+   return input.expectedVisitorCount ?? 1;
+};
+
 /**
  * Shared core for public request, walk-in, and host-invitation paths.
  */
 export const createVisit = async (
    input: CreateVisitInput,
    meta: CreateVisitMeta,
-): Promise<VisitDetail> => {
+): Promise<CreateVisitResult> => {
    const hostEmployee = await prisma.employee.findUnique({
       where: { id: input.hostEmployeeId },
    });
@@ -202,9 +241,17 @@ export const createVisit = async (
       throw new NotFoundError('Host employee not found');
    }
 
-   const visitorRecords = await Promise.all(
-      input.visitors.map((visitor) => findOrCreateVisitor(visitor)),
-   );
+   const isHostInvitation = meta.source === 'HOST_INVITATION';
+   const isUnknownVisitorInvitation =
+      isHostInvitation && input.visitors.length === 0;
+
+   if (!isHostInvitation && input.visitors.length === 0) {
+      throw new BadRequestError('At least one visitor is required');
+   }
+
+   const visitorRecords = isUnknownVisitorInvitation
+      ? []
+      : await resolveVisitorRecords(input.visitors);
 
    const days = uniqueDates(input.scheduleDates);
    if (!days.length) {
@@ -212,10 +259,13 @@ export const createVisit = async (
    }
 
    const firstSchedule = input.scheduleDates[0];
-   const isHostInvitation = meta.source === 'HOST_INVITATION';
    const initialStatus: VisitStatus = isHostInvitation
       ? 'APPROVED'
       : 'PENDING_APPROVAL';
+   const expectedVisitorCount = resolveExpectedVisitorCount(
+      input,
+      visitorRecords.length,
+   );
 
    const visit = await createVisitWithUniqueCode({
       source: meta.source,
@@ -234,15 +284,22 @@ export const createVisit = async (
       endDate: days[days.length - 1],
       startTime: formatHhMm(firstSchedule?.expectedStartTime),
       endTime: formatHhMm(firstSchedule?.expectedEndTime) || '17:00',
-      expectedVisitorCount: visitorRecords.length,
+      expectedVisitorCount,
+      organization: isUnknownVisitorInvitation
+         ? input.organization
+         : input.organization,
       createdById: meta.createdById,
       ...(isHostInvitation && {
          decidedById: meta.createdById,
          decisionAt: new Date(),
       }),
-      participants: {
-         create: visitorRecords.map((visitor) => ({ visitorId: visitor.id })),
-      },
+      ...(visitorRecords.length > 0 && {
+         participants: {
+            create: visitorRecords.map((visitor) => ({
+               visitorId: visitor.id,
+            })),
+         },
+      }),
       days: {
          create: days.map((date) => ({ date })),
       },
@@ -257,14 +314,30 @@ export const createVisit = async (
       },
    });
 
-   if (isHostInvitation) {
+   if (visitorRecords.length > 0) {
       await seedExpectedAttendances(visit.id);
-      await notifyHostInvitation(visit);
+   }
+
+   let registrationInvitation;
+
+   if (isHostInvitation) {
+      if (isUnknownVisitorInvitation) {
+         registrationInvitation = await createVisitInvitation(visit.id);
+      }
    } else {
       await notifyVisitSubmitted(visit);
    }
 
-   return visit;
+   const fullVisit = await getVisitById(visit.id);
+
+   if (isHostInvitation) {
+      await notifyHostInvitation(fullVisit);
+   }
+
+   return {
+      visit: fullVisit,
+      registrationInvitation,
+   };
 };
 
 interface ListVisitsFilters extends PaginationParams {
@@ -538,7 +611,10 @@ export const cancelVisit = async (
    return updated;
 };
 
-export const formatVisitDetail = (visit: VisitDetail) => ({
+export const formatVisitDetail = (visit: VisitDetail) => {
+   const registeredCount = visit.participants.length;
+
+   return {
    id: String(visit.id),
    visitCode: visit.visitCode,
    qrToken: visit.qrToken,
@@ -553,6 +629,16 @@ export const formatVisitDetail = (visit: VisitDetail) => ({
    endDate: visit.endDate,
    startTime: visit.startTime,
    endTime: visit.endTime,
+   expectedVisitorCount: visit.expectedVisitorCount,
+   organization: visit.organization ?? undefined,
+   registeredCount,
+   remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
+   registration: visit.invitation
+      ? {
+           expiresAt: visit.invitation.expiresAt ?? undefined,
+           isRevoked: !!visit.invitation.revokedAt,
+        }
+      : undefined,
    host: visit.hostEmployee
       ? {
            id: String(visit.hostEmployee.id),
@@ -599,7 +685,8 @@ export const formatVisitDetail = (visit: VisitDetail) => ({
    })),
    createdAt: visit.createdAt,
    updatedAt: visit.updatedAt,
-});
+   };
+};
 
 export const formatVisitSummary = (visit: VisitSummary) => ({
    id: String(visit.id),
@@ -615,6 +702,9 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
    endDate: visit.endDate,
    startTime: visit.startTime,
    endTime: visit.endTime,
+   expectedVisitorCount: visit.expectedVisitorCount,
+   organization: visit.organization ?? undefined,
+   registeredCount: visit.participants.length,
    host: visit.hostEmployee
       ? {
            id: String(visit.hostEmployee.id),

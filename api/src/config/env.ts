@@ -36,4 +36,9 @@ export const env = {
    PASSWORD_SETUP_TOKEN_TTL_HOURS: Number(
       process.env.PASSWORD_SETUP_TOKEN_TTL_HOURS ?? 72,
    ),
+
+   // Host invitation visitor self-registration links
+   INVITATION_TOKEN_TTL_HOURS: Number(
+      process.env.INVITATION_TOKEN_TTL_HOURS ?? 720,
+   ),
 } as const;

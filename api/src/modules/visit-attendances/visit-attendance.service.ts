@@ -54,6 +54,8 @@ const visitLookupSelect = {
    endDate: true,
    startTime: true,
    endTime: true,
+   expectedVisitorCount: true,
+   organization: true,
    hostNameSnapshot: true,
    departmentNameSnapshot: true,
    hostEmployee: {
@@ -272,6 +274,9 @@ export const findVisitForCheckIn = async (
          ? { id: String(visitDay.id), date: visitDay.date }
          : null,
       eligibleForCheckIn,
+      expectedVisitorCount: visit.expectedVisitorCount,
+      registeredCount: visit.participants.length,
+      organization: visit.organization ?? undefined,
       reason: !CHECK_IN_ELIGIBLE_VISIT_STATUSES.includes(visit.status)
          ? `Visit is not eligible for check-in (status: ${visit.status})`
          : !visitDay
@@ -518,12 +523,14 @@ const refreshVisitAttendanceStatus = async (
    visitId: number,
    actorId: number,
 ) => {
-   const [visit, attendances] = await Promise.all([
+   const [visit, attendances, registeredCount, dayCount] = await Promise.all([
       prisma.visit.findUnique({ where: { id: visitId } }),
       prisma.visitAttendance.findMany({
          where: { participant: { visitId } },
          select: { status: true },
       }),
+      prisma.visitParticipant.count({ where: { visitId } }),
+      prisma.visitDay.count({ where: { visitId } }),
    ]);
 
    if (!visit || attendances.length === 0) {
@@ -535,15 +542,27 @@ const refreshVisitAttendanceStatus = async (
       (a) => a.status === 'CHECKED_OUT',
    ).length;
    const total = attendances.length;
+   const expectedSlots = visit.expectedVisitorCount * Math.max(dayCount, 1);
+   const allExpectedRegistered = registeredCount >= visit.expectedVisitorCount;
 
    let nextStatus = visit.status;
 
    if (checkedIn > 0 && checkedOut === 0) {
-      nextStatus =
-         checkedIn === total ? 'CHECKED_IN' : 'PARTIALLY_CHECKED_IN';
+      const allRegisteredCheckedIn =
+         checkedIn === total && allExpectedRegistered;
+      nextStatus = allRegisteredCheckedIn
+         ? checkedIn >= expectedSlots
+            ? 'CHECKED_IN'
+            : 'PARTIALLY_CHECKED_IN'
+         : 'PARTIALLY_CHECKED_IN';
    } else if (checkedOut > 0 && checkedIn === 0) {
-      nextStatus =
-         checkedOut === total ? 'CHECKED_OUT' : 'PARTIALLY_CHECKED_OUT';
+      const allRegisteredCheckedOut =
+         checkedOut === total && allExpectedRegistered;
+      nextStatus = allRegisteredCheckedOut
+         ? checkedOut >= expectedSlots
+            ? 'CHECKED_OUT'
+            : 'PARTIALLY_CHECKED_OUT'
+         : 'PARTIALLY_CHECKED_OUT';
    } else if (checkedIn > 0 && checkedOut > 0) {
       nextStatus = 'PARTIALLY_CHECKED_OUT';
    }

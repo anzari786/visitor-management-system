@@ -436,6 +436,50 @@ export const notifyVisitorArrived = async (
    });
 };
 
+/** Visitor completed self-registration or desk registration for an invitation. */
+export const notifyVisitorRegistered = async (
+   visit: VisitNotifyShape,
+   visitor: VisitPerson,
+) => {
+   await safeNotify('visitor-registered', async () => {
+      const host = resolveHost(visit);
+      const visitorName = fullName(visitor);
+      const message = `${visitorName} registered for visit ${visit.visitCode}.`;
+
+      if (host.userId) {
+         await dispatchNotification({
+            type: 'VISITOR_REGISTERED',
+            channel: 'DASHBOARD',
+            visitId: visit.id,
+            recipientUserId: host.userId,
+            title: 'Visitor registered',
+            message,
+         });
+      }
+
+      if (host.email) {
+         await dispatchNotification({
+            type: 'VISITOR_REGISTERED',
+            channel: 'EMAIL',
+            visitId: visit.id,
+            recipientEmail: host.email,
+            recipientUserId: host.userId,
+            title: 'Visitor registered',
+            subject: `Visitor registered — ${visit.visitCode}`,
+            message,
+         });
+      }
+
+      const staffIds = await listStaffUserIds();
+      await dispatchDashboardNotifications(staffIds, {
+         type: 'VISITOR_REGISTERED',
+         visitId: visit.id,
+         title: 'Visitor registered',
+         message,
+      });
+   });
+};
+
 export const notifyVisitorCheckedOut = async (
    visit: VisitNotifyShape,
    checkedOutVisitors: VisitPerson[],

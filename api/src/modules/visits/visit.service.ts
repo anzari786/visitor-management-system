@@ -15,7 +15,6 @@ import {
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
 import type { PaginationParams } from '../../utils/pagination.js';
 import { generateVisitCode } from '../../utils/visit-code.js';
-import { generateQrToken } from '../../services/qr.service.js';
 import {
    notifyHostInvitation,
    notifyVisitApproved,
@@ -24,7 +23,10 @@ import {
    notifyVisitRescheduled,
    notifyVisitSubmitted,
 } from '../../services/visit-notifications.service.js';
-import { findOrCreateVisitor, resolveVisitorForRegistration } from '../visitors/visitor.service.js';
+import {
+   findOrCreateVisitor,
+   resolveVisitorForRegistration,
+} from '../visitors/visitor.service.js';
 import { createVisitInvitation } from './visit-invitation.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
 import type {
@@ -45,8 +47,6 @@ const HOST_MODIFY_ROLES: RoleName[] = [
    'RECEPTION',
    'GUARD',
 ];
-
-const MAX_CODE_GENERATION_ATTEMPTS = 5;
 
 const PURPOSE_VALUES = new Set<VisitPurpose>([
    'MEETING',
@@ -90,35 +90,21 @@ const uniqueDates = (scheduleDates: ScheduleDateInput[]): Date[] => {
 };
 
 const createVisitWithUniqueCode = async (
-   data: Omit<Prisma.VisitUncheckedCreateInput, 'visitCode' | 'qrToken'> & {
+   data: Omit<Prisma.VisitUncheckedCreateInput, 'visitCode'> & {
       days?: { create: Array<{ date: Date }> };
       participants?: { create: Array<{ visitorId: number }> };
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   for (let attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt += 1) {
-      try {
-         return await prisma.visit.create({
-            data: {
-               ...data,
-               visitCode: generateVisitCode(),
-               qrToken: generateQrToken(),
-            },
-            select: visitDetailSelect,
-         });
-      } catch (error) {
-         const isCodeCollision =
-            error instanceof Prisma.PrismaClientKnownRequestError &&
-            error.code === 'P2002';
-         const isLastAttempt = attempt === MAX_CODE_GENERATION_ATTEMPTS - 1;
+   const visitCode = await generateVisitCode();
 
-         if (!isCodeCollision || isLastAttempt) {
-            throw error;
-         }
-      }
-   }
-
-   throw new Error('Failed to generate a unique visit code');
+   return prisma.visit.create({
+      data: {
+         ...data,
+         visitCode,
+      },
+      select: visitDetailSelect,
+   });
 };
 
 const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
@@ -156,9 +142,7 @@ export const assertVisitActorAccess = async (
       return;
    }
 
-   throw new ForbiddenError(
-      'You do not have permission to manage this visit',
-   );
+   throw new ForbiddenError('You do not have permission to manage this visit');
 };
 
 const seedExpectedAttendances = async (visitId: number) => {
@@ -189,7 +173,9 @@ const seedExpectedAttendances = async (visitId: number) => {
    });
 };
 
-const resolveVisitorRecords = async (visitors: CreateVisitInput['visitors']) => {
+const resolveVisitorRecords = async (
+   visitors: CreateVisitInput['visitors'],
+) => {
    return Promise.all(
       visitors.map((visitor) => {
          if (visitor.idType && visitor.idNumber) {
@@ -615,76 +601,75 @@ export const formatVisitDetail = (visit: VisitDetail) => {
    const registeredCount = visit.participants.length;
 
    return {
-   id: String(visit.id),
-   visitCode: visit.visitCode,
-   qrToken: visit.qrToken,
-   source: visit.source,
-   groupType: visit.groupType,
-   durationType: visit.durationType,
-   status: visit.status,
-   purpose: visit.purpose,
-   floor: visit.floor ?? undefined,
-   room: visit.room ?? undefined,
-   startDate: visit.startDate,
-   endDate: visit.endDate,
-   startTime: visit.startTime,
-   endTime: visit.endTime,
-   expectedVisitorCount: visit.expectedVisitorCount,
-   organization: visit.organization ?? undefined,
-   registeredCount,
-   remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
-   registration: visit.invitation
-      ? {
-           expiresAt: visit.invitation.expiresAt ?? undefined,
-           isRevoked: !!visit.invitation.revokedAt,
-        }
-      : undefined,
-   host: visit.hostEmployee
-      ? {
-           id: String(visit.hostEmployee.id),
-           firstName: visit.hostEmployee.firstName,
-           lastName: visit.hostEmployee.lastName,
-           email: visit.hostEmployee.email,
-           departmentName: visit.hostEmployee.departmentName,
-        }
-      : undefined,
-   hostEmailSnapshot: visit.hostEmailSnapshot ?? undefined,
-   departmentNameSnapshot: visit.departmentNameSnapshot ?? undefined,
-   departmentCodeSnapshot: visit.departmentCodeSnapshot ?? undefined,
-   decisionAt: visit.decisionAt ?? undefined,
-   decisionNote: visit.decisionNote ?? undefined,
-   participants: visit.participants.map((participant) => ({
-      participantId: String(participant.id),
-      visitor: {
-         id: String(participant.visitor.id),
-         firstName: participant.visitor.firstName,
-         lastName: participant.visitor.lastName,
-         phone: participant.visitor.phone ?? undefined,
-         email: participant.visitor.email ?? undefined,
-         organization: participant.visitor.organization ?? undefined,
-         idType: participant.visitor.idType ?? undefined,
-         idNumber: participant.visitor.idNumber ?? undefined,
-      },
-   })),
-   days: visit.days.map((day) => ({
-      id: String(day.id),
-      date: day.date,
-   })),
-   statusHistory: visit.statusHistory.map((entry) => ({
-      id: String(entry.id),
-      fromStatus: entry.fromStatus ?? undefined,
-      toStatus: entry.toStatus,
-      note: entry.note ?? undefined,
-      createdAt: entry.createdAt,
-      changedBy: entry.changedBy
+      id: String(visit.id),
+      visitCode: visit.visitCode,
+      source: visit.source,
+      groupType: visit.groupType,
+      durationType: visit.durationType,
+      status: visit.status,
+      purpose: visit.purpose,
+      floor: visit.floor ?? undefined,
+      room: visit.room ?? undefined,
+      startDate: visit.startDate,
+      endDate: visit.endDate,
+      startTime: visit.startTime,
+      endTime: visit.endTime,
+      expectedVisitorCount: visit.expectedVisitorCount,
+      organization: visit.organization ?? undefined,
+      registeredCount,
+      remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
+      registration: visit.invitation
          ? {
-              firstName: entry.changedBy.firstName,
-              lastName: entry.changedBy.lastName,
+              expiresAt: visit.invitation.expiresAt ?? undefined,
+              isRevoked: !!visit.invitation.revokedAt,
            }
          : undefined,
-   })),
-   createdAt: visit.createdAt,
-   updatedAt: visit.updatedAt,
+      host: visit.hostEmployee
+         ? {
+              id: String(visit.hostEmployee.id),
+              firstName: visit.hostEmployee.firstName,
+              lastName: visit.hostEmployee.lastName,
+              email: visit.hostEmployee.email,
+              departmentName: visit.hostEmployee.departmentName,
+           }
+         : undefined,
+      hostEmailSnapshot: visit.hostEmailSnapshot ?? undefined,
+      departmentNameSnapshot: visit.departmentNameSnapshot ?? undefined,
+      departmentCodeSnapshot: visit.departmentCodeSnapshot ?? undefined,
+      decisionAt: visit.decisionAt ?? undefined,
+      decisionNote: visit.decisionNote ?? undefined,
+      participants: visit.participants.map((participant) => ({
+         participantId: String(participant.id),
+         visitor: {
+            id: String(participant.visitor.id),
+            firstName: participant.visitor.firstName,
+            lastName: participant.visitor.lastName,
+            phone: participant.visitor.phone ?? undefined,
+            email: participant.visitor.email ?? undefined,
+            organization: participant.visitor.organization ?? undefined,
+            idType: participant.visitor.idType ?? undefined,
+            idNumber: participant.visitor.idNumber ?? undefined,
+         },
+      })),
+      days: visit.days.map((day) => ({
+         id: String(day.id),
+         date: day.date,
+      })),
+      statusHistory: visit.statusHistory.map((entry) => ({
+         id: String(entry.id),
+         fromStatus: entry.fromStatus ?? undefined,
+         toStatus: entry.toStatus,
+         note: entry.note ?? undefined,
+         createdAt: entry.createdAt,
+         changedBy: entry.changedBy
+            ? {
+                 firstName: entry.changedBy.firstName,
+                 lastName: entry.changedBy.lastName,
+              }
+            : undefined,
+      })),
+      createdAt: visit.createdAt,
+      updatedAt: visit.updatedAt,
    };
 };
 

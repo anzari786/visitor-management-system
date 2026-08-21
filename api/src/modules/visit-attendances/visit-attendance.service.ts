@@ -48,7 +48,6 @@ const sameCalendarDay = (a: Date, b: Date) =>
 const visitLookupSelect = {
    id: true,
    visitCode: true,
-   qrToken: true,
    source: true,
    groupType: true,
    durationType: true,
@@ -215,16 +214,14 @@ export const listDailyAttendances = async (
 };
 
 /**
- * Resolves a visit from its QR token (preferred) or human-readable visit code.
+ * Resolves a visit from its  human-readable visit code.
  * Returns check-in eligibility and per-visitor attendance for the target day
  * (defaults to today). Does not perform check-in.
  */
 export const findVisitForCheckIn = async (code: string, date?: Date) => {
    const token = code.trim();
    const visit = await prisma.visit.findFirst({
-      where: {
-         OR: [{ qrToken: token }, { visitCode: token }],
-      },
+      where: { visitCode: token },
       select: visitLookupSelect,
    });
 
@@ -510,10 +507,7 @@ export const checkOutVisitor = async (
       updated.participant.visitor,
    ]);
 
-   await refreshVisitAttendanceStatus(
-      attendance.participant.visitId,
-      actorId,
-   );
+   await refreshVisitAttendanceStatus(attendance.participant.visitId, actorId);
 
    return updated;
 };
@@ -528,7 +522,10 @@ export const retryAttendanceBadgePrint = async (attendanceId: number) => {
       throw new NotFoundError('Attendance record not found');
    }
 
-   if (attendance.status !== 'CHECKED_IN' && attendance.status !== 'CHECKED_OUT') {
+   if (
+      attendance.status !== 'CHECKED_IN' &&
+      attendance.status !== 'CHECKED_OUT'
+   ) {
       throw new BadRequestError(
          'Badge print retry requires a checked-in or checked-out attendance',
       );
@@ -564,7 +561,9 @@ const refreshVisitAttendanceStatus = async (
       return;
    }
 
-   const checkedIn = attendances.filter((a) => a.status === 'CHECKED_IN').length;
+   const checkedIn = attendances.filter(
+      (a) => a.status === 'CHECKED_IN',
+   ).length;
    const checkedOut = attendances.filter(
       (a) => a.status === 'CHECKED_OUT',
    ).length;
@@ -654,8 +653,7 @@ export const formatAttendanceDetail = (attendance: AttendanceDetail) => {
          lastName: attendance.participant.visitor.lastName,
          phone: attendance.participant.visitor.phone ?? undefined,
          email: attendance.participant.visitor.email ?? undefined,
-         organization:
-            attendance.participant.visitor.organization ?? undefined,
+         organization: attendance.participant.visitor.organization ?? undefined,
       },
       visit: {
          id: String(attendance.participant.visit.id),
@@ -663,8 +661,7 @@ export const formatAttendanceDetail = (attendance: AttendanceDetail) => {
          status: attendance.participant.visit.status,
          floor: attendance.participant.visit.floor ?? undefined,
          room: attendance.participant.visit.room ?? undefined,
-         hostName:
-            attendance.participant.visit.hostNameSnapshot ?? undefined,
+         hostName: attendance.participant.visit.hostNameSnapshot ?? undefined,
       },
       visitDay: {
          id: String(attendance.visitDay.id),

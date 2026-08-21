@@ -36,7 +36,7 @@ router.get(
    getDailyAttendances,
 );
 
-// QR / code lookups (scan → verify → then call check-in / check-out)
+// code lookups (find → verify → then call check-in / check-out)
 router.get(
    '/lookup/visit',
    requireAuth,

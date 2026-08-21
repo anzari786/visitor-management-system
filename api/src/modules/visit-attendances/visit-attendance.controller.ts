@@ -66,7 +66,7 @@ export const getDailyAttendances = async (req: Request, res: Response) => {
    });
 };
 
-/** QR / code lookup for check-in — does not mutate attendance. */
+/** code lookup for check-in — does not mutate attendance. */
 export const lookupVisitForCheckIn = async (req: Request, res: Response) => {
    const { code, date } = req.validatedQuery as LookupVisitQuery;
    const data = await findVisitForCheckIn(code, date);

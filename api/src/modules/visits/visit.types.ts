@@ -11,7 +11,6 @@ import type {
 export const visitDetailSelect = {
    id: true,
    visitCode: true,
-   qrToken: true,
    source: true,
    groupType: true,
    durationType: true,

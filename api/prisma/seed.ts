@@ -2,7 +2,6 @@
 import {
    RoleName,
    AuthProvider,
-   BadgeStatus,
    VisitSource,
    VisitStatus,
    VisitorGroupType,
@@ -11,11 +10,12 @@ import {
    IdType,
    AttendanceStatus,
 } from '../src/generated/prisma/client.js';
+import { generateVisitCode } from '../src/utils/visit-code.js';
+import { generateQrToken } from '../src/services/qr.service.js';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 import { addDays, format, isBefore, isWeekend, subMonths } from 'date-fns';
 import { prisma } from '../src/config/prisma.js';
-import { randomBytes } from 'node:crypto';
 
 const BCRYPT_COST = 12;
 const DEFAULT_PASSWORD = 'Password123!';
@@ -74,14 +74,6 @@ const STAFF_USERS: Array<{
    },
 ];
 
-function token(bytes = 24) {
-   return randomBytes(bytes).toString('hex');
-}
-
-function visitCode() {
-   return `VIS-${faker.string.alphanumeric({ length: 6, casing: 'upper' })}`;
-}
-
 function startOf(date: Date) {
    const d = new Date(date);
    d.setHours(0, 0, 0, 0);
@@ -97,7 +89,6 @@ async function main() {
    await prisma.visitParticipant.deleteMany();
    await prisma.visitDay.deleteMany();
    await prisma.visit.deleteMany();
-   await prisma.badge.deleteMany();
    await prisma.visitor.deleteMany();
    await prisma.userRole.deleteMany();
    await prisma.passwordSetupToken.deleteMany();
@@ -133,10 +124,9 @@ async function main() {
          }),
       ),
    );
-   const roleByName = Object.fromEntries(roles.map((r) => [r.name, r])) as Record<
-      RoleName,
-      (typeof roles)[number]
-   >;
+   const roleByName = Object.fromEntries(
+      roles.map((r) => [r.name, r]),
+   ) as Record<RoleName, (typeof roles)[number]>;
    console.log(`Created ${roles.length} roles`);
 
    const employees = await Promise.all(
@@ -227,38 +217,14 @@ async function main() {
       (_, i) => STAFF_USERS[i].role === RoleName.ADMIN,
    )!;
 
-   console.log(`Created ${staffUsers.length} staff users + ${hostUsers.length} SSO host users`);
-   console.log(`Default local password: ${DEFAULT_PASSWORD}\n`);
-
-   // Badges — mostly available, some assigned / lost / disabled
-   const badges = await Promise.all(
-      Array.from({ length: 60 }).map((_, i) => {
-         let status: BadgeStatus = BadgeStatus.AVAILABLE;
-         if (i === 58) status = BadgeStatus.LOST;
-         if (i === 59) status = BadgeStatus.DISABLED;
-
-         return prisma.badge.create({
-            data: {
-               badgeNumber: `${BADGE_PREFIX}-${String(i + 1).padStart(3, '0')}`,
-               qrToken: token(16),
-               status,
-               notes:
-                  status === BadgeStatus.DISABLED
-                     ? 'Retired from circulation'
-                     : status === BadgeStatus.LOST
-                       ? 'Reported missing'
-                       : undefined,
-            },
-         });
-      }),
+   console.log(
+      `Created ${staffUsers.length} staff users + ${hostUsers.length} SSO host users`,
    );
-   console.log(`Created ${badges.length} badges`);
+   console.log(`Default local password: ${DEFAULT_PASSWORD}\n`);
 
    const today = startOf(new Date());
    const tomorrow = addDays(today, 1);
    const dayAfter = addDays(today, 2);
-   let badgeCursor = 0;
-   const nextAssignableBadge = () => badges[badgeCursor++];
 
    const createVisitor = async (overrides?: {
       firstName?: string;
@@ -295,13 +261,11 @@ async function main() {
    };
 
    const createSeedVisit = async (input: SeedVisitInput) => {
-      const needsDecision =
-         input.status !== VisitStatus.PENDING_APPROVAL;
+      const needsDecision = input.status !== VisitStatus.PENDING_APPROVAL;
 
       return prisma.visit.create({
          data: {
-            visitCode: visitCode(),
-            qrToken: token(),
+            visitCode: await generateVisitCode(),
             source: input.source,
             groupType: input.groupType,
             durationType: input.durationType,
@@ -348,7 +312,8 @@ async function main() {
                                    ? VisitStatus.APPROVED
                                    : input.status ===
                                           VisitStatus.PARTIALLY_CHECKED_IN ||
-                                       input.status === VisitStatus.CHECKED_IN ||
+                                       input.status ===
+                                          VisitStatus.CHECKED_IN ||
                                        input.status ===
                                           VisitStatus.PARTIALLY_CHECKED_OUT ||
                                        input.status === VisitStatus.CHECKED_OUT
@@ -409,18 +374,14 @@ async function main() {
       createdById: receptionUsers[0]?.id,
       decidedById: hostUsers[0]?.id ?? receptionUsers[0]?.id,
    });
-   const assignedBadge = nextAssignableBadge();
-   await prisma.badge.update({
-      where: { id: assignedBadge.id },
-      data: { status: BadgeStatus.ASSIGNED },
-   });
+   const activeSingleBadgeToken = generateQrToken();
    await prisma.visitAttendance.create({
       data: {
          participantId: activeSingle.participants[0].id,
          visitDayId: activeSingle.days[0].id,
          status: AttendanceStatus.CHECKED_IN,
-         badgeId: assignedBadge.id,
-         badgeAssignedAt: new Date(),
+         badgeToken: activeSingleBadgeToken,
+         badgePrintedAt: new Date(),
          personalIdRetained: true,
          checkInAt: new Date(),
          checkedInById: guardUsers[0]?.id,
@@ -429,9 +390,21 @@ async function main() {
 
    // 2) Group single-day — approved, ready for QR check-in (mixed expected)
    const groupVisitors = await Promise.all([
-      createVisitor({ firstName: 'Yonas', lastName: 'Hailu', idNumber: 'ID-SEED-G1' }),
-      createVisitor({ firstName: 'Marta', lastName: 'Gebre', idNumber: 'ID-SEED-G2' }),
-      createVisitor({ firstName: 'Daniel', lastName: 'Kebede', idNumber: 'ID-SEED-G3' }),
+      createVisitor({
+         firstName: 'Yonas',
+         lastName: 'Hailu',
+         idNumber: 'ID-SEED-G1',
+      }),
+      createVisitor({
+         firstName: 'Marta',
+         lastName: 'Gebre',
+         idNumber: 'ID-SEED-G2',
+      }),
+      createVisitor({
+         firstName: 'Daniel',
+         lastName: 'Kebede',
+         idNumber: 'ID-SEED-G3',
+      }),
    ]);
    const approvedGroup = await createSeedVisit({
       source: VisitSource.RECEPTION,
@@ -476,11 +449,6 @@ async function main() {
       createdById: hostUsers[0]?.id,
       decidedById: hostUsers[0]?.id,
    });
-   const multiBadge = nextAssignableBadge();
-   await prisma.badge.update({
-      where: { id: multiBadge.id },
-      data: { status: BadgeStatus.ASSIGNED },
-   });
    for (const day of multiDay.days) {
       for (const [index, participant] of multiDay.participants.entries()) {
          const isToday = startOf(day.date).getTime() === today.getTime();
@@ -490,8 +458,8 @@ async function main() {
                   participantId: participant.id,
                   visitDayId: day.id,
                   status: AttendanceStatus.CHECKED_IN,
-                  badgeId: multiBadge.id,
-                  badgeAssignedAt: new Date(),
+                  badgeToken: generateQrToken(),
+                  badgePrintedAt: new Date(),
                   personalIdRetained: true,
                   checkInAt: new Date(),
                   checkedInById: guardUsers[0]?.id,
@@ -598,9 +566,7 @@ async function main() {
             VisitSource.HOST_INVITATION,
          ]),
          groupType:
-            visitorCount > 1
-               ? VisitorGroupType.GROUP
-               : VisitorGroupType.SINGLE,
+            visitorCount > 1 ? VisitorGroupType.GROUP : VisitorGroupType.SINGLE,
          durationType:
             days.length > 1
                ? VisitDurationType.MULTI_DAY
@@ -632,6 +598,8 @@ async function main() {
                   participantId: participant.id,
                   visitDayId: day.id,
                   status: AttendanceStatus.CHECKED_OUT,
+                  badgeToken: generateQrToken(),
+                  badgePrintedAt: checkIn,
                   checkInAt: checkIn,
                   checkOutAt: checkOut,
                   checkedInById: guardUsers[0]?.id,
@@ -650,12 +618,15 @@ async function main() {
    console.log('\nSeeding complete.');
    console.log(`- Org: ${ORG_NAME}`);
    console.log(`- Roles: GUARD, RECEPTION, ADMIN, MANAGER`);
-   console.log(`- Staff logins: ${STAFF_USERS.map((u) => u.username).join(', ')}`);
+   console.log(
+      `- Staff logins: ${STAFF_USERS.map((u) => u.username).join(', ')}`,
+   );
    console.log(`- SSO host subjects: sso-host-1, sso-host-2`);
-   console.log(`- Checked-in visit QR token: ${activeSingle.qrToken}`);
    console.log(`- Checked-in visit code: ${activeSingle.visitCode}`);
-   console.log(`- Approved group visit code (check-in ready): ${approvedGroup.visitCode}`);
-   console.log(`- Assigned badge QR: ${assignedBadge.qrToken} (${assignedBadge.badgeNumber})`);
+   console.log(
+      `- Approved group visit code (check-in ready): ${approvedGroup.visitCode}`,
+   );
+   console.log(`- Sample badge token: ${activeSingleBadgeToken}`);
    console.log(`- Historical visits: ${createdHistory}`);
    console.log(`- Seed date: ${format(today, 'yyyy-MM-dd')}`);
 }

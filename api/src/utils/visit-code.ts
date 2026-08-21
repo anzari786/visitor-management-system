@@ -1,19 +1,17 @@
-import { randomInt } from 'node:crypto';
+import { prisma } from '../config/prisma.js';
 
-// Excludes visually ambiguous characters (0/O, 1/I/L) for reliable reading
-// off a printed badge or a guard screen.
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_LENGTH = 6;
+const CODE_PREFIX = 'VMS';
+const CODE_PAD_WIDTH = 4;
 
-const generateCodeSuffix = (): string => {
-   let suffix = '';
-
-   for (let i = 0; i < CODE_LENGTH; i += 1) {
-      suffix += CODE_CHARS[randomInt(0, CODE_CHARS.length)];
-   }
-
-   return suffix;
+/**
+ * Generates a sequential, human-readable visit code, e.g. "VMS-0104".
+ *
+ * Uniqueness/concurrency-safety comes from MySQL's own AUTO_INCREMENT on
+ * VisitCodeSequence, not from randomness — inserting a row is an atomic,
+ * race-free way to reserve the next number. Numbers beyond 9999 simply
+ * widen past the 4-digit padding rather than truncate or collide.
+ */
+export const generateVisitCode = async (): Promise<string> => {
+   const sequence = await prisma.visitCodeSequence.create({ data: {} });
+   return `${CODE_PREFIX}-${String(sequence.id).padStart(CODE_PAD_WIDTH, '0')}`;
 };
-
-/** Generates a short, human-readable visit code, e.g. "VIS-7K4QXP". */
-export const generateVisitCode = (): string => `VIS-${generateCodeSuffix()}`;

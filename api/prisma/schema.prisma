@@ -162,9 +162,9 @@ model User {
   phone     String?
 
   /// Local auth credentials. Never store plaintext passwords.
-  username           String?  @unique
+  username           String?   @unique
   passwordHash       String?
-  mustChangePassword Boolean  @default(false)
+  mustChangePassword Boolean   @default(false)
   lastLoginAt        DateTime?
 
   isActive  Boolean  @default(true)
@@ -175,8 +175,8 @@ model User {
   employeeId Int?      @unique
   employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 
-  userRoles            UserRole[]
-  passwordSetupTokens  PasswordSetupToken[]
+  userRoles           UserRole[]
+  passwordSetupTokens PasswordSetupToken[]
 
   visitsCreated Visit[] @relation("VisitCreatedBy")
   visitsDecided Visit[] @relation("VisitDecidedBy")
@@ -184,9 +184,9 @@ model User {
   attendancesCheckedIn  VisitAttendance[] @relation("AttendanceCheckedInBy")
   attendancesCheckedOut VisitAttendance[] @relation("AttendanceCheckedOutBy")
 
-  statusChanges VisitStatusHistory[] @relation("VisitStatusChangedBy")
-  notifications Notification[]       @relation("NotificationRecipient")
-  settingsUpdated SystemSetting[]    @relation("SettingUpdatedBy")
+  statusChanges   VisitStatusHistory[] @relation("VisitStatusChangedBy")
+  notifications   Notification[]       @relation("NotificationRecipient")
+  settingsUpdated SystemSetting[]      @relation("SettingUpdatedBy")
 
   @@index([isActive])
   @@index([authProvider])
@@ -195,13 +195,13 @@ model User {
 
 /// Single-use token for LOCAL users to set their initial password.
 model PasswordSetupToken {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -274,12 +274,11 @@ model Visit {
 
   /// Public identifiers (not auto-increment DB ids).
   visitCode String @unique
-  qrToken   String @unique
 
   source       VisitSource
   groupType    VisitorGroupType
   durationType VisitDurationType
-  status       VisitStatus      @default(PENDING_APPROVAL)
+  status       VisitStatus       @default(PENDING_APPROVAL)
   purpose      VisitPurpose
 
   hostEmployeeId Int
@@ -334,14 +333,14 @@ model Visit {
 
 /// Secure registration link for host invitations with unknown visitors.
 model VisitInvitation {
-  id        Int      @id @default(autoincrement())
-  visitId   Int      @unique
-  visit     Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  id        Int       @id @default(autoincrement())
+  visitId   Int       @unique
+  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime?
   revokedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([expiresAt])
   @@map("visit_invitations")
@@ -433,9 +432,9 @@ model BadgePrintJob {
   status       BadgePrintJobStatus @default(QUEUED)
   attemptCount Int                 @default(0)
 
-  requestedAt DateTime  @default(now())
-  printedAt   DateTime?
-  errorMessage String?  @db.Text
+  requestedAt  DateTime  @default(now())
+  printedAt    DateTime?
+  errorMessage String?   @db.Text
 
   /// Agent instance that currently holds the claim (PRINTING).
   claimedBy String?
@@ -457,7 +456,7 @@ model BadgePrintJob {
 // ── Visit status audit ─────────────────────────────────────────────────────
 
 model VisitStatusHistory {
-  id     Int   @id @default(autoincrement())
+  id      Int   @id @default(autoincrement())
   visitId Int
   visit   Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
@@ -473,6 +472,14 @@ model VisitStatusHistory {
   @@index([visitId])
   @@index([createdAt])
   @@map("visit_status_history")
+}
+
+// ── Visit Code Sequence (human-readable visit codes) ───────────────────────
+
+model VisitCodeSequence {
+  id Int @id @default(autoincrement())
+
+  @@map("visit_code_sequences")
 }
 
 // ── Notifications (dashboard + email delivery history) ─────────────────────

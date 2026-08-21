@@ -13,7 +13,7 @@ import visitorRoutes from '../modules/visitors/visitor.routes.js';
 import visitRoutes from '../modules/visits/visit.routes.js';
 import visitAttendanceRoutes from '../modules/visit-attendances/visit-attendance.routes.js';
 
-import badgeRoutes from '../modules/badges/badge.routes.js';
+import printJobRoutes from '../modules/print-jobs/print-job.routes.js';
 import notificationRoutes from '../modules/notifications/notification.routes.js';
 
 const router = Router();
@@ -38,7 +38,7 @@ router.use('/visits', visitRoutes);
 router.use('/visit-attendance', visitAttendanceRoutes);
 
 // Operations
-router.use('/badges', badgeRoutes);
+router.use('/print-jobs', printJobRoutes);
 router.use('/notifications', notificationRoutes);
 
 export default router;

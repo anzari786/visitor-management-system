@@ -67,11 +67,12 @@ import {
    ManagedVisitStatusBadge,
    VisitorAttendanceBadge,
 } from './managed-visit-status-badge';
-import { withAssignedBadges } from '@/data/mock-badges';
+import { visitAttendanceService } from '@/services/visit-attendance.service';
+import type { CheckInPrintTarget } from './check-in-success-dialog';
+import { AxiosError } from 'axios';
 
 type VisitDetailsSheetProps = {
    visit: ManagedVisit | null;
-   allVisits?: ManagedVisit[];
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onVisitChange: (visit: ManagedVisit) => void;
@@ -157,7 +158,6 @@ function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
 
 export function VisitDetailsSheet({
    visit,
-   allVisits = [],
    open,
    onOpenChange,
    onVisitChange,
@@ -171,6 +171,9 @@ export function VisitDetailsSheet({
    const [checkInDialogOpen, setCheckInDialogOpen] = React.useState(false);
    const [checkInSuccessOpen, setCheckInSuccessOpen] = React.useState(false);
    const [successLabel, setSuccessLabel] = React.useState('');
+   const [checkInPrintTargets, setCheckInPrintTargets] = React.useState<
+      CheckInPrintTarget[]
+   >([]);
    const [pendingCheckOutIds, setPendingCheckOutIds] = React.useState<string[]>(
       [],
    );
@@ -285,27 +288,70 @@ export function VisitDetailsSheet({
       setCheckInDialogOpen(true);
    };
 
-   const confirmCheckIn = (payload: CheckInConfirmPayload) => {
+   const confirmCheckIn = async (payload: CheckInConfirmPayload) => {
+      if (!visit) return;
       const ids =
          payload.visitorIds.length > 0
             ? payload.visitorIds
             : pendingCheckInIds;
       if (ids.length === 0) return;
 
-      const names = visit.visitors
-         .filter((v) => ids.includes(v.id))
-         .map((v) => v.name);
+      const selected = visit.visitors.filter((v) => ids.includes(v.id));
+      const printTargets: CheckInPrintTarget[] = [];
+      let usedApi = false;
+
+      for (const visitor of selected) {
+         if (
+            visitor.visitParticipantId != null &&
+            visitor.visitDayId != null
+         ) {
+            try {
+               const { data } = await visitAttendanceService.checkIn({
+                  visitParticipantId: visitor.visitParticipantId,
+                  visitDayId: visitor.visitDayId,
+               });
+               usedApi = true;
+               printTargets.push({
+                  attendanceId: data.data.id,
+                  visitorName: visitor.name,
+                  initialStatus: data.data.printJob?.status ?? 'QUEUED',
+               });
+            } catch (error) {
+               const message =
+                  error instanceof AxiosError
+                     ? (error.response?.data?.message as string | undefined)
+                     : error instanceof Error
+                       ? error.message
+                       : undefined;
+               toast.error(message ?? `Unable to check in ${visitor.name}`);
+               return;
+            }
+         }
+      }
+
+      const names = selected.map((v) => v.name);
       const withAttendance = applyVisitorAttendance(visit, ids, 'checked_in');
-      const updated = withAssignedBadges(
-         withAttendance,
-         payload.badgeAssignments,
-      );
-      onVisitChange(updated);
+      onVisitChange(withAttendance);
+
+      if (!usedApi) {
+         for (const visitor of withAttendance.visitors.filter((v) =>
+            ids.includes(v.id),
+         )) {
+            printTargets.push({
+               attendanceId: visitor.attendanceId ?? `mock-${visitor.id}`,
+               visitorName: visitor.name,
+               initialStatus: 'QUEUED',
+               simulate: true,
+            });
+         }
+      }
+
       setSelectedIds({});
       setPendingCheckInIds([]);
       setSuccessLabel(
          names.length === 1 ? names[0]! : `${names.length} visitors`,
       );
+      setCheckInPrintTargets(printTargets);
       setCheckInSuccessOpen(true);
    };
 
@@ -688,7 +734,6 @@ export function VisitDetailsSheet({
             onOpenChange={setCheckInDialogOpen}
             visit={visit}
             visitors={pendingCheckInVisitors}
-            allVisits={allVisits.length ? allVisits : [visit]}
             onConfirm={confirmCheckIn}
          />
 
@@ -697,6 +742,19 @@ export function VisitDetailsSheet({
             onOpenChange={setCheckInSuccessOpen}
             visitorLabel={successLabel || visit.visitorName}
             visitId={visit.id}
+            printTargets={checkInPrintTargets}
+            onRetryPrint={async (attendanceId) => {
+               if (attendanceId.startsWith('mock-')) {
+                  return {
+                     id: `mock-retry-${attendanceId}`,
+                     attendanceId,
+                     status: 'QUEUED',
+                  };
+               }
+               const { data } =
+                  await visitAttendanceService.retryPrint(attendanceId);
+               return data.data;
+            }}
          />
 
          <CheckOutConfirmDialog

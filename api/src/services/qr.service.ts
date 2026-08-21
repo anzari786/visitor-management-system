@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 /**
- * Opaque token encoded into visit/badge QR codes.
+ * Opaque token encoded into visit / printed-badge QR codes.
  *
- * Visit QR  → Visit.qrToken  (unique; prefer over visitCode for scanning)
- * Badge QR  → Badge.qrToken  (unique; prefer over badgeNumber for scanning)
+ * Visit QR        → Visit.qrToken            (prefer over visitCode)
+ * Printed badge QR → VisitAttendance.badgeToken (never visitor PII)
  *
- * Human-readable Visit.visitCode / Badge.badgeNumber remain available for
- * manual entry; lookup endpoints accept either form.
+ * Human-readable Visit.visitCode remains available for manual entry.
  */
 export const generateQrToken = (): string => randomUUID();

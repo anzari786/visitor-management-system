@@ -5,7 +5,6 @@ import type {
    ApproveHostVisitPayload,
    CancelHostVisitPayload,
    CreateHostInvitationPayload,
-   HostAvailableBadge,
    HostInvitation,
    HostNotification,
    HostProfile,
@@ -102,12 +101,6 @@ export const hostService = {
       return api.get<ApiResponse<HostRoom[]>>(API_ENDPOINTS.host.rooms, {
          params,
       });
-   },
-
-   getAvailableBadges() {
-      return api.get<ApiResponse<HostAvailableBadge[]>>(
-         API_ENDPOINTS.host.badges,
-      );
    },
 
    getNotifications(params?: { unreadOnly?: boolean }) {

@@ -27,6 +27,7 @@ A modern Visitor Management System built for the Ethiopian Agricultural Transfor
 visitor-management-system/
 ├── api/
 ├── client/
+├── print-agent/
 └── README.md
 ```
 
@@ -53,6 +54,14 @@ Frontend
 ```bash
 cd ../client
 pnpm install
+```
+
+Print Agent (reception desk — Zebra thermal badges)
+
+```bash
+cd ../print-agent
+pnpm install
+cp .env.example .env
 ```
 
 ## Environment Variables
@@ -111,6 +120,16 @@ cd client
 pnpm dev
 ```
 
+Print Agent (on the PC attached to the Zebra printer)
+
+```bash
+cd print-agent
+
+pnpm dev
+```
+
+Health: `http://127.0.0.1:5055/health`
+
 Frontend:
 
 ```
@@ -122,6 +141,12 @@ Backend:
 ```
 http://localhost:5000
 ```
+
+## Thermal badge printing
+
+Check-in creates a `BadgePrintJob` (QUEUED). The local Print Agent claims the job, generates ZPL, prints on the Zebra, and reports PRINTED/FAILED. A printer failure never rolls back check-in; desk staff can retry from the UI.
+
+Set the same `PRINT_AGENT_TOKEN` in `api/.env` and `print-agent/.env`.
 
 ## Git Workflow
 

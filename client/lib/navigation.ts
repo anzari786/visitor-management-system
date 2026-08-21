@@ -3,7 +3,6 @@ import { UserRole } from '@/types/user.types';
 import {
    Briefcase,
    ClipboardList,
-   IdCard,
    Inbox,
    LayoutGrid,
    LucideIcon,
@@ -40,13 +39,6 @@ export const navigation: NavigationItem[] = [
       title: 'Visits',
       icon: ClipboardList,
       href: '/visits',
-      group: 'Workspace',
-      roles: ['admin', 'front_desk'],
-   },
-   {
-      title: 'Badges',
-      icon: IdCard,
-      href: '/badge',
       group: 'Workspace',
       roles: ['admin', 'front_desk'],
    },

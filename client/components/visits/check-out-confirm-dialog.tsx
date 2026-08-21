@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import {
    formatVisitDuration,
+   getCheckOutEligibleVisitors,
    getRelevantVisitDay,
    getVisitCheckInReference,
    getVisitorAttendanceStatusForDay,
@@ -40,16 +41,10 @@ type CheckOutConfirmDialogProps = {
    onScanBadgeRequest?: () => void;
 };
 
-function getDisplayBadge(
-   visit: ManagedVisit,
-   visitors: ManagedVisitor[] = [],
-) {
-   const assigned = visitors.find(
-      (visitor) => visitor.assignedBadgeNumber,
-   )?.assignedBadgeNumber;
-   if (assigned) return assigned;
-   const digits = visit.id.replace(/\D/g, '').slice(-4) || '1000';
-   return `B-${digits}`;
+function getDisplayBadge(visitors: ManagedVisitor[] = []) {
+   const token = visitors.find((visitor) => visitor.badgeToken)?.badgeToken;
+   if (token) return token;
+   return '';
 }
 
 function resolveVisitors(
@@ -102,7 +97,7 @@ export function CheckOutConfirmDialog({
             visitorsProp,
             visitorNames,
          );
-         setBadgeInput(getDisplayBadge(visitProp, initialVisitors));
+         setBadgeInput(getDisplayBadge(initialVisitors));
       } else {
          setResolvedVisit(null);
          setBadgeInput('');
@@ -119,9 +114,6 @@ export function CheckOutConfirmDialog({
         )
       : null;
    const duration = checkInAt ? formatVisitDuration(checkInAt) : '—';
-   const badge = visit
-      ? getDisplayBadge(visit, selectedVisitors)
-      : badgeInput || '—';
    const confirmLabel =
       selectedVisitors.length === 1
          ? (selectedVisitors[0]?.name ?? 'Visitor')
@@ -131,7 +123,9 @@ export function CheckOutConfirmDialog({
       const found = onLookupBadge?.(badgeInput.trim());
       if (found) {
          setResolvedVisit(found);
-         setBadgeInput(getDisplayBadge(found));
+         setBadgeInput(
+            getDisplayBadge(getCheckOutEligibleVisitors(found)),
+         );
          return;
       }
       setResolvedVisit(null);
@@ -146,7 +140,9 @@ export function CheckOutConfirmDialog({
       const found = onLookupBadge?.(badgeInput.trim() || 'SCAN');
       if (found) {
          setResolvedVisit(found);
-         setBadgeInput(getDisplayBadge(found));
+         setBadgeInput(
+            getDisplayBadge(getCheckOutEligibleVisitors(found)),
+         );
       }
    };
 
@@ -172,8 +168,8 @@ export function CheckOutConfirmDialog({
                   Check Out Visitor
                </DialogTitle>
                <DialogDescription className="text-sm leading-relaxed">
-                  Scan or enter the visitor badge to release it and record the
-                  departure.
+                  Scan or enter the printed badge QR token to find the visitor
+                  and record departure.
                </DialogDescription>
             </DialogHeader>
 
@@ -182,7 +178,7 @@ export function CheckOutConfirmDialog({
                   <Input
                      value={badgeInput}
                      onChange={(e) => setBadgeInput(e.target.value)}
-                     placeholder="Badge ID (e.g. B-1024)"
+                     placeholder="Badge token from QR"
                      className="h-10"
                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -227,7 +223,7 @@ export function CheckOutConfirmDialog({
                            {visit.id} · Host {visit.host}
                         </p>
                         <Badge className="shrink-0 border-0 bg-emerald-400/15 text-emerald-700 dark:text-emerald-300">
-                           Badge {badge}
+                           Badge token
                         </Badge>
                      </div>
                      <ul className="divide-y">
@@ -307,7 +303,8 @@ export function CheckOutConfirmDialog({
                      scanMode && 'bg-muted/20',
                   )}
                >
-                  Enter a badge ID or scan a badge QR to find the visitor.
+                  Enter a badge token or scan a printed badge QR to find the
+                  visitor.
                </div>
             )}
 

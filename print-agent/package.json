@@ -1,0 +1,22 @@
+{
+   "name": "vms-print-agent",
+   "version": "1.0.0",
+   "private": true,
+   "description": "Local VMS Print Agent for Zebra thermal visitor badges",
+   "type": "module",
+   "main": "dist/index.js",
+   "scripts": {
+      "dev": "tsx watch --env-file=.env src/index.ts",
+      "build": "tsc",
+      "start": "node dist/index.js"
+   },
+   "packageManager": "pnpm@10.33.2",
+   "dependencies": {
+      "zod": "^4.4.3"
+   },
+   "devDependencies": {
+      "@types/node": "^25.8.0",
+      "tsx": "^4.22.0",
+      "typescript": "^6.0.3"
+   }
+}

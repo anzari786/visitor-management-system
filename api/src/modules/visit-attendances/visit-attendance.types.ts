@@ -4,7 +4,8 @@ import type { Prisma } from '../../generated/prisma/client.js';
 export const attendanceDetailSelect = {
    id: true,
    status: true,
-   badgeAssignedAt: true,
+   badgeToken: true,
+   badgePrintedAt: true,
    personalIdRetained: true,
    personalIdReturnedAt: true,
    checkInAt: true,
@@ -22,6 +23,7 @@ export const attendanceDetailSelect = {
                lastName: true,
                phone: true,
                email: true,
+               organization: true,
             },
          },
          visit: {
@@ -62,7 +64,7 @@ export const attendanceDetailSelect = {
                },
                days: {
                   select: { date: true },
-                  orderBy: { date: 'asc' },
+                  orderBy: { date: 'asc' as const },
                },
             },
          },
@@ -74,12 +76,19 @@ export const attendanceDetailSelect = {
          date: true,
       },
    },
-   badge: {
+   printJobs: {
       select: {
          id: true,
-         badgeNumber: true,
          status: true,
+         attemptCount: true,
+         requestedAt: true,
+         printedAt: true,
+         errorMessage: true,
+         createdAt: true,
+         updatedAt: true,
       },
+      orderBy: { requestedAt: 'desc' as const },
+      take: 1,
    },
    checkedInBy: {
       select: {
@@ -107,6 +116,7 @@ export const attendanceSummarySelect = {
    status: true,
    checkInAt: true,
    checkOutAt: true,
+   badgePrintedAt: true,
    participant: {
       select: {
          visitor: {
@@ -120,8 +130,15 @@ export const attendanceSummarySelect = {
    visitDay: {
       select: { date: true },
    },
-   badge: {
-      select: { badgeNumber: true },
+   printJobs: {
+      select: {
+         id: true,
+         status: true,
+         printedAt: true,
+         errorMessage: true,
+      },
+      orderBy: { requestedAt: 'desc' as const },
+      take: 1,
    },
 } satisfies Prisma.VisitAttendanceSelect;
 
@@ -132,6 +149,5 @@ export type AttendanceSummary = Prisma.VisitAttendanceGetPayload<{
 export interface CheckInInput {
    visitParticipantId: number;
    visitDayId: number;
-   badgeId?: number;
    retainPersonalId: boolean;
 }

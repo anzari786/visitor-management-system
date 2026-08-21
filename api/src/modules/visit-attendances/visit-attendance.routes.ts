@@ -8,6 +8,8 @@ import {
    postCheckIn,
    postCheckOut,
    postNoShow,
+   getPrintStatus,
+   postRetryPrint,
 } from './visit-attendance.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/permission.middleware.js';
@@ -42,6 +44,8 @@ router.get(
    validate(lookupVisitByCodeSchema),
    lookupVisitForCheckIn,
 );
+
+/** Printed badge token lookup (path kept as /lookup/badge for desk scanners). */
 router.get(
    '/lookup/badge',
    requireAuth,
@@ -63,6 +67,22 @@ router.get(
    requireAuth,
    validate(attendanceIdParamSchema),
    getAttendance,
+);
+
+router.get(
+   '/:id/print-status',
+   requireAuth,
+   deskStaff,
+   validate(attendanceIdParamSchema),
+   getPrintStatus,
+);
+
+router.post(
+   '/:id/retry-print',
+   requireAuth,
+   deskStaff,
+   validate(attendanceIdParamSchema),
+   postRetryPrint,
 );
 
 router.post(

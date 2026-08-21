@@ -36,13 +36,6 @@ export async function getSettings() {
    };
 }
 
-export function formatBadge(prefix: string, badgeNumber: string | number) {
-   if (typeof badgeNumber === 'string' && badgeNumber.includes('-')) {
-      return badgeNumber;
-   }
-   return `${prefix}-${String(badgeNumber).padStart(3, '0')}`;
-}
-
 export function toVisitDTO(visit: VisitWithRelations) {
    const primary = visit.participants[0]?.visitor;
 

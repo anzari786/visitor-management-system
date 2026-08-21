@@ -23,7 +23,6 @@ export const API_ENDPOINTS = {
       invitations: '/host/invitations',
       invitation: (id: string) => `/host/invitations/${id}`,
       rooms: '/host/rooms',
-      badges: '/host/badges',
       notifications: '/host/notifications',
       notification: (id: string) => `/host/notifications/${id}`,
       markNotificationRead: (id: string) =>

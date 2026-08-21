@@ -7,7 +7,13 @@ import { prisma } from '../../config/prisma.js';
 import { BadRequestError, NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
 import type { PaginationParams } from '../../utils/pagination.js';
-import { assignBadge, releaseBadge } from '../badges/badge.service.js';
+import { generateQrToken } from '../../services/qr.service.js';
+import {
+   enqueueBadgePrintJob,
+   formatPrintJob,
+   getLatestPrintJobForAttendance,
+   retryPrintForAttendance,
+} from '../print-jobs/print-job.service.js';
 import {
    notifyVisitorArrived,
    notifyVisitorCheckedOut,
@@ -77,14 +83,17 @@ const visitLookupSelect = {
                status: true,
                checkInAt: true,
                checkOutAt: true,
-               badgeId: true,
+               badgeToken: true,
+               badgePrintedAt: true,
                participantId: true,
-               badge: {
+               printJobs: {
                   select: {
                      id: true,
-                     badgeNumber: true,
                      status: true,
+                     errorMessage: true,
                   },
+                  orderBy: { requestedAt: 'desc' as const },
+                  take: 1,
                },
             },
          },
@@ -124,6 +133,19 @@ const assertTransition = (
       );
    }
 };
+
+const latestPrintJob = (attendance: {
+   printJobs: Array<{
+      id: number;
+      status: string;
+      attemptCount?: number;
+      requestedAt?: Date;
+      printedAt?: Date | null;
+      errorMessage?: string | null;
+      createdAt?: Date;
+      updatedAt?: Date;
+   }>;
+}) => attendance.printJobs[0] ?? null;
 
 export const getAttendanceById = async (
    id: number,
@@ -197,10 +219,7 @@ export const listDailyAttendances = async (
  * Returns check-in eligibility and per-visitor attendance for the target day
  * (defaults to today). Does not perform check-in.
  */
-export const findVisitForCheckIn = async (
-   code: string,
-   date?: Date,
-) => {
+export const findVisitForCheckIn = async (code: string, date?: Date) => {
    const token = code.trim();
    const visit = await prisma.visit.findFirst({
       where: {
@@ -230,6 +249,7 @@ export const findVisitForCheckIn = async (
       const canCheckIn =
          eligibleForCheckIn &&
          (attendance === null || attendance.status === 'EXPECTED');
+      const printJob = attendance ? latestPrintJob(attendance) : null;
 
       return {
          participantId: String(participant.id),
@@ -249,11 +269,12 @@ export const findVisitForCheckIn = async (
                  status: attendance.status,
                  checkInAt: attendance.checkInAt ?? undefined,
                  checkOutAt: attendance.checkOutAt ?? undefined,
-                 badge: attendance.badge
+                 badgePrintedAt: attendance.badgePrintedAt ?? undefined,
+                 printJob: printJob
                     ? {
-                         id: String(attendance.badge.id),
-                         badgeNumber: attendance.badge.badgeNumber,
-                         status: attendance.badge.status,
+                         id: String(printJob.id),
+                         status: printJob.status,
+                         errorMessage: printJob.errorMessage ?? undefined,
                       }
                     : undefined,
               }
@@ -262,7 +283,8 @@ export const findVisitForCheckIn = async (
                  status: 'EXPECTED' as const,
                  checkInAt: undefined,
                  checkOutAt: undefined,
-                 badge: undefined,
+                 badgePrintedAt: undefined,
+                 printJob: undefined,
               },
          canCheckIn,
       };
@@ -287,43 +309,15 @@ export const findVisitForCheckIn = async (
 };
 
 /**
- * Resolves the currently assigned, checked-in attendance from a badge QR
- * token (preferred) or badge number. Does not perform check-out.
+ * Resolves the currently checked-in attendance from a printed badge QR token.
+ * Does not perform check-out. Token is opaque — never visitor PII.
  */
 export const findVisitorForCheckOut = async (code: string) => {
    const token = code.trim();
-   const badge = await prisma.badge.findFirst({
-      where: {
-         OR: [{ qrToken: token }, { badgeNumber: token }],
-      },
-      select: {
-         id: true,
-         badgeNumber: true,
-         qrToken: true,
-         status: true,
-      },
-   });
-
-   if (!badge) {
-      throw new NotFoundError('Badge not found for the provided code');
-   }
-
-   if (badge.status !== 'ASSIGNED') {
-      return {
-         badge: {
-            id: String(badge.id),
-            badgeNumber: badge.badgeNumber,
-            status: badge.status,
-         },
-         eligibleForCheckOut: false,
-         reason: `Badge is not currently assigned (status: ${badge.status})`,
-         attendance: null,
-      };
-   }
 
    const attendance = await prisma.visitAttendance.findFirst({
       where: {
-         badgeId: badge.id,
+         badgeToken: token,
          status: 'CHECKED_IN',
       },
       select: attendanceDetailSelect,
@@ -331,26 +325,34 @@ export const findVisitorForCheckOut = async (code: string) => {
    });
 
    if (!attendance) {
-      return {
-         badge: {
-            id: String(badge.id),
-            badgeNumber: badge.badgeNumber,
-            status: badge.status,
+      // Distinguish unknown token vs known but not checked-in.
+      const any = await prisma.visitAttendance.findFirst({
+         where: { badgeToken: token },
+         select: {
+            id: true,
+            status: true,
+            badgeToken: true,
          },
+      });
+
+      if (!any) {
+         throw new NotFoundError(
+            'No attendance found for the provided badge token',
+         );
+      }
+
+      return {
          eligibleForCheckOut: false,
-         reason: 'No active checked-in attendance found for this badge',
+         reason: `Visitor is not currently checked in (status: ${any.status})`,
          attendance: null,
+         badgeToken: any.badgeToken ?? token,
       };
    }
 
    return {
-      badge: {
-         id: String(badge.id),
-         badgeNumber: badge.badgeNumber,
-         status: badge.status,
-      },
       eligibleForCheckOut: true,
       reason: undefined,
+      badgeToken: attendance.badgeToken ?? token,
       attendance: formatAttendanceDetail(attendance),
    };
 };
@@ -387,8 +389,8 @@ const formatVisitLookup = (visit: VisitLookupRecord) => ({
 });
 
 /**
- * Checks a visitor in for a given visit day.
- * Creates the attendance row on demand when it does not yet exist.
+ * Checks a visitor in for a given visit day, then queues a thermal badge
+ * print job. Printer failures never roll back a successful check-in.
  */
 export const checkInVisitor = async (
    input: CheckInInput,
@@ -403,12 +405,8 @@ export const checkInVisitor = async (
       throw new NotFoundError('Visit participant not found');
    }
 
-   if (
-      !CHECK_IN_ELIGIBLE_VISIT_STATUSES.includes(participant.visit.status)
-   ) {
-      throw new BadRequestError(
-         'Visit must be approved before check-in',
-      );
+   if (!CHECK_IN_ELIGIBLE_VISIT_STATUSES.includes(participant.visit.status)) {
+      throw new BadRequestError('Visit must be approved before check-in');
    }
 
    const visitDay = await prisma.visitDay.findUnique({
@@ -438,11 +436,15 @@ export const checkInVisitor = async (
       });
    }
 
+   // Idempotent: already checked in → ensure print job exists, return current.
+   if (attendance.status === 'CHECKED_IN') {
+      await enqueueBadgePrintJob(attendance.id);
+      return getAttendanceById(attendance.id);
+   }
+
    assertTransition(attendance.status, ['EXPECTED']);
 
-   if (input.badgeId) {
-      await assignBadge(input.badgeId);
-   }
+   const badgeToken = attendance.badgeToken ?? generateQrToken();
 
    const updated = await prisma.visitAttendance.update({
       where: { id: attendance.id },
@@ -450,14 +452,18 @@ export const checkInVisitor = async (
          status: 'CHECKED_IN',
          checkInAt: new Date(),
          checkedInById: actorId,
-         ...(input.badgeId && {
-            badgeId: input.badgeId,
-            badgeAssignedAt: new Date(),
-         }),
+         badgeToken,
          personalIdRetained: input.retainPersonalId,
       },
       select: attendanceDetailSelect,
    });
+
+   // Queue print after check-in persists — failure here must not undo check-in.
+   try {
+      await enqueueBadgePrintJob(updated.id);
+   } catch (error) {
+      console.error('Failed to enqueue badge print job after check-in', error);
+   }
 
    await refreshVisitAttendanceStatus(participant.visitId, actorId);
 
@@ -465,12 +471,12 @@ export const checkInVisitor = async (
       updated.participant.visitor,
    ]);
 
-   return updated;
+   return getAttendanceById(updated.id);
 };
 
 /**
- * Checks a visitor out, releases their badge if assigned, and refreshes
- * the parent visit attendance status.
+ * Checks a visitor out. Disposable badges are not returned to inventory;
+ * print history is retained for audit.
  */
 export const checkOutVisitor = async (
    id: number,
@@ -486,10 +492,6 @@ export const checkOutVisitor = async (
    }
 
    assertTransition(attendance.status, ['CHECKED_IN']);
-
-   if (attendance.badgeId) {
-      await releaseBadge(attendance.badgeId);
-   }
 
    const updated = await prisma.visitAttendance.update({
       where: { id },
@@ -514,6 +516,31 @@ export const checkOutVisitor = async (
    );
 
    return updated;
+};
+
+export const retryAttendanceBadgePrint = async (attendanceId: number) => {
+   const attendance = await prisma.visitAttendance.findUnique({
+      where: { id: attendanceId },
+      select: { id: true, status: true },
+   });
+
+   if (!attendance) {
+      throw new NotFoundError('Attendance record not found');
+   }
+
+   if (attendance.status !== 'CHECKED_IN' && attendance.status !== 'CHECKED_OUT') {
+      throw new BadRequestError(
+         'Badge print retry requires a checked-in or checked-out attendance',
+      );
+   }
+
+   return retryPrintForAttendance(attendanceId);
+};
+
+export const getAttendancePrintStatus = async (attendanceId: number) => {
+   await getAttendanceById(attendanceId);
+   const job = await getLatestPrintJobForAttendance(attendanceId);
+   return job ? formatPrintJob(job) : null;
 };
 
 /**
@@ -599,65 +626,84 @@ export const markNoShow = async (id: number): Promise<AttendanceDetail> => {
    });
 };
 
-export const formatAttendanceDetail = (attendance: AttendanceDetail) => ({
-   id: String(attendance.id),
-   status: attendance.status,
-   badgeAssignedAt: attendance.badgeAssignedAt ?? undefined,
-   personalIdRetained: attendance.personalIdRetained,
-   personalIdReturnedAt: attendance.personalIdReturnedAt ?? undefined,
-   checkInAt: attendance.checkInAt ?? undefined,
-   checkOutAt: attendance.checkOutAt ?? undefined,
-   visitor: {
-      id: String(attendance.participant.visitor.id),
-      firstName: attendance.participant.visitor.firstName,
-      lastName: attendance.participant.visitor.lastName,
-      phone: attendance.participant.visitor.phone ?? undefined,
-      email: attendance.participant.visitor.email ?? undefined,
-   },
-   visit: {
-      id: String(attendance.participant.visit.id),
-      visitCode: attendance.participant.visit.visitCode,
-      status: attendance.participant.visit.status,
-   },
-   visitDay: {
-      id: String(attendance.visitDay.id),
-      date: attendance.visitDay.date,
-   },
-   badge: attendance.badge
-      ? {
-           id: String(attendance.badge.id),
-           badgeNumber: attendance.badge.badgeNumber,
-           status: attendance.badge.status,
-        }
-      : undefined,
-   checkedInBy: attendance.checkedInBy
-      ? {
-           firstName: attendance.checkedInBy.firstName,
-           lastName: attendance.checkedInBy.lastName,
-        }
-      : undefined,
-   checkedOutBy: attendance.checkedOutBy
-      ? {
-           firstName: attendance.checkedOutBy.firstName,
-           lastName: attendance.checkedOutBy.lastName,
-        }
-      : undefined,
-   createdAt: attendance.createdAt,
-   updatedAt: attendance.updatedAt,
-});
+export const formatAttendanceDetail = (attendance: AttendanceDetail) => {
+   const printJob = latestPrintJob(attendance);
 
-export const formatAttendanceSummary = (attendance: AttendanceSummary) => ({
-   id: String(attendance.id),
-   status: attendance.status,
-   checkInAt: attendance.checkInAt ?? undefined,
-   checkOutAt: attendance.checkOutAt ?? undefined,
-   visitorName: `${attendance.participant.visitor.firstName} ${attendance.participant.visitor.lastName}`,
-   visitorPhone: attendance.participant.visitor.phone ?? undefined,
-   visit: {
-      id: String(attendance.participant.visit.id),
-      visitCode: attendance.participant.visit.visitCode,
-      status: attendance.participant.visit.status,
-   },
-   scheduleDate: attendance.visitDay.date,
-   badgeNumber: attendance.badge?.badgeNumber,
-});
+   return {
+      id: String(attendance.id),
+      status: attendance.status,
+      badgeToken: attendance.badgeToken ?? undefined,
+      badgePrintedAt: attendance.badgePrintedAt ?? undefined,
+      personalIdRetained: attendance.personalIdRetained,
+      personalIdReturnedAt: attendance.personalIdReturnedAt ?? undefined,
+      checkInAt: attendance.checkInAt ?? undefined,
+      checkOutAt: attendance.checkOutAt ?? undefined,
+      printJob: printJob
+         ? {
+              id: String(printJob.id),
+              status: printJob.status,
+              attemptCount: printJob.attemptCount,
+              requestedAt: printJob.requestedAt,
+              printedAt: printJob.printedAt ?? undefined,
+              errorMessage: printJob.errorMessage ?? undefined,
+           }
+         : undefined,
+      visitor: {
+         id: String(attendance.participant.visitor.id),
+         firstName: attendance.participant.visitor.firstName,
+         lastName: attendance.participant.visitor.lastName,
+         phone: attendance.participant.visitor.phone ?? undefined,
+         email: attendance.participant.visitor.email ?? undefined,
+         organization:
+            attendance.participant.visitor.organization ?? undefined,
+      },
+      visit: {
+         id: String(attendance.participant.visit.id),
+         visitCode: attendance.participant.visit.visitCode,
+         status: attendance.participant.visit.status,
+         floor: attendance.participant.visit.floor ?? undefined,
+         room: attendance.participant.visit.room ?? undefined,
+         hostName:
+            attendance.participant.visit.hostNameSnapshot ?? undefined,
+      },
+      visitDay: {
+         id: String(attendance.visitDay.id),
+         date: attendance.visitDay.date,
+      },
+      checkedInBy: attendance.checkedInBy
+         ? {
+              firstName: attendance.checkedInBy.firstName,
+              lastName: attendance.checkedInBy.lastName,
+           }
+         : undefined,
+      checkedOutBy: attendance.checkedOutBy
+         ? {
+              firstName: attendance.checkedOutBy.firstName,
+              lastName: attendance.checkedOutBy.lastName,
+           }
+         : undefined,
+      createdAt: attendance.createdAt,
+      updatedAt: attendance.updatedAt,
+   };
+};
+
+export const formatAttendanceSummary = (attendance: AttendanceSummary) => {
+   const printJob = latestPrintJob(attendance);
+
+   return {
+      id: String(attendance.id),
+      status: attendance.status,
+      checkInAt: attendance.checkInAt ?? undefined,
+      checkOutAt: attendance.checkOutAt ?? undefined,
+      badgePrintedAt: attendance.badgePrintedAt ?? undefined,
+      visitorName: `${attendance.participant.visitor.firstName} ${attendance.participant.visitor.lastName}`,
+      visitorPhone: attendance.participant.visitor.phone ?? undefined,
+      visit: {
+         id: String(attendance.participant.visit.id),
+         visitCode: attendance.participant.visit.visitCode,
+         status: attendance.participant.visit.status,
+      },
+      scheduleDate: attendance.visitDay.date,
+      printStatus: printJob?.status,
+   };
+};

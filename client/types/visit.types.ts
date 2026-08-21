@@ -1,6 +1,7 @@
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import type { MeetingTypeValue } from '@/constants/meeting-types';
 import type { Department } from './department.types';
+import type { PrintJobStatus } from './print-job.types';
 
 export type IdTypeValue = (typeof ID_TYPE_OPTIONS)[number]['value'];
 
@@ -73,10 +74,18 @@ export type ManagedVisitor = {
    checkedInAt?: string;
    /** Per-day attendance for multi-day visits. */
    attendanceByDate?: Record<string, VisitorDayAttendance>;
-   /** Physical badge assigned at check-in (public badge number, not DB id). */
-   assignedBadgeNumber?: string;
-   /** Opaque badge QR token paired with the assigned badge. */
-   assignedBadgeQr?: string;
+   /** Opaque one-time badge token printed at check-in (QR payload). */
+   badgeToken?: string;
+   /** Latest thermal print job status for this attendance. */
+   printJobStatus?: PrintJobStatus;
+   /** Visit attendance row id (when known from API). */
+   attendanceId?: string;
+   /** When the thermal badge was confirmed printed. */
+   badgePrintedAt?: string;
+   /** Backend visit participant id (for real check-in API). */
+   visitParticipantId?: number;
+   /** Backend visit day id for the active schedule day. */
+   visitDayId?: number;
 };
 
 /**

@@ -2,7 +2,7 @@
 // ATI Visitor Management System (VMS) — Prisma Schema
 // ----------------------------------------------------------------------------
 // Models the paper-based visitor workflow digitally:
-// request/invitation → host approval → badge check-in/out → attendance history
+// request/invitation → host approval → check-in + thermal badge print → attendance history
 // ============================================================================
 
 generator client {
@@ -75,12 +75,13 @@ enum IdType {
   OTHER
 }
 
-/// Physical badge inventory status.
-enum BadgeStatus {
-  AVAILABLE
-  ASSIGNED
-  LOST
-  DISABLED
+/// Thermal visitor badge print-job lifecycle.
+enum BadgePrintJobStatus {
+  QUEUED
+  PRINTING
+  PRINTED
+  FAILED
+  CANCELLED
 }
 
 /// VMS dashboard roles (hosts are Employees, not necessarily Users).
@@ -379,25 +380,6 @@ model VisitParticipant {
   @@map("visit_participants")
 }
 
-// ── Badge inventory ────────────────────────────────────────────────────────
-
-model Badge {
-  id          Int         @id @default(autoincrement())
-  badgeNumber String      @unique
-  qrToken     String      @unique
-  status      BadgeStatus @default(AVAILABLE)
-  notes       String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  /// Historical + current assignments live on attendances.
-  attendances VisitAttendance[]
-
-  @@index([status])
-  @@map("badges")
-}
-
 // ── Attendance (per visitor × visit day) ───────────────────────────────────
 
 model VisitAttendance {
@@ -411,11 +393,11 @@ model VisitAttendance {
 
   status AttendanceStatus @default(EXPECTED)
 
-  badgeId         Int?
-  badge           Badge?    @relation(fields: [badgeId], references: [id], onDelete: Restrict)
-  badgeAssignedAt DateTime?
+  /// Opaque token encoded in the printed badge QR (never PII).
+  badgeToken     String?   @unique
+  badgePrintedAt DateTime?
 
-  /// Visitor personal ID retained at reception while badge is held.
+  /// Visitor personal ID retained at reception while on site.
   personalIdRetained   Boolean   @default(false)
   personalIdReturnedAt DateTime?
 
@@ -430,13 +412,46 @@ model VisitAttendance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  printJobs BadgePrintJob[]
+
   /// One attendance row per visitor per visit day.
   @@unique([participantId, visitDayId])
   @@index([visitDayId])
-  @@index([badgeId])
   @@index([status])
   @@index([checkInAt])
   @@map("visit_attendances")
+}
+
+// ── Thermal badge print jobs (one-time visitor badges) ─────────────────────
+
+model BadgePrintJob {
+  id Int @id @default(autoincrement())
+
+  attendanceId Int
+  attendance   VisitAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  status       BadgePrintJobStatus @default(QUEUED)
+  attemptCount Int                 @default(0)
+
+  requestedAt DateTime  @default(now())
+  printedAt   DateTime?
+  errorMessage String?  @db.Text
+
+  /// Agent instance that currently holds the claim (PRINTING).
+  claimedBy String?
+  claimedAt DateTime?
+
+  /// Set while QUEUED/PRINTING so MySQL unique constraint blocks duplicate active jobs.
+  /// Cleared when the job reaches a terminal status (PRINTED / FAILED / CANCELLED).
+  activeAttendanceId Int? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([attendanceId])
+  @@index([status, requestedAt])
+  @@index([claimedAt])
+  @@map("badge_print_jobs")
 }
 
 // ── Visit status audit ─────────────────────────────────────────────────────

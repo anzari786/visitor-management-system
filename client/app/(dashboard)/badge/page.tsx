@@ -1,5 +1,6 @@
-import { BadgesContent } from '@/components/badge/badges-content';
+import { redirect } from 'next/navigation';
 
+/** Badge inventory was removed — thermal badges print at check-in. */
 export default function BadgePage() {
-   return <BadgesContent />;
+   redirect('/visits');
 }

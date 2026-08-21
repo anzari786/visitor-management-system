@@ -11,7 +11,6 @@ export const checkInSchema = z.object({
    body: z.object({
       visitParticipantId: z.coerce.number().int().positive(),
       visitDayId: z.coerce.number().int().positive(),
-      badgeId: z.coerce.number().int().positive().optional(),
       retainPersonalId: z.boolean().optional().default(true),
    }),
 });
@@ -22,7 +21,6 @@ export const listAttendancesSchema = z.object({
       visitDayId: z.coerce.number().int().positive().optional(),
       visitParticipantId: z.coerce.number().int().positive().optional(),
       status: visitAttendanceStatusSchema.optional(),
-      badgeId: z.coerce.number().int().positive().optional(),
       date: z.coerce.date().optional(),
       search: z.string().trim().min(1).optional(),
       page: z.coerce.number().int().positive().optional().default(1),
@@ -53,7 +51,7 @@ export const lookupVisitByCodeSchema = z.object({
    }),
 });
 
-/** Lookup by badge QR token or badge number. */
+/** Lookup by printed badge opaque token (QR). */
 export const lookupBadgeByCodeSchema = z.object({
    query: z.object({
       code: z.string().trim().min(1),

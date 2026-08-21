@@ -42,7 +42,6 @@ export const hostQueryKeys = {
       [...hostQueryKeys.invitations(), 'detail', id] as const,
    rooms: (params?: { floor?: string; search?: string }) =>
       [...hostQueryKeys.all, 'rooms', params ?? {}] as const,
-   badges: () => [...hostQueryKeys.all, 'badges'] as const,
    notifications: (params?: { unreadOnly?: boolean }) =>
       [...hostQueryKeys.all, 'notifications', params ?? {}] as const,
 } as const;
@@ -127,17 +126,6 @@ export function useHostRooms(params?: { floor?: string; search?: string }) {
          const { data } = await hostService.getRooms(params);
          return data.data;
       },
-   });
-}
-
-export function useHostAvailableBadges(enabled = true) {
-   return useQuery({
-      queryKey: hostQueryKeys.badges(),
-      queryFn: async () => {
-         const { data } = await hostService.getAvailableBadges();
-         return data.data;
-      },
-      enabled,
    });
 }
 

@@ -41,4 +41,9 @@ export const env = {
    INVITATION_TOKEN_TTL_HOURS: Number(
       process.env.INVITATION_TOKEN_TTL_HOURS ?? 720,
    ),
+
+   // Local Print Agent (Zebra thermal badges)
+   PRINT_AGENT_TOKEN: process.env.PRINT_AGENT_TOKEN ?? '',
+   /** How long a PRINTING claim may sit before being re-queued. */
+   PRINT_JOB_STALE_MS: Number(process.env.PRINT_JOB_STALE_MS ?? 120_000),
 } as const;

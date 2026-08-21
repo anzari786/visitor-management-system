@@ -11,7 +11,10 @@ import {
    markNoShow,
    formatAttendanceDetail,
    formatAttendanceSummary,
+   retryAttendanceBadgePrint,
+   getAttendancePrintStatus,
 } from './visit-attendance.service.js';
+import { formatPrintJob } from '../print-jobs/print-job.service.js';
 import type {
    checkInSchema,
    listAttendancesSchema,
@@ -74,7 +77,7 @@ export const lookupVisitForCheckIn = async (req: Request, res: Response) => {
    });
 };
 
-/** Badge QR / code lookup for check-out — does not mutate attendance. */
+/** Printed badge QR lookup for check-out — does not mutate attendance. */
 export const lookupVisitorForCheckOut = async (req: Request, res: Response) => {
    const { code } = req.validatedQuery as LookupBadgeQuery;
    const data = await findVisitorForCheckOut(code);
@@ -129,5 +132,26 @@ export const postNoShow = async (req: Request, res: Response) => {
       success: true,
       message: 'Attendance marked as no-show',
       data: formatAttendanceDetail(attendance),
+   });
+};
+
+export const getPrintStatus = async (req: Request, res: Response) => {
+   const { id } = req.validatedParams as AttendanceIdParams;
+   const printJob = await getAttendancePrintStatus(id);
+
+   return res.status(200).json({
+      success: true,
+      data: printJob,
+   });
+};
+
+export const postRetryPrint = async (req: Request, res: Response) => {
+   const { id } = req.validatedParams as AttendanceIdParams;
+   const job = await retryAttendanceBadgePrint(id);
+
+   return res.status(200).json({
+      success: true,
+      message: 'Badge print job queued for retry',
+      data: formatPrintJob(job),
    });
 };

@@ -38,10 +38,12 @@ export function generateVisitorBadgeZpl(
    const visitCode = sanitizeZplField(data.visitCode, 24);
    const date = sanitizeZplField(data.date, 16);
    const hostName = data.hostName ? sanitizeZplField(data.hostName, 28) : '';
-   const location = [data.floor, data.room]
+   const location = [
+      data.floor ? `Floor ${sanitizeZplField(String(data.floor), 10)}` : null,
+      data.room ? `Room ${sanitizeZplField(String(data.room), 10)}` : null,
+   ]
       .filter(Boolean)
-      .map((part) => sanitizeZplField(String(part), 12))
-      .join(' / ');
+      .join(', ');
    const qrPayload = sanitizeZplField(data.badgeToken, 64);
 
    const lines: string[] = [

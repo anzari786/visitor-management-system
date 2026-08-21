@@ -7,11 +7,11 @@ import { PrinterError } from './printer/zebra-printer.js';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Polls the VMS for queued badge print jobs and drives the BadgePrinter.
+ * Long-polls the VMS for queued badge print jobs and drives the BadgePrinter.
  * Contains no visit/check-in business logic.
  */
 export class PrintAgent {
-   private timer: NodeJS.Timeout | null = null;
+   private abortController: AbortController | null = null;
    private running = false;
    private busy = false;
    private lastError: string | null = null;
@@ -34,21 +34,20 @@ export class PrintAgent {
    start() {
       if (this.running) return;
       this.running = true;
+      this.abortController = new AbortController();
       log.info('Print agent started', {
          agentId: this.config.printAgentId,
-         pollIntervalMs: this.config.pollIntervalMs,
+         longPollTimeoutMs: this.config.longPollTimeoutMs,
          printer: this.config.printerName,
       });
-      void this.tick();
-      this.timer = setInterval(() => void this.tick(), this.config.pollIntervalMs);
+      void this.loop();
    }
 
    stop() {
+      if (!this.running) return;
       this.running = false;
-      if (this.timer) {
-         clearInterval(this.timer);
-         this.timer = null;
-      }
+      this.abortController?.abort();
+      this.abortController = null;
       log.info('Print agent stopped');
    }
 
@@ -63,28 +62,45 @@ export class PrintAgent {
       };
    }
 
-   private async tick() {
-      if (!this.running || this.busy) return;
-      this.busy = true;
-      try {
-         const payload = await this.api.claimNextJob();
-         if (!payload) return;
+   /**
+    * Self-scheduling long-poll loop. Each iteration holds a request open on
+    * the server for up to `longPollTimeoutMs`, returning immediately when a
+    * job is available. On empty (204) it loops straight back into the next
+    * long poll. On error it backs off briefly before retrying.
+    */
+   private async loop() {
+      while (this.running) {
+         this.busy = true;
+         try {
+            const payload = await this.api.claimNextJob(
+               this.config.longPollTimeoutMs,
+               this.abortController?.signal,
+            );
 
-         const jobId = Number(payload.job.id);
-         if (this.completedJobIds.has(jobId)) {
-            log.warn('Skipping already-completed job in this session', {
-               jobId,
-            });
-            return;
+            if (!payload) {
+               // No job within the wait window — immediately re-poll.
+               continue;
+            }
+
+            const jobId = Number(payload.job.id);
+            if (this.completedJobIds.has(jobId)) {
+               log.warn('Skipping already-completed job in this session', {
+                  jobId,
+               });
+               continue;
+            }
+
+            await this.processJob(jobId, payload.printData);
+         } catch (error) {
+            if (!this.running) break; // aborted by stop(), not a real failure
+
+            this.lastError =
+               error instanceof Error ? error.message : 'Unknown poll error';
+            log.error('Print agent poll failed', { error: this.lastError });
+            await sleep(this.config.pollErrorDelayMs);
+         } finally {
+            this.busy = false;
          }
-
-         await this.processJob(jobId, payload.printData);
-      } catch (error) {
-         this.lastError =
-            error instanceof Error ? error.message : 'Unknown poll error';
-         log.error('Print agent poll failed', { error: this.lastError });
-      } finally {
-         this.busy = false;
       }
    }
 
@@ -127,9 +143,7 @@ export class PrintAgent {
       }
    }
 
-   private async printWithRetries(
-      data: Parameters<BadgePrinter['print']>[0],
-   ) {
+   private async printWithRetries(data: Parameters<BadgePrinter['print']>[0]) {
       let attempt = 0;
       let lastError: unknown;
 

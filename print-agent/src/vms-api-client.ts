@@ -22,6 +22,7 @@ export class VmsApiClient {
       method: string,
       path: string,
       body?: unknown,
+      signal?: AbortSignal,
    ): Promise<{ status: number; data: T | null }> {
       const url = `${this.baseUrl}${path}`;
       const response = await fetch(url, {
@@ -32,6 +33,7 @@ export class VmsApiClient {
             Accept: 'application/json',
          },
          body: body === undefined ? undefined : JSON.stringify(body),
+         signal,
       });
 
       if (response.status === 204) {
@@ -54,11 +56,16 @@ export class VmsApiClient {
       return { status: response.status, data: json };
    }
 
-   async claimNextJob(): Promise<PrintJobPayload | null> {
+   async claimNextJob(
+      waitMs: number,
+      signal?: AbortSignal,
+   ): Promise<PrintJobPayload | null> {
       type Envelope = { success: boolean; data: PrintJobPayload };
       const result = await this.request<Envelope>(
          'GET',
-         `/print-jobs/next?agentId=${encodeURIComponent(this.agentId)}`,
+         `/print-jobs/next?agentId=${encodeURIComponent(this.agentId)}&waitMs=${waitMs}`,
+         undefined,
+         signal,
       );
 
       if (result.status === 204 || !result.data?.data) {

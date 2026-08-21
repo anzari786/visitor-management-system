@@ -58,8 +58,7 @@ export const toBadgePrintData = (
       attendanceId: job.attendanceId,
       badgeToken,
       visitorName: `${visitor.firstName} ${visitor.lastName}`.trim(),
-      organization:
-         visitor.organization ?? visit.organization ?? undefined,
+      organization: visitor.organization ?? visit.organization ?? undefined,
       visitCode: visit.visitCode,
       date: formatDateLabel(job.attendance.visitDay.date),
       hostName: visit.hostNameSnapshot ?? undefined,
@@ -232,19 +231,13 @@ const recoverStalePrintingJobs = async () => {
 };
 
 /**
- * Atomically claims the next QUEUED job for a Print Agent.
- * Returns null when the queue is empty.
+ * Attempts a single atomic claim of the next QUEUED job.
+ * Returns null if the queue is currently empty (or the claim was lost to a race).
  */
-export const claimNextPrintJob = async (
+const attemptClaim = async (
    agentId: string,
+   brandSetting: { value: string } | null,
 ): Promise<{ job: PrintJobRecord; printData: BadgePrintData } | null> => {
-   await recoverStalePrintingJobs();
-
-   const brandSetting = await prisma.systemSetting.findUnique({
-      where: { key: 'badgePrefix' },
-      select: { value: true },
-   });
-
    return prisma.$transaction(async (tx) => {
       const next = await tx.badgePrintJob.findFirst({
          where: { status: 'QUEUED' },
@@ -268,8 +261,7 @@ export const claimNextPrintJob = async (
       });
 
       if (claimed.count !== 1) {
-         // Lost the race to another agent — try once more in a nested sense by returning null;
-         // the agent will poll again.
+         // Lost the race to another agent.
          return null;
       }
 
@@ -300,6 +292,37 @@ export const claimNextPrintJob = async (
          printData: toBadgePrintData(job, brandSetting?.value),
       };
    });
+};
+
+const sleep = (ms: number) =>
+   new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Long-polls for the next QUEUED job, checking every CHECK_INTERVAL_MS
+ * until either a job is claimed or waitMs elapses.
+ */
+export const claimNextPrintJob = async (
+   agentId: string,
+   waitMs = 0,
+): Promise<{ job: PrintJobRecord; printData: BadgePrintData } | null> => {
+   const deadline = Date.now() + waitMs;
+
+   await recoverStalePrintingJobs();
+
+   const brandSetting = await prisma.systemSetting.findUnique({
+      where: { key: 'badgePrefix' },
+      select: { value: true },
+   });
+
+   while (true) {
+      const claimed = await attemptClaim(agentId, brandSetting);
+      if (claimed) return claimed;
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return null;
+
+      await sleep(Math.min(env.PRINT_JOB_CHECK_INTERVAL_MS, remaining));
+   }
 };
 
 /** Optional heartbeat / explicit claim affirmation while printing. */

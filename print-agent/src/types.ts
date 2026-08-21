@@ -37,7 +37,8 @@ export interface AgentConfig {
    zebraPrinterHost: string;
    zebraPrinterPort: number;
    printerName: string;
-   pollIntervalMs: number;
+   longPollTimeoutMs: number; // was pollIntervalMs — how long the server should hold /print-jobs/next open
+   pollErrorDelayMs: number; // backoff delay before retrying after a failed poll
    healthPort: number;
    label: LabelGeometry;
    printerRetryCount: number;

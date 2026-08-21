@@ -37,5 +37,6 @@ export const failPrintJobSchema = z.object({
 export const nextPrintJobSchema = z.object({
    query: z.object({
       agentId: z.string().trim().min(1).max(128),
+      waitMs: z.coerce.number().int().min(0).max(35_000).optional().default(0),
    }),
 });

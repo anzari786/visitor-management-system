@@ -28,9 +28,7 @@ export const env = {
    SMTP_SECURE: process.env.SMTP_SECURE === 'true',
    SMTP_USER: process.env.SMTP_USER,
    SMTP_PASS: process.env.SMTP_PASS,
-   SMTP_FROM:
-      process.env.SMTP_FROM ??
-      '"ATI VMS" <noreply@ati.gov.et>',
+   SMTP_FROM: process.env.SMTP_FROM ?? '"ATI VMS" <noreply@ati.gov.et>',
 
    // Local account password setup invitations
    PASSWORD_SETUP_TOKEN_TTL_HOURS: Number(
@@ -46,4 +44,8 @@ export const env = {
    PRINT_AGENT_TOKEN: process.env.PRINT_AGENT_TOKEN ?? '',
    /** How long a PRINTING claim may sit before being re-queued. */
    PRINT_JOB_STALE_MS: Number(process.env.PRINT_JOB_STALE_MS ?? 120_000),
+   /** DB re-check interval while long-polling for a queued job. */
+   PRINT_JOB_CHECK_INTERVAL_MS: Number(
+      process.env.PRINT_JOB_CHECK_INTERVAL_MS ?? 750,
+   ),
 } as const;

@@ -26,7 +26,8 @@ export function loadConfig(): AgentConfig {
       zebraPrinterHost: required('ZEBRA_PRINTER_HOST'),
       zebraPrinterPort: optionalNumber('ZEBRA_PRINTER_PORT', 9100),
       printerName: process.env.PRINTER_NAME?.trim() || 'Zebra',
-      pollIntervalMs: optionalNumber('POLL_INTERVAL_MS', 2000),
+      longPollTimeoutMs: optionalNumber('LONG_POLL_TIMEOUT_MS', 30000),
+      pollErrorDelayMs: optionalNumber('POLL_ERROR_DELAY_MS', 3000),
       healthPort: optionalNumber('HEALTH_PORT', 5055),
       label: {
          widthIn: optionalNumber('LABEL_WIDTH_IN', 3),

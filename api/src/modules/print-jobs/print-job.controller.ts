@@ -25,8 +25,8 @@ type NextQuery = z.infer<typeof nextPrintJobSchema>['query'];
 
 /** Print Agent: claim the next QUEUED job (or null if empty). */
 export const getNextPrintJob = async (req: Request, res: Response) => {
-   const { agentId } = req.validatedQuery as NextQuery;
-   const result = await claimNextPrintJob(agentId);
+   const { agentId, waitMs } = req.validatedQuery as NextQuery;
+   const result = await claimNextPrintJob(agentId, waitMs);
 
    if (!result) {
       return res.status(204).send();

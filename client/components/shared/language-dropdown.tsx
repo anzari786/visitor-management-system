@@ -67,7 +67,7 @@ const LanguageDropdown = ({
             <div
                id={id}
                className={cn(
-                  'rounded-md hover:bg-accent/80 cursor-pointer p-2',
+                  'rounded-full hover:bg-accent/80 cursor-pointer p-2',
                   className,
                )}
             >

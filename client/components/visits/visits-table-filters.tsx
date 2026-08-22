@@ -30,13 +30,11 @@ import { ScanDialog } from './scan-dialog';
 
 type VisitsTableFiltersProps = {
    onScanBadge?: () => void;
-   onScanVisitorQr?: () => void;
    onFindVisit?: () => void;
 };
 
 export function VisitsTableFilters({
    onScanBadge,
-   onScanVisitorQr,
    onFindVisit,
 }: VisitsTableFiltersProps) {
    const router = useRouter();
@@ -234,7 +232,6 @@ export function VisitsTableFilters({
             onOpenChange={setScanOpen}
             onFindVisit={onFindVisit}
             onScanBadge={onScanBadge}
-            onScanVisitorQr={onScanVisitorQr}
          />
       </>
    );

@@ -101,7 +101,7 @@ function formatIdType(idType: IdType) {
    );
 }
 
-function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
+export function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
    return visitType === 'invitation' ? MailPlus : Footprints;
 }
 

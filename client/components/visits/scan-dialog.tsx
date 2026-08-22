@@ -15,14 +15,12 @@ type ScanDialogProps = {
    onOpenChange: (open: boolean) => void;
    /** Open manual find/search for check-in eligible visits. */
    onFindVisit?: () => void;
-   /** Open the visitor QR scanner for check-in lookup (optional). */
-   onScanVisitorQr?: () => void;
    /** Open the badge QR scanner for check-out lookup. */
    onScanBadge?: () => void;
 };
 
 type ScanOption = {
-   id: 'find-visit' | 'visitor-qr' | 'badge';
+   id: 'find-visit' | 'badge';
    title: string;
    description: string;
    badge?: string;
@@ -36,7 +34,7 @@ const SCAN_OPTIONS: ScanOption[] = [
       id: 'find-visit',
       title: 'Find / Search Visit',
       description:
-         'Search the visit list and select an approved visit to start check-in manually — no QR required.',
+         'Search the visit list and select an approved visit to start check-in manually.',
       badge: 'Manual',
       icon: Search,
       accent:
@@ -44,23 +42,11 @@ const SCAN_OPTIONS: ScanOption[] = [
       iconWrap: 'bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400',
    },
    {
-      id: 'visitor-qr',
-      title: 'Scan Visitor QR',
-      description:
-         'Optional. Scan the QR from the visitor approval email to jump straight to check-in.',
-      badge: 'Optional',
-      icon: QrCode,
-      accent:
-         'hover:border-violet-300 hover:bg-violet-50/60 dark:hover:border-violet-700 dark:hover:bg-violet-950/30',
-      iconWrap:
-         'bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400',
-   },
-   {
       id: 'badge',
       title: 'Scan Badge',
       description:
          "Scan the visitor's physical badge to find their active visit and complete check-out.",
-      icon: IdCard,
+      icon: QrCode,
       accent:
          'hover:border-emerald-300 hover:bg-emerald-50/60 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30',
       iconWrap:
@@ -72,7 +58,6 @@ export function ScanDialog({
    open,
    onOpenChange,
    onFindVisit,
-   onScanVisitorQr,
    onScanBadge,
 }: ScanDialogProps) {
    const handleSelect = (option: ScanOption) => {
@@ -80,11 +65,6 @@ export function ScanDialog({
 
       if (option.id === 'find-visit') {
          onFindVisit?.();
-         return;
-      }
-
-      if (option.id === 'visitor-qr') {
-         onScanVisitorQr?.();
          return;
       }
 
@@ -110,8 +90,8 @@ export function ScanDialog({
                <div className="space-y-1.5">
                   <DialogTitle className="text-lg">Process visitor</DialogTitle>
                   <DialogDescription>
-                     Check guests in by finding their visit or optionally
-                     scanning a QR code. Use badge scan for check-out.
+                     Check guests in by finding their visit. Use badge scan for
+                     check-out.
                   </DialogDescription>
                </div>
             </DialogHeader>

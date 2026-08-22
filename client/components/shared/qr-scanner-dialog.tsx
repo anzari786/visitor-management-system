@@ -168,7 +168,9 @@ export function QrScannerDialog({
          } catch (error) {
             if (cancelled) return;
             const message =
-               error instanceof Error ? error.message : 'Unable to start camera';
+               error instanceof Error
+                  ? error.message
+                  : 'Unable to start camera';
             const denied =
                /NotAllowedError|Permission|denied|NotReadableError/i.test(
                   message,
@@ -290,7 +292,7 @@ export function QrScannerDialog({
 
                <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   className="h-9 w-full cursor-pointer"
                   onClick={closeDialog}
                >
@@ -298,7 +300,8 @@ export function QrScannerDialog({
                </Button>
 
                <p className="text-center text-xs text-muted-foreground">
-                  QR scanning is optional — you can always find a visit manually.
+                  QR scanning is optional — you can always find a visit
+                  manually.
                </p>
             </div>
          </DialogContent>

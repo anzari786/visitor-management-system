@@ -48,7 +48,7 @@ import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
 import { ManagedVisitStatusBadge } from './managed-visit-status-badge';
-import VisitDetailsSheet from './visit-details';
+import VisitDetailsSheet, { getVisitTypeIcon } from './visit-details';
 import { VisitRowActions } from './visit-row-actions';
 import { VisitsTableFilters } from './visits-table-filters';
 import { VisitsTablePagination } from './visits-table-pagination';
@@ -213,11 +213,15 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    {
       accessorKey: 'visitType',
       header: 'Visit type',
-      cell: ({ row }) => (
-         <Badge variant="secondary" className="h-6 rounded-md px-2 font-medium">
-            {getVisitTypeLabel(row.original.visitType)}
-         </Badge>
-      ),
+      cell: ({ row }) => {
+         const Icon = getVisitTypeIcon(row.original.visitType);
+         return (
+            <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
+               <Icon className="size-4 text-muted-foreground" />
+               {getVisitTypeLabel(row.original.visitType)}
+            </span>
+         );
+      },
    },
    {
       accessorKey: 'meetingType',
@@ -311,7 +315,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const [qrCheckInPrintTargets, setQrCheckInPrintTargets] = React.useState<
       CheckInPrintTarget[]
    >([]);
-   const [visitQrScannerOpen, setVisitQrScannerOpen] = React.useState(false);
    const [checkoutQrScannerOpen, setCheckoutQrScannerOpen] =
       React.useState(false);
    const [findVisitOpen, setFindVisitOpen] = React.useState(false);
@@ -415,10 +418,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setCheckoutQrScannerOpen(true);
    }, []);
 
-   const handleScanVisitorQr = React.useCallback(() => {
-      setVisitQrScannerOpen(true);
-   }, []);
-
    const handleFindVisit = React.useCallback(() => {
       setFindVisitOpen(true);
    }, []);
@@ -433,34 +432,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
       setQrCheckInOpen(true);
    }, []);
-
-   const handleVisitQrScanned = React.useCallback(
-      async (code: string) => {
-         const result =
-            await visitAttendanceLookupService.lookupVisitForCheckIn(
-               code,
-               visits,
-            );
-
-         if (
-            !result.eligibleForCheckIn ||
-            result.eligibleVisitors.length === 0
-         ) {
-            throw new Error(
-               result.reason ??
-                  'This visit is not eligible for check-in right now',
-            );
-         }
-
-         setQrCheckInVisitId(result.visit.id);
-         setQrCheckInVisitorIds(result.eligibleVisitors.map((v) => v.id));
-         setQrCheckInOpen(true);
-         toast.success('Visit found', {
-            description: `${result.visit.visitorName} · ${result.visit.id}`,
-         });
-      },
-      [visits],
-   );
 
    const handleCheckoutQrScanned = React.useCallback(
       async (code: string) => {
@@ -547,9 +518,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                         : error instanceof Error
                           ? error.message
                           : undefined;
-                  toast.error(
-                     message ?? `Unable to check in ${visitor.name}`,
-                  );
+                  toast.error(message ?? `Unable to check in ${visitor.name}`);
                   return;
                }
             }
@@ -567,8 +536,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                ids.includes(v.id),
             )) {
                printTargets.push({
-                  attendanceId:
-                     visitor.attendanceId ?? `mock-${visitor.id}`,
+                  attendanceId: visitor.attendanceId ?? `mock-${visitor.id}`,
                   visitorName: visitor.name,
                   initialStatus: 'QUEUED',
                   simulate: true,
@@ -663,7 +631,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                <VisitsTableFilters
                   onFindVisit={handleFindVisit}
                   onScanBadge={handleScanBadge}
-                  onScanVisitorQr={handleScanVisitorQr}
                />
             )}
 
@@ -757,14 +724,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             onOpenChange={setFindVisitOpen}
             visits={visits}
             onSelectVisit={openManualCheckIn}
-         />
-
-         <QrScannerDialog
-            open={visitQrScannerOpen}
-            onOpenChange={setVisitQrScannerOpen}
-            title="Scan Visitor QR"
-            description="Optional shortcut — scan the visitor approval email QR, or use Find / Search Visit instead."
-            onScan={handleVisitQrScanned}
          />
 
          <QrScannerDialog

@@ -10,6 +10,10 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import {
+   VISIT_TYPE_OPTIONS,
+   type VisitTypeValue,
+} from '@/constants/visit-types';
+import {
    MEETING_TYPE_OPTIONS,
    type MeetingTypeValue,
 } from '@/constants/meeting-types';
@@ -44,6 +48,8 @@ export function VisitsTableFilters({
    const statusFilter =
       (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
    const departmentFilter = searchParams.get('department') || 'all';
+   const visitTypeFilter =
+      (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
    const meetingTypeFilter =
       (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
 
@@ -91,7 +97,8 @@ export function VisitsTableFilters({
       Boolean(search) ||
       statusFilter !== 'all' ||
       departmentFilter !== 'all' ||
-      meetingTypeFilter !== 'all';
+      visitTypeFilter !== 'all';
+   meetingTypeFilter !== 'all';
 
    const clearAllFilters = () => {
       setSearchInput('');
@@ -99,6 +106,7 @@ export function VisitsTableFilters({
          search: null,
          status: null,
          department: null,
+         visitType: null,
          meetingType: null,
          page: 1,
       });
@@ -155,6 +163,25 @@ export function VisitsTableFilters({
                      ).map((status) => (
                         <SelectItem key={status} value={status}>
                            {MANAGED_VISIT_STATUS_LABELS[status]}
+                        </SelectItem>
+                     ))}
+                  </SelectContent>
+               </Select>
+
+               <Select
+                  value={visitTypeFilter}
+                  onValueChange={(value) =>
+                     updateParams({ visitType: value, page: 1 })
+                  }
+               >
+                  <SelectTrigger className="h-9 w-full bg-background sm:w-[150px]">
+                     <SelectValue placeholder="Visit type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     <SelectItem value="all">All visit types</SelectItem>
+                     {VISIT_TYPE_OPTIONS.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                           {type.label}
                         </SelectItem>
                      ))}
                   </SelectContent>

@@ -1,5 +1,6 @@
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import type { MeetingTypeValue } from '@/constants/meeting-types';
+import type { VisitTypeValue } from '@/constants/visit-types';
 import type { Department } from './department.types';
 import type { PrintJobStatus } from './print-job.types';
 
@@ -8,10 +9,7 @@ export type IdTypeValue = (typeof ID_TYPE_OPTIONS)[number]['value'];
 /** Legacy check-in session status (walk-in / badge flow). */
 export type VisitStatus = 'active' | 'overstay' | 'completed' | 'cancelled';
 
-export type VisitorAttendanceStatus =
-   | 'pending'
-   | 'checked_in'
-   | 'checked_out';
+export type VisitorAttendanceStatus = 'pending' | 'checked_in' | 'checked_out';
 
 /**
  * Visit request lifecycle status.
@@ -107,8 +105,8 @@ export type ManagedVisit = {
    organization?: string;
    host: string;
    department: string;
+   visitType: VisitTypeValue;
    meetingType: MeetingTypeValue;
-   purpose: string;
    /** ISO date string (yyyy-MM-dd) */
    startDate: string;
    /** ISO date string for multi-day visits */
@@ -145,6 +143,7 @@ export type ManagedVisitsParams = {
    search?: string;
    status?: ManagedVisitStatus | 'all';
    department?: string | 'all';
+   visitType?: VisitTypeValue | 'all';
    meetingType?: MeetingTypeValue | 'all';
 };
 

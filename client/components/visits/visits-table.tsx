@@ -10,6 +10,10 @@ import {
    TableRow,
 } from '@/components/ui/table';
 import {
+   getVisitTypeLabel,
+   type VisitTypeValue,
+} from '@/constants/visit-types';
+import {
    getMeetingTypeLabel,
    type MeetingTypeValue,
 } from '@/constants/meeting-types';
@@ -81,6 +85,7 @@ function filterVisits(
       search?: string;
       status?: ManagedVisitStatus | 'all';
       department?: string;
+      visitType?: VisitTypeValue | 'all';
       meetingType?: MeetingTypeValue | 'all';
    },
 ) {
@@ -93,13 +98,24 @@ function filterVisits(
             visit.visitors.some((v) => v.name.toLowerCase().includes(q));
          if (!matches) return false;
       }
-      if (opts.status && opts.status !== 'all' && visit.status !== opts.status) {
+      if (
+         opts.status &&
+         opts.status !== 'all' &&
+         visit.status !== opts.status
+      ) {
          return false;
       }
       if (
          opts.department &&
          opts.department !== 'all' &&
          visit.department !== opts.department
+      ) {
+         return false;
+      }
+      if (
+         opts.visitType &&
+         opts.visitType !== 'all' &&
+         visit.visitType !== opts.visitType
       ) {
          return false;
       }
@@ -195,6 +211,15 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
       ),
    },
    {
+      accessorKey: 'visitType',
+      header: 'Visit type',
+      cell: ({ row }) => (
+         <Badge variant="secondary" className="h-6 rounded-md px-2 font-medium">
+            {getVisitTypeLabel(row.original.visitType)}
+         </Badge>
+      ),
+   },
+   {
       accessorKey: 'meetingType',
       header: 'Meeting type',
       cell: ({ row }) => (
@@ -272,13 +297,14 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const [badgeSuccessLabel, setBadgeSuccessLabel] = React.useState('');
    const [badgeSuccessVisitId, setBadgeSuccessVisitId] = React.useState('');
    const [qrCheckInOpen, setQrCheckInOpen] = React.useState(false);
-   const [qrCheckInVisitId, setQrCheckInVisitId] = React.useState<string | null>(
-      null,
-   );
+   const [qrCheckInVisitId, setQrCheckInVisitId] = React.useState<
+      string | null
+   >(null);
    const [qrCheckInVisitorIds, setQrCheckInVisitorIds] = React.useState<
       string[] | null
    >(null);
-   const [qrCheckInSuccessOpen, setQrCheckInSuccessOpen] = React.useState(false);
+   const [qrCheckInSuccessOpen, setQrCheckInSuccessOpen] =
+      React.useState(false);
    const [qrCheckInSuccessLabel, setQrCheckInSuccessLabel] = React.useState('');
    const [qrCheckInSuccessVisitId, setQrCheckInSuccessVisitId] =
       React.useState('');
@@ -299,6 +325,8 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const statusFilter =
       (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
    const departmentFilter = searchParams.get('department') || 'all';
+   const visitTypeFilter =
+      (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
    const meetingTypeFilter =
       (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
 
@@ -308,9 +336,17 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             search,
             status: statusFilter,
             department: departmentFilter,
+            visitType: visitTypeFilter,
             meetingType: meetingTypeFilter,
          }),
-      [visits, search, statusFilter, departmentFilter, meetingTypeFilter],
+      [
+         visits,
+         search,
+         statusFilter,
+         departmentFilter,
+         visitTypeFilter,
+         meetingTypeFilter,
+      ],
    );
 
    const total = filtered.length;
@@ -406,7 +442,10 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                visits,
             );
 
-         if (!result.eligibleForCheckIn || result.eligibleVisitors.length === 0) {
+         if (
+            !result.eligibleForCheckIn ||
+            result.eligibleVisitors.length === 0
+         ) {
             throw new Error(
                result.reason ??
                   'This visit is not eligible for check-in right now',
@@ -433,8 +472,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
          if (!result.eligibleForCheckOut || result.visitors.length === 0) {
             throw new Error(
-               result.reason ??
-                  'No checked-in visitor found for this badge',
+               result.reason ?? 'No checked-in visitor found for this badge',
             );
          }
 
@@ -450,12 +488,11 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
    const handleBadgeCheckoutConfirm = React.useCallback(() => {
       if (!badgeCheckoutVisit) return;
-      const eligible =
-         checkoutVisitorIds?.length
-            ? badgeCheckoutVisit.visitors.filter((visitor) =>
-                 checkoutVisitorIds.includes(visitor.id),
-              )
-            : getCheckOutEligibleVisitors(badgeCheckoutVisit);
+      const eligible = checkoutVisitorIds?.length
+         ? badgeCheckoutVisit.visitors.filter((visitor) =>
+              checkoutVisitorIds.includes(visitor.id),
+           )
+         : getCheckOutEligibleVisitors(badgeCheckoutVisit);
       const ids = eligible.map((visitor) => visitor.id);
       const updated = applyVisitorAttendance(
          badgeCheckoutVisit,

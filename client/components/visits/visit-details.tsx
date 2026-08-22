@@ -20,6 +20,7 @@ import {
    SheetHeader,
    SheetTitle,
 } from '@/components/ui/sheet';
+import { getVisitTypeLabel } from '@/constants/visit-types';
 import { getMeetingTypeLabel } from '@/constants/meeting-types';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import {
@@ -44,12 +45,15 @@ import {
    CalendarDays,
    Clock3,
    FileText,
+   Footprints,
+   Handshake,
    Hash,
    IdCard,
    Loader2,
    LogIn,
    LogOut,
    Mail,
+   MailPlus,
    MapPin,
    Phone,
    Sparkles,
@@ -95,6 +99,10 @@ function formatIdType(idType: IdType) {
          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
          .join(' ')
    );
+}
+
+function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
+   return visitType === 'invitation' ? MailPlus : Footprints;
 }
 
 function DetailRow({
@@ -163,9 +171,9 @@ export function VisitDetailsSheet({
    onVisitChange,
    initialMode = 'view',
 }: VisitDetailsSheetProps) {
-   const [selectedIds, setSelectedIds] = React.useState<Record<string, boolean>>(
-      {},
-   );
+   const [selectedIds, setSelectedIds] = React.useState<
+      Record<string, boolean>
+   >({});
    const [checkOutConfirmOpen, setCheckOutConfirmOpen] = React.useState(false);
    const [checkOutSuccessOpen, setCheckOutSuccessOpen] = React.useState(false);
    const [checkInDialogOpen, setCheckInDialogOpen] = React.useState(false);
@@ -212,8 +220,7 @@ export function VisitDetailsSheet({
 
    if (!visit) return null;
 
-   const attendanceDay =
-      getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
+   const attendanceDay = getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
    const displayVisit = syncVisitAttendanceForDay(visit, attendanceDay);
    const windowOpen = isVisitAttendanceWindowOpen(visit);
    const group = isGroupVisit(visit);
@@ -267,7 +274,11 @@ export function VisitDetailsSheet({
       );
    });
 
-   const toggleVisitor = (id: string, checked: boolean, selectable: boolean) => {
+   const toggleVisitor = (
+      id: string,
+      checked: boolean,
+      selectable: boolean,
+   ) => {
       if (!selectable) return;
       setSelectedIds((prev) => ({ ...prev, [id]: checked }));
    };
@@ -291,9 +302,7 @@ export function VisitDetailsSheet({
    const confirmCheckIn = async (payload: CheckInConfirmPayload) => {
       if (!visit) return;
       const ids =
-         payload.visitorIds.length > 0
-            ? payload.visitorIds
-            : pendingCheckInIds;
+         payload.visitorIds.length > 0 ? payload.visitorIds : pendingCheckInIds;
       if (ids.length === 0) return;
 
       const selected = visit.visitors.filter((v) => ids.includes(v.id));
@@ -472,9 +481,7 @@ export function VisitDetailsSheet({
                            <DetailRow
                               icon={Building2}
                               label="Organization"
-                              value={
-                                 visit.organization ?? 'Individual visitor'
-                              }
+                              value={visit.organization ?? 'Individual visitor'}
                            />
                            <DetailRow
                               icon={Users}
@@ -487,7 +494,19 @@ export function VisitDetailsSheet({
                               value={visit.department}
                            />
                            <DetailRow
-                              icon={Sparkles}
+                              icon={getVisitTypeIcon(visit.visitType)}
+                              label="Visit type"
+                              value={
+                                 <Badge
+                                    variant="secondary"
+                                    className="h-6 rounded-md px-2 font-medium"
+                                 >
+                                    {getVisitTypeLabel(visit.visitType)}
+                                 </Badge>
+                              }
+                           />
+                           <DetailRow
+                              icon={Handshake}
                               label="Meeting type"
                               value={
                                  <Badge
@@ -497,11 +516,6 @@ export function VisitDetailsSheet({
                                     {getMeetingTypeLabel(visit.meetingType)}
                                  </Badge>
                               }
-                           />
-                           <DetailRow
-                              icon={FileText}
-                              label="Purpose"
-                              value={visit.purpose}
                            />
                            <DetailRow
                               icon={CalendarDays}
@@ -587,11 +601,9 @@ export function VisitDetailsSheet({
                                  const canSelectForCheckIn =
                                     showCheckIn && dayStatus === 'pending';
                                  const canSelectForCheckOut =
-                                    showCheckOut &&
-                                    dayStatus === 'checked_in';
+                                    showCheckOut && dayStatus === 'checked_in';
                                  const selectable =
-                                    canSelectForCheckIn ||
-                                    canSelectForCheckOut;
+                                    canSelectForCheckIn || canSelectForCheckOut;
                                  const checked = Boolean(
                                     selectedIds[visitor.id],
                                  );
@@ -681,9 +693,7 @@ export function VisitDetailsSheet({
                            ) : (
                               <Mail className="size-4" />
                            )}
-                           {isResending
-                              ? 'Sending…'
-                              : 'Resend Approval Email'}
+                           {isResending ? 'Sending…' : 'Resend Approval Email'}
                         </Button>
                      )}
                      {showCheckIn && (

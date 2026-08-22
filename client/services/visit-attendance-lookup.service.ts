@@ -7,18 +7,12 @@ import {
 } from '@/lib/visit-attendance';
 import type { ApiResponse } from '@/types/api.types';
 import type { ManagedVisit, ManagedVisitor } from '@/types/visit.types';
-import {
-   findMockBadge,
-   normalizeBadgeCode,
-   resolveAvailableBadges,
-} from '@/data/mock-badges';
 import { AxiosError } from 'axios';
 
 /**
- * Lookup contracts mirror the v2 visit-attendance QR endpoints:
- * GET /visit-attendances/lookup/visit?code=
- * GET /visit-attendances/lookup/badge?code=
- * GET /badges?search= (availability)
+ * Lookup contracts mirror visit-attendance QR endpoints:
+ * GET /visit-attendance/lookup/visit?code=
+ * GET /visit-attendance/lookup/badge?code=
  */
 
 export type VisitCheckInLookupResult = {
@@ -31,15 +25,9 @@ export type VisitCheckInLookupResult = {
 export type BadgeCheckOutLookupResult = {
    visit: ManagedVisit;
    visitors: ManagedVisitor[];
-   badgeNumber: string;
+   badgeToken: string;
+   attendanceId?: string;
    eligibleForCheckOut: boolean;
-   reason?: string;
-};
-
-export type BadgeAvailabilityLookupResult = {
-   badgeNumber: string;
-   qrCode?: string;
-   available: boolean;
    reason?: string;
 };
 
@@ -69,17 +57,18 @@ type ApiVisitLookup = {
 };
 
 type ApiBadgeLookup = {
-   badge: { id: string; badgeNumber: string; status: string };
    eligibleForCheckOut: boolean;
    reason?: string;
+   badgeToken: string;
    attendance: null | {
       id: string;
+      badgeToken?: string;
       visit?: { id: string; visitCode?: string };
       visitor?: {
+         id?: string;
          firstName: string;
          lastName: string;
       };
-      badge?: { badgeNumber: string };
    };
 };
 
@@ -134,86 +123,35 @@ function mockLookupBadgeForCheckOut(
    code: string,
    visits: ManagedVisit[],
 ): BadgeCheckOutLookupResult {
-   const badge = findMockBadge(code);
-   const badgeNumber = badge?.number ?? normalizeBadgeCode(code);
-
-   if (!badgeNumber) {
+   const token = code.trim();
+   if (!token) {
       throw new Error('Invalid badge QR code');
-   }
-
-   if (!badge) {
-      throw new Error('Badge not found for the scanned QR code');
    }
 
    for (const visit of visits) {
       if (!canCheckOut(visit)) continue;
       const matched = getCheckOutEligibleVisitors(visit).filter(
          (visitor) =>
-            visitor.assignedBadgeNumber &&
-            normalizeBadgeCode(visitor.assignedBadgeNumber) === badgeNumber,
+            visitor.badgeToken &&
+            visitor.badgeToken.trim() === token,
       );
       if (matched.length > 0) {
          return {
             visit,
             visitors: matched,
-            badgeNumber,
+            badgeToken: token,
+            attendanceId: matched[0]?.attendanceId,
             eligibleForCheckOut: true,
          };
       }
    }
 
-   // Fallback: match by display badge derived from visit id (legacy desk flow).
-   const digits = badgeNumber.replace(/\D/g, '').slice(-4);
-   const legacy = visits.find((visit) => {
-      if (!canCheckOut(visit)) return false;
-      const visitDigits = visit.id.replace(/\D/g, '').slice(-4);
-      return visitDigits === digits;
-   });
-
-   if (legacy) {
-      return {
-         visit: legacy,
-         visitors: getCheckOutEligibleVisitors(legacy),
-         badgeNumber,
-         eligibleForCheckOut: true,
-      };
-   }
-
    return {
       visit: visits[0] ?? ({} as ManagedVisit),
       visitors: [],
-      badgeNumber,
+      badgeToken: token,
       eligibleForCheckOut: false,
-      reason: 'No checked-in visitor is assigned to this badge',
-   };
-}
-
-function mockLookupBadgeAvailability(
-   code: string,
-   visits: ManagedVisit[],
-): BadgeAvailabilityLookupResult {
-   const badge = findMockBadge(code);
-   if (!badge) {
-      return {
-         badgeNumber: normalizeBadgeCode(code) || code.trim().toUpperCase(),
-         available: false,
-         reason: 'Badge not found in the available pool',
-      };
-   }
-
-   const available = resolveAvailableBadges(visits).some(
-      (item) => item.number === badge.number,
-   );
-
-   return {
-      badgeNumber: badge.number,
-      qrCode: badge.qrCode,
-      available,
-      reason: available
-         ? undefined
-         : badge.poolStatus === 'in_use'
-           ? 'This badge is already in use'
-           : 'This badge is already assigned',
+      reason: 'No checked-in visitor found for this badge token',
    };
 }
 
@@ -250,7 +188,7 @@ export const visitAttendanceLookupService = {
    ): Promise<VisitCheckInLookupResult> {
       try {
          const { data } = await api.get<ApiResponse<ApiVisitLookup>>(
-            '/visit-attendances/lookup/visit',
+            '/visit-attendance/lookup/visit',
             { params: { code: code.trim() } },
          );
          return mapApiVisitLookup(data.data, visits);
@@ -274,11 +212,12 @@ export const visitAttendanceLookupService = {
    ): Promise<BadgeCheckOutLookupResult> {
       try {
          const { data } = await api.get<ApiResponse<ApiBadgeLookup>>(
-            '/visit-attendances/lookup/badge',
+            '/visit-attendance/lookup/badge',
             { params: { code: code.trim() } },
          );
          const payload = data.data;
-         const badgeNumber = payload.badge.badgeNumber;
+         const badgeToken = payload.badgeToken;
+
          if (!payload.eligibleForCheckOut || !payload.attendance) {
             if (!visits.length) {
                throw new Error(
@@ -289,7 +228,7 @@ export const visitAttendanceLookupService = {
             return {
                visit: visits[0]!,
                visitors: [],
-               badgeNumber,
+               badgeToken,
                eligibleForCheckOut: false,
                reason: payload.reason,
             };
@@ -307,11 +246,29 @@ export const visitAttendanceLookupService = {
             return mockLookupBadgeForCheckOut(code, visits);
          }
 
+         const visitorName = payload.attendance.visitor
+            ? `${payload.attendance.visitor.firstName} ${payload.attendance.visitor.lastName}`.trim()
+            : null;
+
          const visitors = getCheckOutEligibleVisitors(visit).filter(
-            (visitor) =>
-               !visitor.assignedBadgeNumber ||
-               normalizeBadgeCode(visitor.assignedBadgeNumber) ===
-                  normalizeBadgeCode(badgeNumber),
+            (visitor) => {
+               if (
+                  visitor.badgeToken &&
+                  visitor.badgeToken === badgeToken
+               ) {
+                  return true;
+               }
+               if (
+                  visitor.attendanceId &&
+                  visitor.attendanceId === payload.attendance!.id
+               ) {
+                  return true;
+               }
+               if (visitorName && visitor.name === visitorName) {
+                  return true;
+               }
+               return false;
+            },
          );
 
          return {
@@ -319,7 +276,8 @@ export const visitAttendanceLookupService = {
             visitors: visitors.length
                ? visitors
                : getCheckOutEligibleVisitors(visit),
-            badgeNumber,
+            badgeToken,
+            attendanceId: payload.attendance.id,
             eligibleForCheckOut: true,
          };
       } catch (error) {
@@ -330,51 +288,6 @@ export const visitAttendanceLookupService = {
             throw new Error(
                error.response?.data?.message ??
                   'Unable to look up badge from QR code',
-            );
-         }
-         throw error;
-      }
-   },
-
-   async lookupBadgeAvailability(
-      code: string,
-      visits: ManagedVisit[],
-   ): Promise<BadgeAvailabilityLookupResult> {
-      try {
-         const normalized = normalizeBadgeCode(code);
-         const { data } = await api.get<
-            ApiResponse<Array<{ badgeNumber: string; status: string; qrToken?: string }>>
-         >('/badges', {
-            params: { search: normalized || code.trim(), limit: 5 },
-         });
-
-         const match = data.data.find(
-            (badge) =>
-               normalizeBadgeCode(badge.badgeNumber) === normalized ||
-               badge.qrToken === code.trim(),
-         );
-
-         if (!match) {
-            return mockLookupBadgeAvailability(code, visits);
-         }
-
-         const available = match.status === 'AVAILABLE';
-         return {
-            badgeNumber: match.badgeNumber,
-            qrCode: match.qrToken,
-            available,
-            reason: available
-               ? undefined
-               : `Badge is not available (status: ${match.status})`,
-         };
-      } catch (error) {
-         if (isRouteMissing(error)) {
-            return mockLookupBadgeAvailability(code, visits);
-         }
-         if (error instanceof AxiosError) {
-            throw new Error(
-               error.response?.data?.message ??
-                  'Unable to validate badge from QR code',
             );
          }
          throw error;

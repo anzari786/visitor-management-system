@@ -16,8 +16,8 @@ type VisitorSeed = {
    idType?: IdType;
    idNumber?: string;
    checkedInAt?: string;
-   assignedBadgeNumber?: string;
-   assignedBadgeQr?: string;
+   badgeToken?: string;
+   attendanceId?: string;
 };
 
 function withIds(
@@ -38,8 +38,8 @@ function withIds(
          idType: entry.idType,
          idNumber: entry.idNumber,
          checkedInAt: entry.checkedInAt,
-         assignedBadgeNumber: entry.assignedBadgeNumber,
-         assignedBadgeQr: entry.assignedBadgeQr,
+         badgeToken: entry.badgeToken,
+         attendanceId: entry.attendanceId,
          attendanceByDate: {
             [day]: {
                date: day,
@@ -64,8 +64,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
             name: 'Sara Bekele',
             attendanceStatus: 'checked_in',
             checkedInAt: '2026-08-10T08:45:00.000Z',
-            assignedBadgeNumber: 'B-1024',
-            assignedBadgeQr: 'QR-B-1024',
+            badgeToken: 'tok-b-1024',
+            attendanceId: 'mock-att-1024',
             phone: '+251 911 234 567',
             email: 'sara.bekele@addisTalent.com',
             organization: 'Addis Talent Group',
@@ -267,8 +267,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
             name: 'Aster Lemma',
             attendanceStatus: 'checked_in',
             checkedInAt: '2026-08-11T08:45:00.000Z',
-            assignedBadgeNumber: 'B-1030',
-            assignedBadgeQr: 'QR-B-1030',
+            badgeToken: 'tok-b-1030',
+            attendanceId: 'mock-att-1030',
             phone: '+251 911 640 101',
             organization: 'Swift Logistics',
             idType: 'national_id',
@@ -307,7 +307,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0136',
       visitorName: 'Liya Solomon',
-      visitors: withIds('VMS-2026-0136', '2026-08-12', [{ name: 'Liya Solomon' }]),
+      visitors: withIds('VMS-2026-0136', '2026-08-12', [
+         { name: 'Liya Solomon' },
+      ]),
       visitorCount: 1,
       organization: 'Compliance Partners',
       host: 'Nahom Desta',
@@ -345,7 +347,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0134',
       visitorName: 'Eden Fikru',
-      visitors: withIds('VMS-2026-0134', '2026-08-07', [{ name: 'Eden Fikru' }]),
+      visitors: withIds('VMS-2026-0134', '2026-08-07', [
+         { name: 'Eden Fikru' },
+      ]),
       visitorCount: 1,
       organization: 'Northwind Partners',
       host: 'Selam Awoke',
@@ -389,7 +393,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0132',
       visitorName: 'Rahel Desta',
-      visitors: withIds('VMS-2026-0132', '2026-08-11', [{ name: 'Rahel Desta' }]),
+      visitors: withIds('VMS-2026-0132', '2026-08-11', [
+         { name: 'Rahel Desta' },
+      ]),
       visitorCount: 1,
       organization: 'Ministry Liaison Office',
       host: 'Rahel Fikru',
@@ -431,7 +437,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
    {
       id: 'VMS-2026-0130',
       visitorName: 'Saba Negash',
-      visitors: withIds('VMS-2026-0130', '2026-08-11', [{ name: 'Saba Negash' }]),
+      visitors: withIds('VMS-2026-0130', '2026-08-11', [
+         { name: 'Saba Negash' },
+      ]),
       visitorCount: 1,
       host: 'Abebe Kebede',
       department: 'Human Resources',
@@ -475,8 +483,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
             name: 'Frehiwot Desta',
             attendanceStatus: 'checked_in',
             checkedInAt: '2026-08-11T09:05:00.000Z',
-            assignedBadgeNumber: 'B-1025',
-            assignedBadgeQr: 'QR-B-1025',
+            badgeToken: 'tok-b-1025',
+            attendanceId: 'mock-att-1025',
             phone: '+251 911 880 002',
             email: 'frehiwot@cloudbridge.et',
             organization: 'CloudBridge Ethiopia',

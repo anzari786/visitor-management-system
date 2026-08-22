@@ -102,12 +102,6 @@ export type HostRoom = {
    isAvailable?: boolean;
 };
 
-export type HostAvailableBadge = {
-   id: number;
-   badgeNumber: number;
-   status: string;
-};
-
 export type HostNotification = {
    id: string;
    title: string;

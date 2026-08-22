@@ -319,6 +319,19 @@ export function applyVisitorAttendance(
       return withSyncedCurrentAttendance(
          {
             ...visitor,
+            ...(nextAttendance === 'checked_in'
+               ? {
+                    badgeToken:
+                       visitor.badgeToken ??
+                       `tok-${visitor.id}-${day}`,
+                    attendanceId:
+                       visitor.attendanceId ??
+                       `mock-${visitor.id}-${day}`,
+                    printJobStatus: 'QUEUED' as const,
+                 }
+               : {
+                    printJobStatus: undefined,
+                 }),
             attendanceByDate: {
                ...visitor.attendanceByDate,
                [day]: dayRecord,

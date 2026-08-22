@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
-import { Loader2, Send } from 'lucide-react';
+import { Check, Copy, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
 import {
@@ -15,6 +15,12 @@ import {
    type HostInvitationFormInput,
    type HostInvitationFormValues,
 } from '@/lib/validations/host-invitation.schema';
+import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
+import { authService } from '@/services/auth.service';
+import {
+   visitInvitationService,
+   type HostInvitationCreated,
+} from '@/services/visit-invitation.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -49,11 +55,6 @@ type CreateInvitationDialogProps = {
    onOpenChange: (open: boolean) => void;
 };
 
-/** Temporary stub — swap for `useCreateHostInvitation` from `@/hooks/use-host`. */
-async function submitHostInvitation(_values: HostInvitationFormValues) {
-   await new Promise((resolve) => setTimeout(resolve, 1000));
-}
-
 const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 
@@ -82,6 +83,9 @@ export function CreateInvitationDialog({
    onOpenChange,
 }: CreateInvitationDialogProps) {
    const [isSubmitting, setIsSubmitting] = useState(false);
+   const [createdInvitation, setCreatedInvitation] =
+      useState<HostInvitationCreated | null>(null);
+   const [copiedLink, setCopiedLink] = useState(false);
 
    const form = useForm<
       HostInvitationFormInput,
@@ -103,6 +107,8 @@ export function CreateInvitationDialog({
    const handleOpenChange = (nextOpen: boolean) => {
       if (!nextOpen) {
          form.reset(hostInvitationDefaultValues);
+         setCreatedInvitation(null);
+         setCopiedLink(false);
       }
       onOpenChange(nextOpen);
    };
@@ -161,7 +167,24 @@ export function CreateInvitationDialog({
                     visitorCount: values.visitors.length,
                  };
 
-         await submitHostInvitation(payload);
+         const { data: meResponse } = await authService.getMe();
+         const employeeId = meResponse.data.employee?.id;
+
+         if (!employeeId) {
+            throw new Error(
+               'Your account is not linked to an employee profile. Contact an administrator.',
+            );
+         }
+
+         const apiPayload = mapHostInvitationToApi(
+            payload,
+            Number(employeeId),
+         );
+
+         const { data } = await visitInvitationService.createHostInvitation(
+            apiPayload,
+         );
+         const created = data.data;
 
          const count =
             payload.knowsVisitorInfo === 'yes'
@@ -169,6 +192,19 @@ export function CreateInvitationDialog({
                : (payload.visitorCount ?? 1);
 
          const locationSummary = `${payload.floor}, ${payload.room}`;
+
+         if (payload.knowsVisitorInfo === 'no' && created.registration) {
+            setCreatedInvitation(created);
+            toast.success(
+               count > 1
+                  ? 'Group invitation created successfully'
+                  : 'Invitation created successfully',
+               {
+                  description: `Share the registration link with your visitors. Location: ${locationSummary}`,
+               },
+            );
+            return;
+         }
 
          toast.success(
             payload.knowsVisitorInfo === 'yes'
@@ -194,6 +230,83 @@ export function CreateInvitationDialog({
          setIsSubmitting(false);
       }
    }, onInvalid);
+
+   const copyRegistrationLink = async () => {
+      const url = createdInvitation?.registration?.registrationUrl;
+      if (!url) return;
+
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      toast.success('Registration link copied');
+      setTimeout(() => setCopiedLink(false), 2000);
+   };
+
+   if (createdInvitation?.registration) {
+      const expected = createdInvitation.expectedVisitorCount;
+      const registered = createdInvitation.registeredCount;
+
+      return (
+         <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogContent
+               aria-describedby={undefined}
+               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+            >
+               <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
+                  <DialogTitle>Invitation Created</DialogTitle>
+               </DialogHeader>
+
+               <div className="space-y-6 px-6 py-5">
+                  <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+                     <p className="font-medium text-foreground">
+                        Expected visitors: {expected}
+                     </p>
+                     <p className="text-muted-foreground">
+                        Registered: {registered} / {expected}
+                     </p>
+                  </div>
+
+                  <div className="space-y-2">
+                     <p className="text-sm font-medium">Registration link</p>
+                     <div className="flex gap-2">
+                        <Input
+                           readOnly
+                           value={createdInvitation.registration.registrationUrl}
+                           className="font-mono text-xs"
+                        />
+                        <Button
+                           type="button"
+                           variant="outline"
+                           size="icon"
+                           className="shrink-0 cursor-pointer"
+                           onClick={copyRegistrationLink}
+                        >
+                           {copiedLink ? (
+                              <Check className="size-4" />
+                           ) : (
+                              <Copy className="size-4" />
+                           )}
+                        </Button>
+                     </div>
+                     <p className="text-xs text-muted-foreground">
+                        Share this link with your visitors so they can register
+                        before arriving.
+                     </p>
+                  </div>
+               </div>
+
+               <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+                  <Button
+                     type="button"
+                     className="cursor-pointer"
+                     onClick={() => handleOpenChange(false)}
+                  >
+                     Done
+                  </Button>
+               </DialogFooter>
+            </DialogContent>
+         </Dialog>
+      );
+   }
 
    return (
       <Dialog open={open} onOpenChange={handleOpenChange}>

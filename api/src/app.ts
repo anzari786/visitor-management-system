@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { sessionMiddleware } from './lib/session.js';
+import { sessionMiddleware } from './config/session.js';
 import type { NextFunction, Request, Response } from 'express';
 import routes from './routes/index.js';
 import { HttpError } from './lib/errors.js';
@@ -24,7 +24,7 @@ app.get('/api/health', (req: Request, res: Response) => {
    });
 });
 
-app.use('/api', routes);
+app.use('/api/v1', routes);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
    console.error(err);

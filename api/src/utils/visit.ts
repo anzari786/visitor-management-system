@@ -1,9 +1,11 @@
-import { Prisma, Setting } from '../generated/prisma/client.js';
-import { prisma } from '../lib/prisma.js';
+import { Prisma } from '../generated/prisma/client.js';
+import { prisma } from '../config/prisma.js';
 
 export const visitInclude = {
-   visitor: true,
-   department: true,
+   participants: {
+      include: { visitor: true },
+   },
+   hostEmployee: true,
 } satisfies Prisma.VisitInclude;
 
 export type VisitWithRelations = Prisma.VisitGetPayload<{
@@ -11,53 +13,48 @@ export type VisitWithRelations = Prisma.VisitGetPayload<{
 }>;
 
 export async function getSettings() {
-   return prisma.setting.findUniqueOrThrow({
-      where: { id: 1 },
+   const rows = await prisma.systemSetting.findMany({
+      where: {
+         key: {
+            in: [
+               'orgName',
+               'badgePrefix',
+               'overstayEnabled',
+               'overstayAfterMins',
+            ],
+         },
+      },
    });
+
+   const map = Object.fromEntries(rows.map((row) => [row.key, row.value]));
+
+   return {
+      orgName: map.orgName ?? 'VMS',
+      badgePrefix: map.badgePrefix ?? 'VMS',
+      overstayEnabled: map.overstayEnabled !== 'false',
+      overstayAfterMins: Number(map.overstayAfterMins ?? 120),
+   };
 }
 
-export function computeStatus(
-   visit: Pick<VisitWithRelations, 'status' | 'checkedInAt'>,
-   settings: Setting,
-): 'active' | 'overstay' | 'completed' | 'cancelled' {
-   if (visit.status !== 'active') {
-      return visit.status;
-   }
-
-   if (settings.overstayEnabled) {
-      const elapsedMinutes =
-         (Date.now() - visit.checkedInAt.getTime()) / 60_000;
-
-      if (elapsedMinutes > settings.overstayAfterMins) {
-         return 'overstay';
-      }
-   }
-
-   return 'active';
-}
-
-export function formatBadge(prefix: string, badgeNumber: number) {
-   return `${prefix}-${String(badgeNumber).padStart(3, '0')}`;
-}
-
-export function toVisitDTO(visit: VisitWithRelations, settings: Setting) {
-   const status = computeStatus(visit, settings);
+export function toVisitDTO(visit: VisitWithRelations) {
+   const primary = visit.participants[0]?.visitor;
 
    return {
       id: visit.id,
-      badge: formatBadge(settings.badgePrefix, visit.badgeNumber),
-      visitorName: visit.visitor.fullName,
-      phone: visit.visitor.phone ?? '',
-      idNumber: visit.visitor.idNumber,
-      idType: visit.visitor.idType,
-      host: visit.hostName,
-      department: visit.department ?? null,
-      checkInTime: visit.checkedInAt.toISOString(),
-      checkOutTime: visit.checkedOutAt?.toISOString(),
-      cancelledAt:
-         status === 'cancelled' ? visit.checkedOutAt?.toISOString() : undefined,
-      status,
-      note: visit.checkoutNote ?? undefined,
+      visitCode: visit.visitCode,
+      visitorName: primary
+         ? `${primary.firstName} ${primary.lastName}`
+         : '',
+      phone: primary?.phone ?? '',
+      idNumber: primary?.idNumber ?? '',
+      idType: primary?.idType ?? null,
+      host:
+         visit.hostNameSnapshot ??
+         (visit.hostEmployee
+            ? `${visit.hostEmployee.firstName} ${visit.hostEmployee.lastName}`
+            : ''),
+      department: visit.departmentNameSnapshot ?? null,
+      status: visit.status,
    };
 }
 

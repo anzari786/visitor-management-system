@@ -10,6 +10,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import {
    formatVisitDuration,
    getCheckOutEligibleVisitors,
@@ -17,10 +18,9 @@ import {
    getVisitCheckInReference,
    getVisitorAttendanceStatusForDay,
 } from '@/lib/visit-attendance';
-import { cn } from '@/lib/utils';
 import type { ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { format } from 'date-fns';
-import { Clock3, LogOut, QrCode } from 'lucide-react';
+import { Clock3, LogOut, ScanLine, Search } from 'lucide-react';
 import * as React from 'react';
 import { VisitorAttendanceBadge } from './managed-visit-status-badge';
 
@@ -79,9 +79,8 @@ export function CheckOutConfirmDialog({
 }: CheckOutConfirmDialogProps) {
    const [isSubmitting, setIsSubmitting] = React.useState(false);
    const [badgeInput, setBadgeInput] = React.useState('');
-   const [resolvedVisit, setResolvedVisit] = React.useState<ManagedVisit | null>(
-      null,
-   );
+   const [resolvedVisit, setResolvedVisit] =
+      React.useState<ManagedVisit | null>(null);
 
    React.useEffect(() => {
       if (!open) {
@@ -123,9 +122,7 @@ export function CheckOutConfirmDialog({
       const found = onLookupBadge?.(badgeInput.trim());
       if (found) {
          setResolvedVisit(found);
-         setBadgeInput(
-            getDisplayBadge(getCheckOutEligibleVisitors(found)),
-         );
+         setBadgeInput(getDisplayBadge(getCheckOutEligibleVisitors(found)));
          return;
       }
       setResolvedVisit(null);
@@ -140,9 +137,7 @@ export function CheckOutConfirmDialog({
       const found = onLookupBadge?.(badgeInput.trim() || 'SCAN');
       if (found) {
          setResolvedVisit(found);
-         setBadgeInput(
-            getDisplayBadge(getCheckOutEligibleVisitors(found)),
-         );
+         setBadgeInput(getDisplayBadge(getCheckOutEligibleVisitors(found)));
       }
    };
 
@@ -187,14 +182,17 @@ export function CheckOutConfirmDialog({
                         }
                      }}
                   />
-                  <Button
-                     type="button"
-                     variant="outline"
-                     className="h-10 shrink-0 px-4"
-                     onClick={handleFind}
-                  >
-                     Find
-                  </Button>
+                  <div className="group shrink-0">
+                     <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-lg group-hover:-translate-y-1 transition-transform duration-200 cursor-pointer"
+                        onClick={handleFind}
+                     >
+                        <Search size={16} />
+                        Find
+                     </Button>
+                  </div>
                </div>
 
                <div className="relative flex items-center justify-center">
@@ -210,7 +208,7 @@ export function CheckOutConfirmDialog({
                   className="h-11 w-full gap-2"
                   onClick={handleScanBadge}
                >
-                  <QrCode className="size-4" />
+                  <ScanLine className="size-4" />
                   Scan Badge QR Code
                </Button>
             </div>
@@ -235,8 +233,8 @@ export function CheckOutConfirmDialog({
                                 )
                               : visitor.attendanceStatus;
                            const visitorCheckIn = attendanceDay
-                              ? visitor.attendanceByDate?.[attendanceDay]
-                                   ?.checkedInAt ?? visitor.checkedInAt
+                              ? (visitor.attendanceByDate?.[attendanceDay]
+                                   ?.checkedInAt ?? visitor.checkedInAt)
                               : visitor.checkedInAt;
 
                            return (
@@ -280,7 +278,9 @@ export function CheckOutConfirmDialog({
                         </p>
                      </div>
                      <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
-                        <p className="text-xs text-muted-foreground">Duration</p>
+                        <p className="text-xs text-muted-foreground">
+                           Duration
+                        </p>
                         <p className="mt-1 flex items-center gap-1.5 text-lg font-semibold tabular-nums tracking-tight">
                            <Clock3 className="size-4 text-muted-foreground" />
                            {duration}

@@ -10,27 +10,41 @@ import {
    DialogHeader,
    DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import { getMeetingTypeLabel } from '@/constants/meeting-types';
 import { cn } from '@/lib/utils';
 import type { IdType, ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { format, parseISO } from 'date-fns';
 import {
+   BadgeCheck,
    Building2,
    CheckCircle2,
    ChevronRight,
+   CircleXIcon,
    IdCard,
    LogIn,
    Mail,
    Phone,
    Printer,
    ShieldAlert,
-   ShieldCheck,
+   Undo2,
    Users,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 const CHECK_IN_STEPS = [
    {
@@ -58,6 +72,23 @@ type CheckInDialogProps = {
    visitors?: ManagedVisitor[];
    onConfirm: (payload: CheckInConfirmPayload) => void | Promise<void>;
 };
+
+const verificationSchema = z.object({
+   verifications: z.array(
+      z.object({
+         visitorId: z.string(),
+         idType: z.custom<IdType>(
+            (val) => typeof val === 'string' && val.length > 0,
+            {
+               message: 'Select an ID type',
+            },
+         ),
+         idNumber: z.string().trim().min(1, 'Enter the ID number'),
+      }),
+   ),
+});
+
+type VerificationFormValues = z.infer<typeof verificationSchema>;
 
 function formatTimeLabel(time: string) {
    const [hours, minutes] = time.split(':').map(Number);
@@ -107,9 +138,22 @@ export function CheckInDialog({
 }: CheckInDialogProps) {
    const [activeStepIdx, setActiveStepIdx] = React.useState(0);
    const [isSubmitting, setIsSubmitting] = React.useState(false);
-   const [verifiedIds, setVerifiedIds] = React.useState<Record<string, boolean>>(
-      {},
-   );
+   const [verifiedIds, setVerifiedIds] = React.useState<
+      Record<string, boolean>
+   >({});
+   const [activeVerifyVisitorId, setActiveVerifyVisitorId] = React.useState<
+      string | null
+   >(null);
+   const verifyForm = useForm<VerificationFormValues>({
+      resolver: zodResolver(verificationSchema),
+      defaultValues: { verifications: [] },
+   });
+
+   const { fields: verificationFields, replace: replaceVerifications } =
+      useFieldArray({
+         control: verifyForm.control,
+         name: 'verifications',
+      });
 
    const visitors = React.useMemo(() => {
       if (visitorsProp && visitorsProp.length > 0) return visitorsProp;
@@ -122,10 +166,19 @@ export function CheckInDialog({
          setActiveStepIdx(0);
          setIsSubmitting(false);
          setVerifiedIds({});
+         replaceVerifications([]);
+         setActiveVerifyVisitorId(null);
          return;
       }
 
       setVerifiedIds({});
+      replaceVerifications(
+         visitors.map((visitor) => ({
+            visitorId: visitor.id,
+            idType: 'national_id' as IdType,
+            idNumber: '', // always starts empty — user types this, never prefilled
+         })),
+      );
       setActiveStepIdx(0);
    }, [open, visitors]);
 
@@ -133,6 +186,23 @@ export function CheckInDialog({
    const hasVerified = verifiedVisitors.length > 0;
    const canEnterStep2 = hasVerified;
    const isLastStep = activeStepIdx === CHECK_IN_STEPS.length - 1;
+
+   const activeVerificationTargetId = React.useMemo(() => {
+      if (activeVerifyVisitorId && !verifiedIds[activeVerifyVisitorId]) {
+         return activeVerifyVisitorId;
+      }
+      return visitors.find((visitor) => !verifiedIds[visitor.id])?.id ?? null;
+   }, [activeVerifyVisitorId, verifiedIds, visitors]);
+
+   React.useEffect(() => {
+      if (activeStepIdx !== 0) return;
+      if (
+         activeVerificationTargetId &&
+         activeVerificationTargetId !== activeVerifyVisitorId
+      ) {
+         setActiveVerifyVisitorId(activeVerificationTargetId);
+      }
+   }, [activeStepIdx, activeVerificationTargetId, activeVerifyVisitorId]);
 
    const dateLabel = visit
       ? visit.isMultiDay && visit.endDate
@@ -180,8 +250,17 @@ export function CheckInDialog({
       }
    };
 
-   const verifyVisitor = (visitorId: string) => {
+   const verifyVisitor = async (visitorId: string) => {
+      const index = verificationFields.findIndex(
+         (v) => v.visitorId === visitorId,
+      );
+      if (index === -1) return;
+
+      const valid = await verifyForm.trigger(`verifications.${index}`);
+      if (!valid) return;
+
       setVerifiedIds((prev) => ({ ...prev, [visitorId]: true }));
+      toast.success('Identity verified');
    };
 
    const unverifyVisitor = (visitorId: string) => {
@@ -211,7 +290,7 @@ export function CheckInDialog({
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
-            className="gap-0 overflow-hidden p-0 duration-300 sm:max-w-4xl"
+            className="gap-0 overflow-hidden p-0 duration-300 sm:max-w-5xl"
             showCloseButton={false}
          >
             <DialogHeader className="space-y-1.5 border-b px-6 py-5 text-left sm:px-8">
@@ -314,7 +393,7 @@ export function CheckInDialog({
                                  <>
                                     <div className="space-y-2">
                                        <div className="flex items-center gap-2">
-                                          <ShieldCheck className="size-4 text-primary" />
+                                          <BadgeCheck className="size-4 text-primary" />
                                           <h3 className="text-lg font-semibold text-foreground">
                                              Verify Identity
                                           </h3>
@@ -336,124 +415,241 @@ export function CheckInDialog({
                                     </div>
 
                                     <div className="space-y-3">
-                                       {visitors.map((visitor) => {
+                                       {visitors.map((visitor, index) => {
                                           const verified = Boolean(
                                              verifiedIds[visitor.id],
                                           );
+                                          const fieldErrors =
+                                             verifyForm.formState.errors
+                                                .verifications?.[index];
+                                          const currentValues =
+                                             verifyForm.watch(
+                                                `verifications.${index}`,
+                                             );
+
                                           return (
                                              <div
                                                 key={visitor.id}
                                                 className={cn(
                                                    'rounded-xl border p-4 transition-colors',
                                                    verified
-                                                      ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/50 dark:bg-emerald-950/20'
-                                                      : 'bg-card',
+                                                      ? 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+                                                      : activeVerificationTargetId ===
+                                                          visitor.id
+                                                        ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                                                        : 'bg-card',
                                                 )}
                                              >
-                                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                                                   <div className="shrink-0">
-                                                      {verified ? (
-                                                         <div className="flex flex-col gap-2">
-                                                            <Badge className="h-9 gap-1.5 border-0 bg-emerald-500 px-3 text-sm font-semibold text-white hover:bg-emerald-500">
-                                                               <CheckCircle2 className="size-4" />
-                                                               Verified
-                                                            </Badge>
-                                                            <Button
-                                                               type="button"
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               className="h-7 px-2 text-xs text-muted-foreground"
-                                                               onClick={() =>
-                                                                  unverifyVisitor(
-                                                                     visitor.id,
-                                                                  )
-                                                               }
-                                                            >
-                                                               Undo
-                                                            </Button>
-                                                         </div>
-                                                      ) : (
-                                                         <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            className="h-9 gap-2"
-                                                            onClick={() =>
-                                                               verifyVisitor(
-                                                                  visitor.id,
-                                                               )
-                                                            }
-                                                         >
-                                                            <ShieldCheck className="size-4" />
-                                                            Verify Identity
-                                                         </Button>
-                                                      )}
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                   <div className="min-w-0">
+                                                      <p className="text-sm font-semibold text-foreground">
+                                                         {visitor.name}
+                                                      </p>
+                                                      <p className="mt-0.5 text-xs text-muted-foreground">
+                                                         {[
+                                                            visitor.organization,
+                                                            visitor.phone,
+                                                         ]
+                                                            .filter(Boolean)
+                                                            .join(' · ') ||
+                                                            'Individual visitor'}
+                                                      </p>
                                                    </div>
-
-                                                   <div className="min-w-0 flex-1 space-y-3">
-                                                      <div className="flex flex-wrap items-start justify-between gap-2">
-                                                         <div>
-                                                            <p className="text-sm font-semibold text-foreground">
-                                                               {visitor.name}
-                                                            </p>
-                                                            <p className="mt-0.5 text-xs text-muted-foreground">
-                                                               {visitor.organization ||
-                                                                  'Individual visitor'}
-                                                            </p>
-                                                         </div>
-                                                         {!verified && (
-                                                            <Badge
-                                                               variant="secondary"
-                                                               className="h-5 rounded-md px-1.5 text-[11px]"
-                                                            >
-                                                               Not Verified
-                                                            </Badge>
-                                                         )}
-                                                      </div>
-
-                                                      <div className="grid gap-2 sm:grid-cols-2">
-                                                         <InfoRow
-                                                            icon={Phone}
-                                                            label="Phone"
-                                                            value={visitor.phone}
-                                                         />
-                                                         <InfoRow
-                                                            icon={Mail}
-                                                            label="Email"
-                                                            value={visitor.email}
-                                                         />
-                                                         <InfoRow
-                                                            icon={Building2}
-                                                            label="Organization"
-                                                            value={
-                                                               visitor.organization
-                                                            }
-                                                         />
-                                                         <InfoRow
-                                                            icon={IdCard}
-                                                            label="ID"
-                                                            value={
-                                                               visitor.idType ||
-                                                               visitor.idNumber
-                                                                  ? [
-                                                                       visitor.idType
-                                                                          ? formatIdType(
-                                                                               visitor.idType,
-                                                                            )
-                                                                          : null,
-                                                                       visitor.idNumber,
-                                                                    ]
-                                                                       .filter(
-                                                                          Boolean,
-                                                                       )
-                                                                       .join(
-                                                                          ' · ',
-                                                                       )
-                                                                  : 'ID not provided'
-                                                            }
-                                                         />
-                                                      </div>
-                                                   </div>
+                                                   {verified ? (
+                                                      <Badge className="h-6 gap-1 border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                                                         <CheckCircle2 className="size-3.5" />
+                                                         Verified
+                                                      </Badge>
+                                                   ) : (
+                                                      <Button
+                                                         type="button"
+                                                         variant="outline"
+                                                         size="sm"
+                                                         className="rounded-lg cursor-pointer"
+                                                         onClick={() =>
+                                                            verifyVisitor(
+                                                               visitor.id,
+                                                            )
+                                                         }
+                                                      >
+                                                         <BadgeCheck className="size-4" />
+                                                         Verify Identity
+                                                      </Button>
+                                                   )}
                                                 </div>
+
+                                                {verified ? (
+                                                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2.5">
+                                                      <p className="font-mono text-sm font-semibold text-foreground">
+                                                         {formatIdType(
+                                                            currentValues.idType,
+                                                         )}{' '}
+                                                         ·{' '}
+                                                         {
+                                                            currentValues.idNumber
+                                                         }
+                                                      </p>
+                                                      <Button
+                                                         variant="outline"
+                                                         size="sm"
+                                                         className="rounded-lg cursor-pointer"
+                                                         onClick={() =>
+                                                            unverifyVisitor(
+                                                               visitor.id,
+                                                            )
+                                                         }
+                                                      >
+                                                         <Undo2 size={16} />
+                                                         Undo
+                                                      </Button>
+                                                   </div>
+                                                ) : (
+                                                   <div className="mt-3 space-y-2">
+                                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                                         <Field>
+                                                            <FieldLabel
+                                                               htmlFor={`verifications.${index}.idType`}
+                                                            >
+                                                               ID Type{' '}
+                                                               <span className="text-destructive">
+                                                                  *
+                                                               </span>
+                                                            </FieldLabel>
+                                                            <Controller
+                                                               name={`verifications.${index}.idType`}
+                                                               control={
+                                                                  verifyForm.control
+                                                               }
+                                                               render={({
+                                                                  field: controllerField,
+                                                               }) => (
+                                                                  <Select
+                                                                     value={
+                                                                        controllerField.value
+                                                                     }
+                                                                     onValueChange={
+                                                                        controllerField.onChange
+                                                                     }
+                                                                  >
+                                                                     <SelectTrigger
+                                                                        id={`verifications.${index}.idType`}
+                                                                        className="w-full"
+                                                                        aria-invalid={
+                                                                           !!fieldErrors?.idType
+                                                                        }
+                                                                     >
+                                                                        <SelectValue placeholder="Select ID type" />
+                                                                     </SelectTrigger>
+                                                                     <SelectContent>
+                                                                        {ID_TYPE_OPTIONS.map(
+                                                                           (
+                                                                              opt,
+                                                                           ) => (
+                                                                              <SelectItem
+                                                                                 key={
+                                                                                    opt.value
+                                                                                 }
+                                                                                 value={
+                                                                                    opt.value
+                                                                                 }
+                                                                              >
+                                                                                 {
+                                                                                    opt.label
+                                                                                 }
+                                                                              </SelectItem>
+                                                                           ),
+                                                                        )}
+                                                                     </SelectContent>
+                                                                  </Select>
+                                                               )}
+                                                            />
+                                                            <FieldError>
+                                                               {
+                                                                  fieldErrors
+                                                                     ?.idType
+                                                                     ?.message
+                                                               }
+                                                            </FieldError>
+                                                         </Field>
+
+                                                         <Field>
+                                                            <FieldLabel
+                                                               htmlFor={`verifications.${index}.idNumber`}
+                                                            >
+                                                               ID Number{' '}
+                                                               <span className="text-destructive">
+                                                                  *
+                                                               </span>
+                                                            </FieldLabel>
+                                                            <Controller
+                                                               name={`verifications.${index}.idNumber`}
+                                                               control={
+                                                                  verifyForm.control
+                                                               }
+                                                               render={({
+                                                                  field: controllerField,
+                                                               }) => (
+                                                                  <div className="relative">
+                                                                     <Input
+                                                                        {...controllerField}
+                                                                        id={`verifications.${index}.idNumber`}
+                                                                        placeholder="Enter identification number"
+                                                                        aria-invalid={
+                                                                           !!fieldErrors?.idNumber
+                                                                        }
+                                                                        className="pr-9"
+                                                                        onFocus={() =>
+                                                                           setActiveVerifyVisitorId(
+                                                                              visitor.id,
+                                                                           )
+                                                                        }
+                                                                        onKeyDown={(
+                                                                           event,
+                                                                        ) => {
+                                                                           if (
+                                                                              event.key ===
+                                                                              'Enter'
+                                                                           ) {
+                                                                              event.preventDefault();
+                                                                              verifyVisitor(
+                                                                                 visitor.id,
+                                                                              );
+                                                                           }
+                                                                        }}
+                                                                     />
+                                                                     {controllerField.value && (
+                                                                        <Button
+                                                                           type="button"
+                                                                           variant="ghost"
+                                                                           size="icon"
+                                                                           onClick={() =>
+                                                                              controllerField.onChange(
+                                                                                 '',
+                                                                              )
+                                                                           }
+                                                                           className="text-muted-foreground focus-visible:ring-ring/50 absolute inset-y-0 right-0 rounded-l-none hover:bg-transparent cursor-pointer"
+                                                                        >
+                                                                           <CircleXIcon className="text-red-500" />
+                                                                           <span className="sr-only">
+                                                                              Clear
+                                                                              input
+                                                                           </span>
+                                                                        </Button>
+                                                                     )}
+                                                                  </div>
+                                                               )}
+                                                            />
+                                                            <FieldError>
+                                                               {
+                                                                  fieldErrors
+                                                                     ?.idNumber
+                                                                     ?.message
+                                                               }
+                                                            </FieldError>
+                                                         </Field>
+                                                      </div>
+                                                   </div>
+                                                )}
                                              </div>
                                           );
                                        })}

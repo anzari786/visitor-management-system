@@ -67,6 +67,7 @@ import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import { VisitorInformationDialog } from './visitor-information-dialog';
 import {
    ManagedVisitStatusBadge,
    VisitorAttendanceBadge,
@@ -188,6 +189,7 @@ export function VisitDetailsSheet({
    const [pendingCheckInIds, setPendingCheckInIds] = React.useState<string[]>(
       [],
    );
+   const [visitorInfoOpen, setVisitorInfoOpen] = React.useState(false);
    const [isResending, setIsResending] = React.useState(false);
 
    React.useEffect(() => {
@@ -212,9 +214,13 @@ export function VisitDetailsSheet({
 
       // Open the Check-In stepper when launched in check-in mode (parity with Check Out sheet flow).
       if (initialMode === 'check_in' && canCheckIn(visit)) {
-         const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
-         setPendingCheckInIds(ids);
-         setCheckInDialogOpen(true);
+         if (visit.visitType === 'invitation') {
+            setVisitorInfoOpen(true);
+         } else {
+            const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
+            setPendingCheckInIds(ids);
+            setCheckInDialogOpen(true);
+         }
       }
    }, [visit?.id, open, initialMode]);
 
@@ -295,6 +301,38 @@ export function VisitDetailsSheet({
          return;
       }
 
+      if (visit.visitType === 'invitation') {
+         setVisitorInfoOpen(true);
+         return;
+      }
+
+      setPendingCheckInIds(ids);
+      setCheckInDialogOpen(true);
+   };
+
+   const handleVisitorInfoComplete = (visitorData: any[]) => {
+      if (!visit) return;
+
+      const updatedVisitors = visit.visitors.map((v, i) => {
+         const data = visitorData[i];
+         if (!data) return v;
+         return {
+            ...v,
+            name: `${data.firstName} ${data.lastName}`,
+            email: data.email,
+            phone: data.phone,
+            idType: data.idType,
+            idNumber: data.idNumber,
+            organization: data.organization,
+         };
+      });
+
+      const updatedVisit = { ...visit, visitors: updatedVisitors };
+      onVisitChange(updatedVisit);
+
+      setVisitorInfoOpen(false);
+
+      const ids = getCheckInEligibleVisitors(updatedVisit).map((v) => v.id);
       setPendingCheckInIds(ids);
       setCheckInDialogOpen(true);
    };
@@ -310,10 +348,7 @@ export function VisitDetailsSheet({
       let usedApi = false;
 
       for (const visitor of selected) {
-         if (
-            visitor.visitParticipantId != null &&
-            visitor.visitDayId != null
-         ) {
+         if (visitor.visitParticipantId != null && visitor.visitDayId != null) {
             try {
                const { data } = await visitAttendanceService.checkIn({
                   visitParticipantId: visitor.visitParticipantId,
@@ -738,6 +773,13 @@ export function VisitDetailsSheet({
                )}
             </SheetContent>
          </Sheet>
+
+         <VisitorInformationDialog
+            open={visitorInfoOpen}
+            onOpenChange={setVisitorInfoOpen}
+            visit={visit}
+            onComplete={handleVisitorInfoComplete}
+         />
 
          <CheckInDialog
             open={checkInDialogOpen}

@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
 import { DatePickerField } from '@/components/shared/date-picker-field';
 import { VisitLocationFields } from '@/components/shared/visit-location-fields';
-import { InvitationVisitorsFields } from './invitation-visitors-fields';
+import { InvitationVisitorsFields } from '@/components/common/invitation-visitors-fields';
 import {
    Dialog,
    DialogContent,
@@ -176,14 +176,10 @@ export function CreateInvitationDialog({
             );
          }
 
-         const apiPayload = mapHostInvitationToApi(
-            payload,
-            Number(employeeId),
-         );
+         const apiPayload = mapHostInvitationToApi(payload, Number(employeeId));
 
-         const { data } = await visitInvitationService.createHostInvitation(
-            apiPayload,
-         );
+         const { data } =
+            await visitInvitationService.createHostInvitation(apiPayload);
          const created = data.data;
 
          const count =
@@ -270,7 +266,9 @@ export function CreateInvitationDialog({
                      <div className="flex gap-2">
                         <Input
                            readOnly
-                           value={createdInvitation.registration.registrationUrl}
+                           value={
+                              createdInvitation.registration.registrationUrl
+                           }
                            className="font-mono text-xs"
                         />
                         <Button
@@ -365,7 +363,11 @@ export function CreateInvitationDialog({
                      </Field>
 
                      {knowsVisitorInfo === 'yes' ? (
-                        <InvitationVisitorsFields form={form} />
+                        <InvitationVisitorsFields
+                           form={form}
+                           heading="Known Visitors"
+                           description="Add each invited guest with their contact details. At least one visitor is required."
+                        />
                      ) : (
                         <>
                            <Field>
@@ -521,8 +523,7 @@ export function CreateInvitationDialog({
                                     onChange={(date) => {
                                        field.onChange(date);
                                        if (date) {
-                                          const end =
-                                             form.getValues('endDate');
+                                          const end = form.getValues('endDate');
                                           if (!end || end < date) {
                                              form.setValue('endDate', date, {
                                                 shouldValidate: true,

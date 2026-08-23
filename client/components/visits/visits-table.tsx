@@ -47,6 +47,7 @@ import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import { VisitorInformationDialog } from './visitor-information-dialog';
 import { ManagedVisitStatusBadge } from './managed-visit-status-badge';
 import VisitDetailsSheet, { getVisitTypeIcon } from './visit-details';
 import { VisitRowActions } from './visit-row-actions';
@@ -321,6 +322,10 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const [checkoutVisitorIds, setCheckoutVisitorIds] = React.useState<
       string[] | null
    >(null);
+   const [visitorInfoOpen, setVisitorInfoOpen] = React.useState(false);
+   const [pendingInfoVisitId, setPendingInfoVisitId] = React.useState<
+      string | null
+   >(null);
 
    const page = Number(searchParams.get('page')) || 1;
    const pageSize = Number(searchParams.get('pageSize')) || DEFAULT_PAGE_SIZE;
@@ -367,6 +372,9 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       visits.find((visit) => visit.id === badgeCheckoutVisitId) ??
       visits.find((visit) => canCheckOut(visit)) ??
       null;
+
+   const pendingInfoVisit =
+      visits.find((visit) => visit.id === pendingInfoVisitId) ?? null;
 
    const qrCheckInVisit =
       visits.find((visit) => visit.id === qrCheckInVisitId) ??
@@ -427,11 +435,55 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          toast.error('This visit is not ready for check-in');
          return;
       }
+
+      if (visit.visitType === 'invitation') {
+         setPendingInfoVisitId(visit.id);
+         setVisitorInfoOpen(true);
+         return;
+      }
+
       const eligible = getCheckInEligibleVisitors(visit);
       setQrCheckInVisitId(visit.id);
       setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
       setQrCheckInOpen(true);
    }, []);
+
+   const handleVisitorInfoComplete = React.useCallback(
+      (visitorData: any[]) => {
+         if (!pendingInfoVisit) return;
+
+         // Map updated visitor data back to the visit
+         const updatedVisitors = pendingInfoVisit.visitors.map((v, i) => {
+            const data = visitorData[i];
+            if (!data) return v;
+            return {
+               ...v,
+               name: `${data.firstName} ${data.lastName}`,
+               email: data.email,
+               phone: data.phone,
+               idType: data.idType,
+               idNumber: data.idNumber,
+               organization: data.organization,
+            };
+         });
+
+         const updatedVisit = {
+            ...pendingInfoVisit,
+            visitors: updatedVisitors,
+         };
+         upsertVisit(updatedVisit);
+
+         // Close info dialog and proceed to check-in
+         setVisitorInfoOpen(false);
+         setPendingInfoVisitId(null);
+
+         const eligible = getCheckInEligibleVisitors(updatedVisit);
+         setQrCheckInVisitId(updatedVisit.id);
+         setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
+         setQrCheckInOpen(true);
+      },
+      [pendingInfoVisit, upsertVisit],
+   );
 
    const handleCheckoutQrScanned = React.useCallback(
       async (code: string) => {
@@ -724,6 +776,13 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             onOpenChange={setFindVisitOpen}
             visits={visits}
             onSelectVisit={openManualCheckIn}
+         />
+
+         <VisitorInformationDialog
+            open={visitorInfoOpen}
+            onOpenChange={setVisitorInfoOpen}
+            visit={pendingInfoVisit}
+            onComplete={handleVisitorInfoComplete}
          />
 
          <QrScannerDialog

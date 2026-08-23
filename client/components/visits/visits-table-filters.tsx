@@ -13,21 +13,67 @@ import {
    VISIT_TYPE_OPTIONS,
    type VisitTypeValue,
 } from '@/constants/visit-types';
-import {
-   MEETING_TYPE_OPTIONS,
-   type MeetingTypeValue,
-} from '@/constants/meeting-types';
-import {
-   MANAGED_VISIT_STATUS_LABELS,
-   VISIT_DEPARTMENTS,
-} from '@/data/mock-visits';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ManagedVisitStatus } from '@/types/visit.types';
 import { ScanLine, Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { ScanDialog } from './scan-dialog';
+import { motion } from 'motion/react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { MANAGED_VISIT_STATUS_LABELS } from '@/data/mock-visits';
 
+type StatusFilterValue =
+   | 'all'
+   | 'pending'
+   | 'approved'
+   | 'rejected'
+   | 'rescheduled'
+   | 'checked_in'
+   | 'checked_out';
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilterValue; label: string }[] = [
+   { value: 'all', label: 'All' },
+   { value: 'pending', label: 'Pending' },
+   { value: 'approved', label: 'Approved' },
+   { value: 'rejected', label: 'Rejected' },
+   { value: 'rescheduled', label: 'Rescheduled' },
+   { value: 'checked_in', label: 'Checked In' },
+   { value: 'checked_out', label: 'Checked Out' },
+];
+
+const VISIT_TYPE_TOGGLE_OPTIONS: {
+   value: VisitTypeValue | 'all';
+   label: string;
+}[] = [{ value: 'all', label: 'All' }, ...VISIT_TYPE_OPTIONS];
+
+// Unified toggle key = "status:pending" or "visitType:visit"
+const TOGGLE_OPTIONS = [
+   ...STATUS_FILTER_OPTIONS.map((opt) => ({
+      key: `status:${opt.value}`,
+      label: opt.label,
+      kind: 'status' as const,
+      value: opt.value,
+   })),
+   ...VISIT_TYPE_OPTIONS.map((opt) => ({
+      key: `visitType:${opt.value}`,
+      label: opt.label,
+      kind: 'visitType' as const,
+      value: opt.value,
+   })),
+];
+
+export const STATUS_FILTER_GROUPS: Record<
+   Exclude<StatusFilterValue, 'all'>,
+   ManagedVisitStatus[]
+> = {
+   pending: ['requested'],
+   approved: ['approved'],
+   rejected: ['rejected', 'cancelled'],
+   rescheduled: ['rescheduled'],
+   checked_in: ['checked_in', 'partially_checked_in'],
+   checked_out: ['checked_out', 'partially_checked_out'],
+};
 type VisitsTableFiltersProps = {
    onScanBadge?: () => void;
    onFindVisit?: () => void;
@@ -44,12 +90,14 @@ export function VisitsTableFilters({
 
    const search = searchParams.get('search') ?? '';
    const statusFilter =
-      (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
-   const departmentFilter = searchParams.get('department') || 'all';
+      (searchParams.get('status') as StatusFilterValue) || 'all';
    const visitTypeFilter =
       (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
-   const meetingTypeFilter =
-      (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
+
+   const activeToggleKey =
+      visitTypeFilter !== 'all'
+         ? `visitType:${visitTypeFilter}`
+         : `status:${statusFilter}`;
 
    const [searchInput, setSearchInput] = React.useState(search);
    const debouncedSearch = useDebounce(searchInput, 300);
@@ -92,20 +140,14 @@ export function VisitsTableFilters({
    }, [debouncedSearch]);
 
    const hasActiveFilters =
-      Boolean(search) ||
-      statusFilter !== 'all' ||
-      departmentFilter !== 'all' ||
-      visitTypeFilter !== 'all';
-   meetingTypeFilter !== 'all';
+      Boolean(search) || statusFilter !== 'all' || visitTypeFilter !== 'all';
 
    const clearAllFilters = () => {
       setSearchInput('');
       updateParams({
          search: null,
          status: null,
-         department: null,
          visitType: null,
-         meetingType: null,
          page: 1,
       });
    };
@@ -117,109 +159,68 @@ export function VisitsTableFilters({
                <div className="relative w-full sm:max-w-xs">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                     placeholder="Search visitor or visit ID…"
+                     placeholder="Search visitor or visit code…"
                      value={searchInput}
                      onChange={(e) => setSearchInput(e.target.value)}
                      className="h-9 bg-background pl-8"
                   />
                </div>
 
-               <Select
-                  value={departmentFilter}
-                  onValueChange={(value) =>
-                     updateParams({ department: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[180px]">
-                     <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All departments</SelectItem>
-                     {VISIT_DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                           {dept}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-
-               <Select
-                  value={statusFilter}
-                  onValueChange={(value) =>
-                     updateParams({ status: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
-                     <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All statuses</SelectItem>
-                     {(
-                        Object.keys(
-                           MANAGED_VISIT_STATUS_LABELS,
-                        ) as ManagedVisitStatus[]
-                     ).map((status) => (
-                        <SelectItem key={status} value={status}>
-                           {MANAGED_VISIT_STATUS_LABELS[status]}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-
-               <Select
-                  value={visitTypeFilter}
-                  onValueChange={(value) =>
-                     updateParams({ visitType: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[150px]">
-                     <SelectValue placeholder="Visit type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All visit types</SelectItem>
-                     {VISIT_TYPE_OPTIONS.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                           {type.label}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-
-               <Select
-                  value={meetingTypeFilter}
-                  onValueChange={(value) =>
-                     updateParams({ meetingType: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[170px]">
-                     <SelectValue placeholder="Meeting type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All meeting types</SelectItem>
-                     {MEETING_TYPE_OPTIONS.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                           {type.label}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-
-               {hasActiveFilters && (
-                  <Button
-                     variant="ghost"
-                     size="sm"
-                     className="h-9 gap-1.5 self-start text-muted-foreground"
-                     onClick={clearAllFilters}
+               <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                  <ToggleGroup
+                     type="single"
+                     value={activeToggleKey}
+                     onValueChange={(val) => {
+                        if (!val) return;
+                        const [kind, value] = val.split(':');
+                        if (kind === 'status') {
+                           updateParams({
+                              status: value,
+                              visitType: null,
+                              page: 1,
+                           });
+                        } else {
+                           updateParams({
+                              visitType: value,
+                              status: null,
+                              page: 1,
+                           });
+                        }
+                     }}
+                     className="p-1 rounded-xl gap-1 w-full flex-wrap justify-start sm:w-auto"
                   >
-                     <X className="size-3.5" />
-                     Clear
-                  </Button>
-               )}
+                     {TOGGLE_OPTIONS.map((option) => {
+                        const isActive = activeToggleKey === option.key;
+                        return (
+                           <ToggleGroupItem
+                              key={option.key}
+                              value={option.key}
+                              className="relative px-3.5 py-1.5 h-9 rounded-lg text-sm font-medium transition-colors hover:text-foreground text-muted-foreground cursor-pointer outline-none border-0 hover:bg-muted/40 data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
+                           >
+                              <span className="relative z-10">
+                                 {option.label}
+                              </span>
+                              {isActive && (
+                                 <motion.div
+                                    layoutId="active-status-pill"
+                                    className="absolute inset-0 bg-primary rounded-lg z-0"
+                                    transition={{
+                                       type: 'spring',
+                                       stiffness: 380,
+                                       damping: 30,
+                                    }}
+                                 />
+                              )}
+                           </ToggleGroupItem>
+                        );
+                     })}
+                  </ToggleGroup>
+               </div>
             </div>
 
             <Button
+               className="text-white bg-blue-500 hover:bg-blue-500/80 relative overflow-hidden before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.7)_50%,transparent_75%,transparent_100%)] before:bg-[length:250%_250%,100%_100%] before:bg-[position:200%_0,0_0] before:bg-no-repeat before:transition-[background-position_0s_ease] before:duration-1000 hover:before:bg-[position:-100%_0,0_0] dark:before:bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.5)_50%,transparent_75%,transparent_100%)] cursor-pointer"
                size="sm"
-               className="h-9 gap-2 self-start lg:self-auto"
                onClick={() => setScanOpen(true)}
             >
                <ScanLine className="size-4" />

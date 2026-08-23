@@ -38,7 +38,7 @@ import {
    useReactTable,
 } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, Users } from 'lucide-react';
+import { CalendarRange, CalendarSearch, Users } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { FindVisitCheckInDialog } from './find-visit-check-in-dialog';
@@ -145,7 +145,7 @@ type RowHandlers = {
 const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    {
       accessorKey: 'id',
-      header: 'Visit ID',
+      header: 'Visit Code',
       cell: ({ row }) => (
          <span className="font-mono text-xs font-medium tracking-wide text-foreground">
             {row.original.id}
@@ -156,14 +156,24 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
       id: 'visitor',
       header: 'Visitor',
       cell: ({ row }) => {
-         const { visitorName, visitorCount } = row.original;
+         const { visitorName, visitorCount, organization } = row.original;
          const isGroup = visitorCount > 1;
+
+         const displayName =
+            visitorName?.trim() || organization?.trim() || null;
 
          return (
             <div className="min-w-0">
-               <p className="truncate text-sm font-medium text-foreground">
-                  {visitorName}
-               </p>
+               {displayName ? (
+                  <p className="truncate text-sm font-medium text-foreground">
+                     {displayName}
+                  </p>
+               ) : (
+                  <Badge variant="secondary" className="text-xs font-medium">
+                     Unknown
+                  </Badge>
+               )}
+
                {isGroup && (
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                      <Users className="size-3 shrink-0" />
@@ -740,6 +750,9 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                               className="h-40 px-4 text-center"
                            >
                               <div className="mx-auto flex max-w-sm flex-col items-center gap-1.5">
+                                 <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-muted">
+                                    <CalendarSearch className="size-6 text-muted-foreground" />
+                                 </div>
                                  <p className="text-sm font-medium text-foreground">
                                     No visits found
                                  </p>

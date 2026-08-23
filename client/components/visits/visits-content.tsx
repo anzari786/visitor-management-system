@@ -10,8 +10,8 @@ export function VisitsContent() {
       <Content
          subtitle={
             <p>
-               Manage visit requests through their lifecycle — from approval to
-               check-in and check-out.
+               Manage visits from invitation and request through check-in and
+               check-out.
             </p>
          }
       >

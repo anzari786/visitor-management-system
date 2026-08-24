@@ -2,7 +2,10 @@
 
 import { Content } from '@/components/shared/content';
 import { useCreateUser, useUsersCount } from '@/hooks/use-users';
-import type { CreateUserFormValues } from '@/lib/validations/user.schema';
+import type {
+   CreateSsoUserFormValues,
+   CreateUserFormValues,
+} from '@/lib/validations/user.schema';
 import { Plus } from 'lucide-react';
 import * as React from 'react';
 import { Suspense } from 'react';
@@ -17,17 +20,16 @@ export function UsersContent() {
    const usersCount = useUsersCount();
    const { mutateAsync: createUser } = useCreateUser();
 
-   async function handleCreateUser(values: CreateUserFormValues) {
+   async function handleCreateUser(
+      values: CreateUserFormValues | CreateSsoUserFormValues,
+   ) {
       try {
-         const phone =
-            !values.phone || values.phone === '+251 '
-               ? undefined
-               : values.phone;
-
-         await createUser({
-            ...values,
-            phone,
-         });
+         if ('employeeId' in values) {
+            // SSO user — call whatever mutation/endpoint handles SSO provisioning
+            // await createSsoUser(values);
+         } else {
+            await createUser(values);
+         }
          toast.success('User created successfully');
          setOpen(false);
       } catch {
@@ -39,12 +41,11 @@ export function UsersContent() {
       <Content
          subtitle={
             <p>
-               Manage staff accounts, roles, and access across the visitor
-               management system.{' '}
-               <span className="text-foreground font-medium tabular-nums">
+               Manage staff accounts, roles, and access.{' '}
+               <span className="font-medium tabular-nums text-foreground">
                   {usersCount} users
                </span>{' '}
-               in the system
+               currently have access.
             </p>
          }
          actionButton={

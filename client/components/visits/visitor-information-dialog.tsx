@@ -106,16 +106,10 @@ export function VisitorInformationDialog({
    };
 
    const handleSubmit = form.handleSubmit((data) => {
-      const visitors = data.visitors.map((visitor, index) => {
-         const existingVisitor = visit?.visitors[index];
-
-         return {
-            ...visitor,
-            idType: existingVisitor?.idType as VisitorFormValues['idType'],
-            idNumber: existingVisitor?.idNumber || '',
-            organization: visitor.organization,
-         };
-      });
+      const visitors = data.visitors.map((visitor) => ({
+         ...visitor,
+         organization: visitor.organization,
+      }));
 
       onComplete(visitors);
    }, onInvalid);

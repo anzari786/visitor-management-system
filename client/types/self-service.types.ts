@@ -51,8 +51,6 @@ export type SelfServiceVisitRequest = {
       lastName: string;
       email: string;
       phone: string;
-      idType: string;
-      idNumber: string;
       organization?: string;
    }>;
 };

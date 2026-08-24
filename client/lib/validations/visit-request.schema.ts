@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { isValidEthiopianPhone } from '../phone';
-import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import {
    HOST_EMPLOYEES,
    VISIT_PURPOSE_OPTIONS,
@@ -8,7 +7,6 @@ import {
    type VisitPurposeValue,
    type VisitRequestDepartmentId,
 } from '@/constants/visit-request';
-import { IdTypeValue } from '@/types/visit.types';
 import { startOfDay } from 'date-fns';
 
 export const visitorSchema = z.object({
@@ -31,14 +29,6 @@ export const visitorSchema = z.object({
       .refine((val) => isValidEthiopianPhone(val), {
          message: 'Enter a valid Ethiopian phone number',
       }),
-   idType: z.enum(
-      ID_TYPE_OPTIONS.map((o) => o.value) as [IdTypeValue, ...IdTypeValue[]],
-      { message: 'ID type is required' },
-   ),
-   idNumber: z
-      .string()
-      .min(1, 'ID number is required')
-      .max(50, 'ID number must be 50 characters or fewer'),
    organization: z
       .string()
       .max(100, 'Organization must be 100 characters or fewer')
@@ -66,16 +56,12 @@ export const emptyVisitorValues: {
    lastName: string;
    email: string;
    phone: string;
-   idType: undefined;
-   idNumber: string;
    organization: string;
 } = {
    firstName: '',
    lastName: '',
    email: '',
    phone: '+251 ',
-   idType: undefined,
-   idNumber: '',
    organization: '',
 };
 
@@ -193,9 +179,7 @@ function refineVisitDetails(
 }
 
 export const visitorsStepSchema = z.object({
-   visitors: z
-      .array(visitorSchema)
-      .min(1, 'At least one visitor is required'),
+   visitors: z.array(visitorSchema).min(1, 'At least one visitor is required'),
 });
 
 export const visitDetailsSchema =

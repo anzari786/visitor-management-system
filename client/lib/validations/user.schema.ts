@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { USER_ROLES } from '@/constants/user';
-import { isValidEthiopianPhone } from '../phone';
 
 const firstNameSchema = z
    .string()
@@ -21,38 +20,32 @@ const usernameSchema = z
       'Username may only contain letters, numbers, and underscores',
    );
 
-const phoneSchema = z
+const emailSchema = z
    .string()
-   .optional()
-   .refine(
-      (value) => {
-         if (!value || value === '+251 ') return true;
-         return isValidEthiopianPhone(value);
-      },
-      {
-         message: 'Enter a valid Ethiopian phone number',
-      },
-   );
+   .min(1, 'Email address is required')
+   .email('Enter a valid email address')
+   .max(255, 'Email must be 255 characters or fewer');
 
-const passwordSchema = z
-   .string()
-   .min(8, 'Password must be at least 8 characters')
-   .max(72, 'Password must be 72 characters or fewer');
+export const createSsoUserSchema = z.object({
+   employeeId: z.string().min(1, 'Please select an employee'),
+   role: z.enum(USER_ROLES, {
+      message: 'Role is required',
+   }),
+});
 
 export const createUserSchema = z.object({
    firstName: firstNameSchema,
 
    lastName: lastNameSchema,
 
-   username: usernameSchema,
+   email: emailSchema,
 
-   phone: phoneSchema,
+   username: usernameSchema,
 
    role: z.enum(USER_ROLES, {
       message: 'Role is required',
    }),
-
-   password: passwordSchema,
 });
 
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
+export type CreateSsoUserFormValues = z.infer<typeof createSsoUserSchema>;

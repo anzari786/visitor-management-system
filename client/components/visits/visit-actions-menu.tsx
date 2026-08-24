@@ -26,11 +26,27 @@ import {
 } from '@/lib/visit-attendance';
 import { sendPendingApprovalReminderEmail } from '@/services/visit-notification.service';
 import type { ManagedVisit } from '@/types/visit.types';
-import { Eye, Loader2, LogIn, LogOut, Mail, XCircle } from 'lucide-react';
+import {
+   Eye,
+   Loader2,
+   LogIn,
+   LogOut,
+   Mail,
+   XCircle,
+   XIcon,
+} from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import {
+   Dialog,
+   DialogClose,
+   DialogContent,
+   DialogHeader,
+   DialogTitle,
+} from '../ui/dialog';
+import { Button } from '../ui/button';
 
 interface VisitActionsMenuProps {
    visit: ManagedVisit;
@@ -188,30 +204,60 @@ export function VisitActionsMenu({
             visitId={visit.id}
          />
 
-         <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
-            <AlertDialogContent>
-               <AlertDialogHeader>
-                  <AlertDialogTitle>Cancel visit</AlertDialogTitle>
-                  <AlertDialogDescription>
-                     Cancel visit{' '}
-                     <span className="font-mono text-foreground">
-                        {visit.id}
-                     </span>{' '}
-                     for{' '}
-                     <span className="font-semibold text-foreground">
-                        {visit.visitorName}
-                     </span>
-                     ? This cannot be undone.
-                  </AlertDialogDescription>
-               </AlertDialogHeader>
-               <AlertDialogFooter>
-                  <AlertDialogCancel>Go back</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleCancel}>
-                     Cancel visit
-                  </AlertDialogAction>
-               </AlertDialogFooter>
-            </AlertDialogContent>
-         </AlertDialog>
+         <Dialog
+            open={cancelOpen}
+            onOpenChange={(open) => !open && setCancelOpen(false)}
+         >
+            <DialogContent
+               showCloseButton={false}
+               aria-describedby={undefined}
+               className="duration-300 data-open:slide-in-from-left-8 data-closed:slide-out-to-left-8 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-md [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
+            >
+               <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                     <XIcon size={20} />
+                  </div>
+
+                  <DialogHeader className="items-center">
+                     <DialogTitle>Cancel visit</DialogTitle>
+                     <p className="text-sm text-muted-foreground">
+                        Cancel visit{' '}
+                        <span className="font-mono text-foreground">
+                           {visit.id}
+                        </span>{' '}
+                        for{' '}
+                        <span className="font-medium text-foreground">
+                           {visit.visitorName}
+                        </span>
+                        ? This cannot be undone.
+                     </p>
+                  </DialogHeader>
+
+                  <div className="flex w-full gap-3">
+                     <DialogClose asChild>
+                        <Button
+                           variant="outline"
+                           size="sm"
+                           className="flex-1 cursor-pointer"
+                        >
+                           Go back
+                        </Button>
+                     </DialogClose>
+
+                     <DialogClose asChild>
+                        <Button
+                           variant="destructive"
+                           size="sm"
+                           className="flex-1 cursor-pointer"
+                           onClick={handleCancel}
+                        >
+                           Cancel visit
+                        </Button>
+                     </DialogClose>
+                  </div>
+               </div>
+            </DialogContent>
+         </Dialog>
       </>
    );
 }

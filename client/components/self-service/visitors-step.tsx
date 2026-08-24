@@ -2,12 +2,10 @@
 
 import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
 import { formatEthiopianPhone } from '@/lib/phone';
-import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import {
    emptyVisitorValues,
    type VisitRequestFormInput,
    type VisitRequestFormValues,
-   type VisitorFormValues,
 } from '@/lib/validations/visit-request.schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,13 +18,6 @@ import {
    FieldLegend,
    FieldSet,
 } from '@/components/ui/field';
-import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
-} from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
 
 type FormType = UseFormReturn<
@@ -35,13 +26,7 @@ type FormType = UseFormReturn<
    VisitRequestFormValues
 >;
 
-function VisitorFields({
-   form,
-   index,
-}: {
-   form: FormType;
-   index: number;
-}) {
+function VisitorFields({ form, index }: { form: FormType; index: number }) {
    const errors = form.formState.errors.visitors?.[index];
 
    return (
@@ -121,53 +106,6 @@ function VisitorFields({
             <FieldError>{errors?.phone?.message}</FieldError>
          </Field>
 
-         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field>
-               <FieldLabel htmlFor={`visitors.${index}.idType`}>
-                  ID Type <span className="text-destructive">*</span>
-               </FieldLabel>
-               <Controller
-                  name={`visitors.${index}.idType`}
-                  control={form.control}
-                  render={({ field }) => (
-                     <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                     >
-                        <SelectTrigger
-                           id={`visitors.${index}.idType`}
-                           className="w-full"
-                           aria-invalid={!!errors?.idType}
-                        >
-                           <SelectValue placeholder="Select ID type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                           {ID_TYPE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                 {opt.label}
-                              </SelectItem>
-                           ))}
-                        </SelectContent>
-                     </Select>
-                  )}
-               />
-               <FieldError>{errors?.idType?.message}</FieldError>
-            </Field>
-
-            <Field>
-               <FieldLabel htmlFor={`visitors.${index}.idNumber`}>
-                  ID Number <span className="text-destructive">*</span>
-               </FieldLabel>
-               <Input
-                  id={`visitors.${index}.idNumber`}
-                  placeholder="Enter identification number"
-                  aria-invalid={!!errors?.idNumber}
-                  {...form.register(`visitors.${index}.idNumber`)}
-               />
-               <FieldError>{errors?.idNumber?.message}</FieldError>
-            </Field>
-         </div>
-
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.organization`}>
                Organization
@@ -179,8 +117,8 @@ function VisitorFields({
                {...form.register(`visitors.${index}.organization`)}
             />
             <FieldDescription>
-               If you are visiting on behalf of a company or organization,
-               enter its name.
+               If you are visiting on behalf of a company or organization, enter
+               its name.
             </FieldDescription>
             <FieldError>{errors?.organization?.message}</FieldError>
          </Field>
@@ -198,10 +136,7 @@ export function VisitorsStep({ form }: { form: FormType }) {
       <div className="space-y-8">
          <FieldSet className="w-full">
             <FieldLegend>Primary Visitor Information</FieldLegend>
-            <FieldDescription>
-               Please provide your personal information and identification
-               details to submit a visit request.
-            </FieldDescription>
+            <FieldDescription>Provide your contact details.</FieldDescription>
             {fields[0] && <VisitorFields form={form} index={0} />}
          </FieldSet>
 
@@ -212,8 +147,8 @@ export function VisitorsStep({ form }: { form: FormType }) {
                      Additional Visitors
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                     Add companions who will attend this visit with you. Each
-                     visitor needs their own details.
+                     Add any companions joining you and provide their contact
+                     details.
                   </p>
                </div>
                <Button
@@ -221,12 +156,7 @@ export function VisitorsStep({ form }: { form: FormType }) {
                   variant="outline"
                   size="sm"
                   className="shrink-0 cursor-pointer"
-                  onClick={() =>
-                     append({
-                        ...emptyVisitorValues,
-                        idType: undefined as unknown as VisitorFormValues['idType'],
-                     })
-                  }
+                  onClick={() => append({ ...emptyVisitorValues })}
                >
                   <Plus className="size-4" />
                   Add Visitor
@@ -235,8 +165,8 @@ export function VisitorsStep({ form }: { form: FormType }) {
 
             {fields.length === 1 && (
                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                  No additional visitors added. Use &quot;Add Visitor&quot; for
-                  group visits.
+                  No additional visitors added. Add visitors if others will be
+                  joining you.
                </p>
             )}
 

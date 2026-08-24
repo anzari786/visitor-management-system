@@ -9,19 +9,18 @@ import {
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
    VISIT_TYPE_OPTIONS,
    type VisitTypeValue,
 } from '@/constants/visit-types';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ManagedVisitStatus } from '@/types/visit.types';
-import { ScanLine, Search, X } from 'lucide-react';
+import { Footprints, MailPlus, ScanLine, Search } from 'lucide-react';
+import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { ScanDialog } from './scan-dialog';
-import { motion } from 'motion/react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { MANAGED_VISIT_STATUS_LABELS } from '@/data/mock-visits';
 
 type StatusFilterValue =
    | 'all'
@@ -47,21 +46,19 @@ const VISIT_TYPE_TOGGLE_OPTIONS: {
    label: string;
 }[] = [{ value: 'all', label: 'All' }, ...VISIT_TYPE_OPTIONS];
 
-// Unified toggle key = "status:pending" or "visitType:visit"
-const TOGGLE_OPTIONS = [
-   ...STATUS_FILTER_OPTIONS.map((opt) => ({
-      key: `status:${opt.value}`,
-      label: opt.label,
-      kind: 'status' as const,
-      value: opt.value,
-   })),
-   ...VISIT_TYPE_OPTIONS.map((opt) => ({
-      key: `visitType:${opt.value}`,
-      label: opt.label,
-      kind: 'visitType' as const,
-      value: opt.value,
-   })),
-];
+const TOGGLE_OPTIONS = STATUS_FILTER_OPTIONS.map((opt) => ({
+   key: `status:${opt.value}`,
+   label: opt.label,
+   value: opt.value,
+}));
+
+const VISIT_TYPE_ICONS: Record<
+   VisitTypeValue,
+   React.ComponentType<{ size?: number; className?: string }>
+> = {
+   visit: Footprints,
+   invitation: MailPlus,
+};
 
 export const STATUS_FILTER_GROUPS: Record<
    Exclude<StatusFilterValue, 'all'>,
@@ -94,10 +91,7 @@ export function VisitsTableFilters({
    const visitTypeFilter =
       (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
 
-   const activeToggleKey =
-      visitTypeFilter !== 'all'
-         ? `visitType:${visitTypeFilter}`
-         : `status:${statusFilter}`;
+   const activeToggleKey = `status:${statusFilter}`;
 
    const [searchInput, setSearchInput] = React.useState(search);
    const debouncedSearch = useDebounce(searchInput, 300);
@@ -156,7 +150,7 @@ export function VisitsTableFilters({
       <>
          <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-               <div className="relative w-full sm:max-w-xs">
+               <div className="relative w-full sm:max-w-xs p-1">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                      placeholder="Search visitor or visit code…"
@@ -166,28 +160,50 @@ export function VisitsTableFilters({
                   />
                </div>
 
+               <Select
+                  value={visitTypeFilter}
+                  onValueChange={(value) =>
+                     updateParams({ visitType: value, page: 1 })
+                  }
+               >
+                  <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
+                     <div className="flex items-center gap-2">
+                        {visitTypeFilter !== 'all' &&
+                           (() => {
+                              const Icon =
+                                 VISIT_TYPE_ICONS[
+                                    visitTypeFilter as VisitTypeValue
+                                 ];
+                              return Icon ? <Icon size={16} /> : null;
+                           })()}
+                        <SelectValue placeholder="Visit type" />
+                     </div>
+                  </SelectTrigger>
+                  <SelectContent
+                     align="start"
+                     className="data-[state=open]:slide-in-from-bottom-8 data-[state=open]:zoom-in-100 duration-400"
+                  >
+                     <SelectItem value="all">All visit types</SelectItem>
+                     {VISIT_TYPE_OPTIONS.map((type) => {
+                        return (
+                           <SelectItem key={type.value} value={type.value}>
+                              <span className="truncate">{type.label}</span>
+                           </SelectItem>
+                        );
+                     })}
+                  </SelectContent>
+               </Select>
+
                <div className="flex flex-col gap-1.5 w-full sm:w-auto">
                   <ToggleGroup
                      type="single"
                      value={activeToggleKey}
                      onValueChange={(val) => {
                         if (!val) return;
-                        const [kind, value] = val.split(':');
-                        if (kind === 'status') {
-                           updateParams({
-                              status: value,
-                              visitType: null,
-                              page: 1,
-                           });
-                        } else {
-                           updateParams({
-                              visitType: value,
-                              status: null,
-                              page: 1,
-                           });
-                        }
+                        const [, value] = val.split(':');
+                        updateParams({ status: value, page: 1 });
                      }}
-                     className="p-1 rounded-xl gap-1 w-full flex-wrap justify-start sm:w-auto"
+                     className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto justify-start"
                   >
                      {TOGGLE_OPTIONS.map((option) => {
                         const isActive = activeToggleKey === option.key;
@@ -195,7 +211,7 @@ export function VisitsTableFilters({
                            <ToggleGroupItem
                               key={option.key}
                               value={option.key}
-                              className="relative px-3.5 py-1.5 h-9 rounded-lg text-sm font-medium transition-colors hover:text-foreground text-muted-foreground cursor-pointer outline-none border-0 hover:bg-muted/40 data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
+                              className="relative px-3.5 py-1.5 h-8.5 rounded-lg! border-0 text-sm font-medium transition-colors bg-muted/90 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer outline-none first:rounded-lg last:rounded-lg data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
                            >
                               <span className="relative z-10">
                                  {option.label}

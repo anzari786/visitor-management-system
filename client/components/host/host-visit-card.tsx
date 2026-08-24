@@ -4,12 +4,12 @@ import type { ReactNode } from 'react';
 import { format, parse } from 'date-fns';
 import { Dot, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { HostVisitCardData } from '@/types/host.types';
+import type { HostVisit } from '@/types/host.types';
 
-export type { HostVisitCardData };
+export type { HostVisit as HostVisitCardData };
 
 type HostVisitCardProps = {
-   visit: HostVisitCardData;
+   visit: HostVisit;
    statusLabel: string;
    statusClassName: string;
    actions?: ReactNode;
@@ -29,10 +29,7 @@ function formatTimeLabel(time: string) {
 
 function MetaDot() {
    return (
-      <Dot
-         className="size-4 shrink-0 text-muted-foreground/70"
-         aria-hidden
-      />
+      <Dot className="size-4 shrink-0 text-muted-foreground/70" aria-hidden />
    );
 }
 

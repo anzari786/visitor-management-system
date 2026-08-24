@@ -1,7 +1,7 @@
 'use client';
 
 import { Download } from 'lucide-react';
-import { ExportVisitLogDialog } from '../reports/export-visit-log-dialog';
+import { ExportVisitLogDialog } from '../dashboard/export-visit-log-dialog';
 
 export function SidebarExportMenu() {
    return (

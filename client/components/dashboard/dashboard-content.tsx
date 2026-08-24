@@ -4,7 +4,7 @@ import { StatsCards } from './stats-cards';
 import { VisitGrowthChart } from './visit-growth-chart';
 import { VisitsTable } from '../visits/visits-table';
 import { MeetingTypeChart } from './meeting-type-chart';
-import { ExportVisitLogDialog } from '../reports/export-visit-log-dialog';
+import { ExportVisitLogDialog } from './export-visit-log-dialog';
 import { Button } from '@/components/ui/button';
 import { Content } from '@/components/shared/content';
 import { Download } from 'lucide-react';

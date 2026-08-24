@@ -23,19 +23,11 @@ import {
 } from '@/hooks/use-users';
 import { getUserFullName } from '@/lib/user';
 import type { User, UserRole } from '@/types/user.types';
-import {
-   Eye,
-   KeyRound,
-   Pencil,
-   Shield,
-   UserCheck,
-   UserX,
-} from 'lucide-react';
+import { Eye, KeyRound, Pencil, Shield, UserCheck, UserX } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { EditUser } from './edit-user';
 import { ResetPasswordDialog } from './reset-password-dialog';
-import { TempPasswordDialog } from './temp-password-dialog';
 import { ToggleStatusDialog } from './toggle-status-dialog';
 
 interface UserActionsMenuProps {
@@ -56,8 +48,6 @@ export function UserActionsMenu({
    const [editOpen, setEditOpen] = React.useState(false);
    const [resetDialogOpen, setResetDialogOpen] = React.useState(false);
    const [tempPassword, setTempPassword] = React.useState<string | null>(null);
-   const [tempPasswordDialogOpen, setTempPasswordDialogOpen] =
-      React.useState(false);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
    const { mutate: resetPassword, isPending: isResetting } = useResetPassword();
@@ -67,13 +57,14 @@ export function UserActionsMenu({
 
    const handleResetConfirm = () => {
       resetPassword(user.id, {
-         onSuccess: ({ tempPassword: nextPassword }) => {
-            setTempPassword(nextPassword);
+         onSuccess: () => {
+            toast.success(
+               `Password reset email sent to ${getUserFullName(user)}`,
+            );
             setResetDialogOpen(false);
-            setTempPasswordDialogOpen(true);
          },
          onError: () => {
-            toast.error('Failed to reset password. Please try again.');
+            toast.error('Failed to send reset email. Please try again.');
             setResetDialogOpen(false);
          },
       });
@@ -199,12 +190,6 @@ export function UserActionsMenu({
             onOpenChange={setResetDialogOpen}
             onConfirm={handleResetConfirm}
             isPending={isResetting}
-         />
-
-         <TempPasswordDialog
-            open={tempPasswordDialogOpen}
-            onOpenChange={setTempPasswordDialogOpen}
-            tempPassword={tempPassword}
          />
 
          <ToggleStatusDialog

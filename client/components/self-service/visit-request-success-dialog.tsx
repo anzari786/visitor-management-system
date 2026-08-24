@@ -37,9 +37,8 @@ export function VisitRequestSuccessDialog({
                      Visit Request Submitted
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     Your request was submitted successfully. A confirmation
-                     email has been sent. We&apos;ll notify you when your host
-                     responds.
+                     Your visit request has been submitted. We&apos;ll email you
+                     when your host responds.
                   </DialogDescription>
                </DialogHeader>
                <DialogClose asChild>

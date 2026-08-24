@@ -33,17 +33,18 @@ import {
    Pencil,
    Phone,
    Shield,
+   ShieldCheck,
    User as UserIcon,
    UserCheck,
    UserX,
    XIcon,
    type LucideIcon,
 } from 'lucide-react';
+
 import * as React from 'react';
 import { toast } from 'sonner';
 import { EditUser } from './edit-user';
 import { ResetPasswordDialog } from './reset-password-dialog';
-import { TempPasswordDialog } from './temp-password-dialog';
 import { ToggleStatusDialog } from './toggle-status-dialog';
 import { UserStatusBadge } from './user-status-badge';
 
@@ -111,6 +112,8 @@ function UserDetailsSkeleton() {
 function UserDetailsBody({ user }: { user: User }) {
    const role = USER_ROLE_CONFIG[user.role];
    const RoleIcon = role.icon;
+   const isSso = !!user.employee;
+   const TypeIcon = isSso ? ShieldCheck : KeyRound;
 
    return (
       <div className="flex flex-col gap-6 p-5 sm:p-6">
@@ -153,6 +156,24 @@ function UserDetailsBody({ user }: { user: User }) {
                   }
                />
                <DetailRow
+                  icon={isSso ? ShieldCheck : KeyRound}
+                  label="Account Type"
+                  value={
+                     <Badge
+                        variant="outline"
+                        className={cn(
+                           'h-6 gap-1.5 rounded-md px-2 font-medium',
+                           isSso
+                              ? 'bg-primary/5 text-primary border-primary/20'
+                              : 'bg-muted/30 text-muted-foreground border-border',
+                        )}
+                     >
+                        <TypeIcon className="size-3" />
+                        {isSso ? 'SSO' : 'Local'}
+                     </Badge>
+                  }
+               />
+               <DetailRow
                   icon={user.isActive ? UserCheck : UserX}
                   label="Status"
                   value={<UserStatusBadge isActive={user.isActive} />}
@@ -166,15 +187,6 @@ function UserDetailsBody({ user }: { user: User }) {
                   icon={CalendarDays}
                   label="Created"
                   value={format(new Date(user.createdAt), 'MMM d, yyyy')}
-               />
-               <DetailRow
-                  icon={KeyRound}
-                  label="Password"
-                  value={
-                     user.mustChangePassword
-                        ? 'Must change on next login'
-                        : 'Set by user'
-                  }
                />
             </div>
          </section>
@@ -214,8 +226,6 @@ export function UserDetailsSheet({
    const [editOpen, setEditOpen] = React.useState(false);
    const [resetDialogOpen, setResetDialogOpen] = React.useState(false);
    const [tempPassword, setTempPassword] = React.useState<string | null>(null);
-   const [tempPasswordDialogOpen, setTempPasswordDialogOpen] =
-      React.useState(false);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
    const { mutate: resetPassword, isPending: isResetting } = useResetPassword();
@@ -225,13 +235,14 @@ export function UserDetailsSheet({
    const handleResetConfirm = () => {
       if (!user) return;
       resetPassword(user.id, {
-         onSuccess: ({ tempPassword: nextPassword }) => {
-            setTempPassword(nextPassword);
+         onSuccess: () => {
+            toast.success(
+               `Password reset email sent to ${getUserFullName(user)}`,
+            );
             setResetDialogOpen(false);
-            setTempPasswordDialogOpen(true);
          },
          onError: () => {
-            toast.error('Failed to reset password. Please try again.');
+            toast.error('Failed to send reset email. Please try again.');
             setResetDialogOpen(false);
          },
       });
@@ -354,12 +365,6 @@ export function UserDetailsSheet({
                   onOpenChange={setResetDialogOpen}
                   onConfirm={handleResetConfirm}
                   isPending={isResetting}
-               />
-
-               <TempPasswordDialog
-                  open={tempPasswordDialogOpen}
-                  onOpenChange={setTempPasswordDialogOpen}
-                  tempPassword={tempPassword}
                />
 
                <ToggleStatusDialog

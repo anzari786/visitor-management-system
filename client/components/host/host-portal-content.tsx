@@ -10,9 +10,7 @@ import { HostHeroSection } from './host-hero-section';
 import PendingApprovals from './pending-approvals';
 import { RescheduleConfirmedDialog } from './reschedule-confirmed-dialog';
 import { UpcomingVisits } from './upcoming-visits';
-import {
-   applyScheduleToVisit,
-} from '@/lib/host-visit-schedule';
+import { applyScheduleToVisit } from '@/lib/host-visit-schedule';
 import type { VisitUpdateDetailsValue } from './visit-update-details';
 
 /**

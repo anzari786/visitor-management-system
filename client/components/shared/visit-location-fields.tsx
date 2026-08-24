@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import {
    Controller,
    type FieldValues,
@@ -8,14 +7,6 @@ import {
    type UseFormReturn,
 } from 'react-hook-form';
 import { FLOOR_OPTIONS, ROOM_OPTIONS } from '@/constants/visit-location';
-import {
-   Autocomplete,
-   AutocompleteContent,
-   AutocompleteEmpty,
-   AutocompleteInput,
-   AutocompleteItem,
-   AutocompleteList,
-} from '@/components/ui/autocomplete';
 import {
    Field,
    FieldDescription,
@@ -25,10 +16,14 @@ import {
 import {
    Select,
    SelectContent,
+   SelectGroup,
    SelectItem,
+   SelectLabel,
+   SelectSeparator,
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '../ui/scroll-area';
 
 type LocationFormFields = {
    floor?: string;
@@ -41,22 +36,19 @@ type VisitLocationFieldsProps<T extends FieldValues & LocationFormFields> = {
    showDescription?: boolean;
 };
 
-function RoomAutocompleteField<T extends FieldValues & LocationFormFields>({
+const ROOM_GROUPS = FLOOR_OPTIONS.map((floor, floorIndex) => ({
+   floor,
+   rooms: ROOM_OPTIONS.slice(floorIndex * 2, floorIndex * 2 + 2),
+})).filter(({ rooms }) => rooms.length > 0);
+
+function RoomSelectField<T extends FieldValues & LocationFormFields>({
    form,
    roomId,
 }: {
    form: UseFormReturn<T>;
    roomId: string;
 }) {
-   const [open, setOpen] = useState(false);
-   const [inputValue, setInputValue] = useState('');
    const roomError = form.formState.errors.room;
-
-   const results = useMemo(() => {
-      const query = inputValue.trim().toLowerCase();
-      if (!query) return [...ROOM_OPTIONS];
-      return ROOM_OPTIONS.filter((room) => room.toLowerCase().includes(query));
-   }, [inputValue]);
 
    return (
       <Controller
@@ -67,46 +59,37 @@ function RoomAutocompleteField<T extends FieldValues & LocationFormFields>({
                <FieldLabel htmlFor={roomId} className="gap-1">
                   Room <span className="text-destructive">*</span>
                </FieldLabel>
-               <Autocomplete
-                  open={open}
-                  onOpenChange={setOpen}
-                  value={field.value || null}
-                  onValueChange={(value) => {
-                     field.onChange(value ?? '');
-                  }}
-                  onInputValueChange={setInputValue}
-                  defaultInputValue={field.value ?? ''}
+               <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
                >
-                  <AutocompleteInput
+                  <SelectTrigger
                      id={roomId}
-                     size="default"
-                     placeholder="Search or select a room"
-                     autoComplete="off"
-                     showTrigger
-                     showClear
+                     className="w-full"
                      aria-invalid={!!roomError}
-                     onFocus={() => setOpen(true)}
-                  />
-                  <AutocompleteContent>
-                     <AutocompleteList>
-                        {results.length === 0 ? (
-                           <AutocompleteEmpty>
-                              No matching rooms found.
-                           </AutocompleteEmpty>
-                        ) : (
-                           results.map((room) => (
-                              <AutocompleteItem
-                                 key={room}
-                                 value={room}
-                                 label={room}
-                              >
-                                 {room}
-                              </AutocompleteItem>
-                           ))
-                        )}
-                     </AutocompleteList>
-                  </AutocompleteContent>
-               </Autocomplete>
+                  >
+                     <SelectValue placeholder="Select a room" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                     <ScrollArea className="h-72 w-full">
+                        {ROOM_GROUPS.map(({ floor, rooms }, floorIndex) => {
+                           return (
+                              <SelectGroup key={floor}>
+                                 <SelectLabel>{floor}</SelectLabel>
+                                 {rooms.map((room) => (
+                                    <SelectItem key={room} value={room}>
+                                       {room}
+                                    </SelectItem>
+                                 ))}
+                                 {floorIndex < ROOM_GROUPS.length - 1 && (
+                                    <SelectSeparator />
+                                 )}
+                              </SelectGroup>
+                           );
+                        })}
+                     </ScrollArea>
+                  </SelectContent>
+               </Select>
                <FieldError>
                   {typeof roomError?.message === 'string'
                      ? roomError.message
@@ -174,7 +157,7 @@ export function VisitLocationFields<
             )}
          />
 
-         <RoomAutocompleteField form={form} roomId={roomId} />
+         <RoomSelectField form={form} roomId={roomId} />
       </div>
    );
 }

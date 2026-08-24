@@ -25,6 +25,11 @@ export type ForceChangePasswordPayload = {
    newPassword: string;
 };
 
+export type CompletePasswordSetupPayload = {
+   token: string;
+   password: string;
+};
+
 export type CheckUsernameData = {
    available: boolean;
 };

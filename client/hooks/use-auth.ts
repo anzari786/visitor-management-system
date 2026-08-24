@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth-store';
 import type {
    ChangePasswordPayload,
    ForceChangePasswordPayload,
+   CompletePasswordSetupPayload,
    LoginPayload,
    UpdateProfilePayload,
 } from '@/types/auth.types';
@@ -95,7 +96,9 @@ export function useChangePassword() {
    });
 }
 
-export function useForceChangePassword() {
+export function useForceChangePassword(options?: {
+   redirectOnSuccess?: boolean;
+}) {
    const { setUser } = useAuthStore();
    const router = useRouter();
 
@@ -108,10 +111,21 @@ export function useForceChangePassword() {
          // Server returns the updated user with mustChangePassword: false
          setUser(updatedUser);
          toast.success('Password updated. Welcome!');
-         router.push('/');
+         if (options?.redirectOnSuccess !== false) {
+            router.push('/');
+         }
       },
       onError: () => {
          toast.error('Failed to update password. Please try again.');
+      },
+   });
+}
+
+export function useCompletePasswordSetup() {
+   return useMutation({
+      mutationFn: async (payload: CompletePasswordSetupPayload) => {
+         const { data } = await authService.completePasswordSetup(payload);
+         return data.data;
       },
    });
 }

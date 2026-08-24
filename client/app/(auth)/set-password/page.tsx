@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getServerUser } from '@/lib/auth-server';
-import ChangePassword from '@/components/auth/change-password';
+import SetPassword from '@/components/auth/set-password';
 
-export default async function ChangePasswordPage() {
+export default async function SetPasswordPage() {
    const user = await getServerUser();
 
    if (!user) redirect('/login');
@@ -72,7 +72,7 @@ export default async function ChangePasswordPage() {
 
          {/* Content */}
          <div className="relative z-10">
-            <ChangePassword />
+            <SetPassword />
          </div>
       </div>
    );

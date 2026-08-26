@@ -1,13 +1,10 @@
-import { z } from 'zod';
-import { isValidEthiopianPhone } from '../phone';
 import {
-   HOST_EMPLOYEES,
    VISIT_PURPOSE_OPTIONS,
-   VISIT_REQUEST_DEPARTMENTS,
    type VisitPurposeValue,
-   type VisitRequestDepartmentId,
 } from '@/constants/visit-request';
 import { startOfDay } from 'date-fns';
+import { z } from 'zod';
+import { isValidEthiopianPhone } from '../phone';
 
 export const visitorSchema = z.object({
    firstName: z
@@ -39,13 +36,6 @@ export const visitorSchema = z.object({
       }),
 });
 
-const hostIds = HOST_EMPLOYEES.map((h) => h.id) as [string, ...string[]];
-
-const departmentIds = VISIT_REQUEST_DEPARTMENTS.map((d) => d.id) as [
-   VisitRequestDepartmentId,
-   ...VisitRequestDepartmentId[],
-];
-
 const purposeValues = VISIT_PURPOSE_OPTIONS.map((o) => o.value) as [
    VisitPurposeValue,
    ...VisitPurposeValue[],
@@ -66,10 +56,10 @@ export const emptyVisitorValues: {
 };
 
 const visitDetailsFieldsSchema = z.object({
-   hostId: z.enum(hostIds, { message: 'Please select a host employee' }),
-   departmentId: z.enum(departmentIds, {
-      message: 'Please select a department',
-   }),
+   hostId: z.string().min(1, 'Please select a host employee'),
+   hostName: z.string().optional(),
+   departmentId: z.string().min(1, 'Please select a department'),
+   departmentName: z.string().optional(),
    purpose: z.enum(purposeValues, {
       message: 'Please select a visit purpose',
    }),
@@ -92,27 +82,6 @@ function refineHostAndDepartment(
       return;
    }
 
-   const host = HOST_EMPLOYEES.find((h) => h.id === data.hostId);
-
-   if (!host) {
-      ctx.addIssue({
-         code: 'custom',
-         path: ['hostId'],
-         message: 'Please select a valid host employee',
-      });
-      return;
-   }
-
-   if (!host.departmentId) {
-      ctx.addIssue({
-         code: 'custom',
-         path: ['hostId'],
-         message:
-            'Selected host does not have a department assigned. Please choose another host.',
-      });
-      return;
-   }
-
    if (!data.departmentId) {
       ctx.addIssue({
          code: 'custom',
@@ -120,13 +89,6 @@ function refineHostAndDepartment(
          message: 'Please select a department',
       });
       return;
-   }
-
-   if (host.departmentId !== data.departmentId) {
-      const message =
-         'The selected host is not part of the selected department. Please choose a valid host or update the department.';
-      ctx.addIssue({ code: 'custom', path: ['hostId'], message });
-      ctx.addIssue({ code: 'custom', path: ['departmentId'], message });
    }
 }
 
@@ -177,13 +139,6 @@ function refineVisitDetails(
    refineHostAndDepartment(data, ctx);
    refineVisitSchedule(data, ctx);
 }
-
-export const visitorsStepSchema = z.object({
-   visitors: z.array(visitorSchema).min(1, 'At least one visitor is required'),
-});
-
-export const visitDetailsSchema =
-   visitDetailsFieldsSchema.superRefine(refineVisitDetails);
 
 export const visitRequestSchema = z
    .object({

@@ -3,9 +3,9 @@
  *
  * `NEXT_PUBLIC_API_URL` already includes the `/api` prefix
  * (e.g. `http://localhost:5000/api`), so paths here are relative
- * to that base — `/host/visits` resolves to `/api/host/visits`.
+ * to that base.
  *
- * Update these constants when the backend routes are finalized.
+ * Paths are relative to the API base URL.
  */
 export const API_ENDPOINTS = {
    host: {
@@ -25,17 +25,13 @@ export const API_ENDPOINTS = {
       rooms: '/host/rooms',
       notifications: '/host/notifications',
       notification: (id: string) => `/host/notifications/${id}`,
-      markNotificationRead: (id: string) =>
-         `/host/notifications/${id}/read`,
+      markNotificationRead: (id: string) => `/host/notifications/${id}/read`,
       markAllNotificationsRead: '/host/notifications/read-all',
    },
    selfService: {
-      visits: '/self-service/visits',
-      visit: (id: string) => `/self-service/visits/${id}`,
-      departments: '/self-service/departments',
-      purposes: '/self-service/purposes',
+      visits: '/v1/visits/request',
    },
    employees: {
-      search: '/employees/search',
+      search: '/v1/employees/search-host',
    },
 } as const;

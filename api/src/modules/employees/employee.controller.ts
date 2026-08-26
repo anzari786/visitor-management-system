@@ -51,7 +51,9 @@ export const getHostOptions = async (req: Request, res: Response) => {
          lastName: host.lastName,
          email: host.email,
          departmentName: host.departmentName,
+         departmentCode: host.departmentCode ?? undefined,
          position: host.position ?? undefined,
+         isActive: host.isActive,
       })),
    });
 };

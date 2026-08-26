@@ -1,17 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { format, startOfDay } from 'date-fns';
 import { CalendarIcon, ChevronDown, LoaderCircleIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-   HOST_DEPARTMENT_ORDER,
-   HOST_EMPLOYEES,
-   VISIT_PURPOSE_OPTIONS,
-   VISIT_REQUEST_DEPARTMENTS,
-   type HostEmployee,
-} from '@/constants/visit-request';
+import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-request';
+import { useEmployeeSearch } from '@/hooks/use-self-service';
 import type {
    VisitRequestFormInput,
    VisitRequestFormValues,
@@ -60,86 +55,41 @@ type FormType = UseFormReturn<
    VisitRequestFormValues
 >;
 
-function matchesQuery(text: string, query: string) {
-   return text.toLowerCase().includes(query.toLowerCase());
-}
-
-/**
- * Temporary client-side host search.
- * Replace with `useEmployeeSearch` from `@/hooks/use-self-service` when the API is ready.
- */
-async function searchHosts(query: string): Promise<HostEmployee[]> {
-   await new Promise((resolve) =>
-      setTimeout(resolve, Math.random() * 400 + 150),
-   );
-
-   const q = query.trim();
-   if (!q) return HOST_EMPLOYEES;
-
-   return HOST_EMPLOYEES.filter(
-      (host) =>
-         matchesQuery(host.name, q) ||
-         matchesQuery(host.title, q) ||
-         matchesQuery(host.departmentName, q),
-   );
-}
-
-function groupHostsByDepartment(hosts: HostEmployee[]) {
-   return HOST_DEPARTMENT_ORDER.map((departmentName) => ({
-      departmentName,
-      items: hosts.filter((h) => h.departmentName === departmentName),
-   })).filter((group) => group.items.length > 0);
-}
+type Employee = NonNullable<
+   ReturnType<typeof useEmployeeSearch>['data']
+>[number];
 
 function HostEmployeeField({ form }: { form: FormType }) {
    const [open, setOpen] = useState(false);
    const [inputValue, setInputValue] = useState('');
-   const [isLoading, setIsLoading] = useState(false);
-   const [results, setResults] = useState<HostEmployee[]>(HOST_EMPLOYEES);
-   const [error, setError] = useState<string | null>(null);
-
-   useEffect(() => {
-      setIsLoading(true);
-      setError(null);
-      let ignore = false;
-
-      const timer = setTimeout(async () => {
-         try {
-            const data = await searchHosts(inputValue);
-            if (!ignore) setResults(data);
-         } catch {
-            if (!ignore) {
-               setError('Unable to search hosts. Please try again.');
-               setResults([]);
-            }
-         } finally {
-            if (!ignore) setIsLoading(false);
-         }
-      }, 300);
-
-      return () => {
-         clearTimeout(timer);
-         ignore = true;
-      };
-   }, [inputValue]);
-
-   const grouped = useMemo(() => groupHostsByDepartment(results), [results]);
-
+   const search = useEmployeeSearch(
+      { q: inputValue.trim(), limit: 25 },
+      inputValue.trim().length > 0,
+   );
+   const results = (search.data ?? []).filter((employee) => employee.isActive);
+   const grouped = useMemo(() => {
+      const groups = new Map<string, Employee[]>();
+      results.forEach((employee) => {
+         const group = groups.get(employee.departmentName) ?? [];
+         group.push(employee);
+         groups.set(employee.departmentName, group);
+      });
+      return [...groups.entries()];
+   }, [results]);
    let status: ReactNode = null;
-   if (isLoading) {
+   if (search.isLoading)
       status = (
          <div className="flex items-center gap-2">
             <LoaderCircleIcon className="size-4 animate-spin" />
             Searching employees...
          </div>
       );
-   } else if (error) {
-      status = error;
-   } else if (inputValue && results.length === 0) {
+   else if (search.isError)
+      status = 'Unable to search hosts. Please try again.';
+   else if (inputValue && results.length === 0)
       status = `No employees found for "${inputValue}"`;
-   } else if (results.length > 0) {
+   else if (results.length > 0)
       status = `${results.length} employee${results.length === 1 ? '' : 's'} found`;
-   }
 
    return (
       <Controller
@@ -156,20 +106,25 @@ function HostEmployeeField({ form }: { form: FormType }) {
                   value={field.value ?? null}
                   onValueChange={(value) => {
                      field.onChange(value ?? undefined);
-                     if (!value) return;
-                     const host = HOST_EMPLOYEES.find((h) => h.id === value);
-                     if (host) {
-                        form.setValue('departmentId', host.departmentId, {
-                           shouldValidate: true,
-                           shouldDirty: true,
-                        });
+                     const employee = results.find((item) => item.id === value);
+                     if (employee) {
+                        form.setValue(
+                           'hostName',
+                           `${employee.firstName} ${employee.lastName}`,
+                        );
+                        form.setValue(
+                           'departmentId',
+                           employee.departmentCode ?? employee.departmentName,
+                           { shouldValidate: true, shouldDirty: true },
+                        );
+                        form.setValue(
+                           'departmentName',
+                           employee.departmentName,
+                        );
                      }
                   }}
                   onInputValueChange={setInputValue}
-                  defaultInputValue={
-                     HOST_EMPLOYEES.find((h) => h.id === field.value)?.name ??
-                     ''
-                  }
+                  defaultInputValue={form.getValues('hostName') ?? ''}
                >
                   <AutocompleteInput
                      id="hostId"
@@ -185,35 +140,41 @@ function HostEmployeeField({ form }: { form: FormType }) {
                         <AutocompleteStatus>{status}</AutocompleteStatus>
                      )}
                      <AutocompleteList>
-                        {!isLoading && results.length === 0 ? (
+                        {!search.isLoading && grouped.length === 0 ? (
                            <AutocompleteEmpty>
                               No matching employees found.
                            </AutocompleteEmpty>
                         ) : (
-                           grouped.map((group, groupIndex) => (
-                              <AutocompleteGroup key={group.departmentName}>
-                                 {groupIndex > 0 && <AutocompleteSeparator />}
-                                 <AutocompleteGroupLabel>
-                                    {group.departmentName}
-                                 </AutocompleteGroupLabel>
-                                 {group.items.map((host) => (
-                                    <AutocompleteItem
-                                       key={host.id}
-                                       value={host.id}
-                                       label={host.name}
-                                    >
-                                       <div className="min-w-0 flex-1">
-                                          <p className="truncate text-sm font-medium">
-                                             {host.name}
-                                          </p>
-                                          <p className="truncate text-xs text-muted-foreground">
-                                             {host.title}
-                                          </p>
-                                       </div>
-                                    </AutocompleteItem>
-                                 ))}
-                              </AutocompleteGroup>
-                           ))
+                           grouped.map(
+                              ([departmentName, employees], groupIndex) => (
+                                 <AutocompleteGroup key={departmentName}>
+                                    {groupIndex > 0 && (
+                                       <AutocompleteSeparator />
+                                    )}
+                                    <AutocompleteGroupLabel>
+                                       {departmentName}
+                                    </AutocompleteGroupLabel>
+                                    {employees.map((employee) => (
+                                       <AutocompleteItem
+                                          key={employee.id}
+                                          value={employee.id}
+                                          label={`${employee.firstName} ${employee.lastName}`}
+                                       >
+                                          <div className="min-w-0 flex-1">
+                                             <p className="truncate text-sm font-medium">
+                                                {employee.firstName}{' '}
+                                                {employee.lastName}
+                                             </p>
+                                             <p className="truncate text-xs text-muted-foreground">
+                                                {employee.position ??
+                                                   employee.departmentName}
+                                             </p>
+                                          </div>
+                                       </AutocompleteItem>
+                                    ))}
+                                 </AutocompleteGroup>
+                              ),
+                           )
                         )}
                      </AutocompleteList>
                   </AutocompleteContent>
@@ -241,7 +202,6 @@ function DateField({
 }) {
    const [open, setOpen] = useState(false);
    const startDate = form.watch('startDate');
-
    return (
       <Controller
          name={name}
@@ -279,26 +239,20 @@ function DateField({
                         onSelect={(date) => {
                            field.onChange(date);
                            if (name === 'startDate' && date) {
-                              const currentEnd = form.getValues('endDate');
-                              if (!currentEnd || currentEnd < date) {
+                              const end = form.getValues('endDate');
+                              if (!end || end < date)
                                  form.setValue('endDate', date, {
                                     shouldValidate: true,
                                  });
-                              }
                            }
                            setOpen(false);
                         }}
-                        disabled={(date) => {
-                           if (date < startOfDay(new Date())) return true;
-                           if (
-                              name === 'endDate' &&
-                              startDate &&
-                              date < startOfDay(startDate)
-                           ) {
-                              return true;
-                           }
-                           return false;
-                        }}
+                        disabled={(date) =>
+                           date < startOfDay(new Date()) ||
+                           (name === 'endDate' &&
+                              !!startDate &&
+                              date < startOfDay(startDate))
+                        }
                      />
                   </PopoverContent>
                </Popover>
@@ -314,7 +268,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
    const [scheduleType, setScheduleType] = useState<'single_day' | 'multi_day'>(
       'single_day',
    );
-
    return (
       <div className="space-y-8">
          <FieldSet className="w-full">
@@ -324,22 +277,18 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
             </FieldDescription>
             <FieldGroup>
                <HostEmployeeField form={form} />
-
                <Controller
-                  name="departmentId"
+                  name="departmentName"
                   control={form.control}
                   render={({ field }) => (
                      <Field>
-                        <FieldLabel htmlFor="departmentId">
+                        <FieldLabel htmlFor="departmentName">
                            Department{' '}
                            <span className="text-destructive">*</span>
                         </FieldLabel>
-                        <Select
-                           value={field.value}
-                           onValueChange={field.onChange}
-                        >
+                        <Select value={field.value} disabled>
                            <SelectTrigger
-                              id="departmentId"
+                              id="departmentName"
                               className="w-full"
                               aria-invalid={
                                  !!form.formState.errors.departmentId
@@ -348,11 +297,11 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               <SelectValue placeholder="Select department" />
                            </SelectTrigger>
                            <SelectContent>
-                              {VISIT_REQUEST_DEPARTMENTS.map((dept) => (
-                                 <SelectItem key={dept.id} value={dept.id}>
-                                    {dept.name}
+                              {field.value && (
+                                 <SelectItem value={field.value}>
+                                    {field.value}
                                  </SelectItem>
-                              ))}
+                              )}
                            </SelectContent>
                         </Select>
                         <FieldDescription>
@@ -364,7 +313,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                      </Field>
                   )}
                />
-
                <Controller
                   name="purpose"
                   control={form.control}
@@ -386,9 +334,12 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               <SelectValue placeholder="Select the purpose of your visit" />
                            </SelectTrigger>
                            <SelectContent>
-                              {VISIT_PURPOSE_OPTIONS.map((opt) => (
-                                 <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
+                              {VISIT_PURPOSE_OPTIONS.map((option) => (
+                                 <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                 >
+                                    {option.label}
                                  </SelectItem>
                               ))}
                            </SelectContent>
@@ -400,7 +351,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                   )}
                />
             </FieldGroup>
-
             <FieldGroup>
                <Field>
                   <FieldLabel>Schedule Type</FieldLabel>
@@ -408,11 +358,10 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                      value={scheduleType}
                      onValueChange={(value) => {
                         setScheduleType(value as 'single_day' | 'multi_day');
-                        if (value === 'single_day' && startDate) {
+                        if (value === 'single_day' && startDate)
                            form.setValue('endDate', startDate, {
                               shouldValidate: true,
                            });
-                        }
                      }}
                   >
                      <TabsList className="grid w-full grid-cols-2">
@@ -431,7 +380,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                      </TabsList>
                   </Tabs>
                </Field>
-
                {scheduleType === 'single_day' ? (
                   <DateField
                      form={form}
@@ -455,7 +403,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                      />
                   </div>
                )}
-
                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Controller
                      name="startTime"
@@ -471,9 +418,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               type="time"
                               className="bg-background appearance-none"
                               aria-invalid={!!form.formState.errors.startTime}
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
+                              {...field}
                            />
                            <FieldError>
                               {form.formState.errors.startTime?.message}
@@ -481,7 +426,6 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                         </Field>
                      )}
                   />
-
                   <Controller
                      name="endTime"
                      control={form.control}
@@ -496,9 +440,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               type="time"
                               className="bg-background appearance-none"
                               aria-invalid={!!form.formState.errors.endTime}
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
+                              {...field}
                            />
                            <FieldError>
                               {form.formState.errors.endTime?.message}

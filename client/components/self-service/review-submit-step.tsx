@@ -24,8 +24,6 @@ import type {
 import {
    formatVisitDateRange,
    formatVisitTime,
-   getDepartmentName,
-   getHostName,
    getPurposeLabel,
 } from '@/services/visit-request.service';
 
@@ -55,7 +53,7 @@ function ReviewRow({ icon, label, value, valueClassName }: ReviewRowProps) {
          </div>
          <div
             className={cn(
-               'max-w-[60%] text-right text-sm font-medium break-words text-foreground',
+               'max-w-[60%] text-right text-sm font-medium wrap-break-word text-foreground',
                valueClassName,
             )}
          >
@@ -209,18 +207,14 @@ export function ReviewSubmitStep({
                      <ReviewRow
                         icon={<User />}
                         label="Host"
-                        value={
-                           values.hostId
-                              ? getHostName(values.hostId)
-                              : undefined
-                        }
+                        value={values.hostId ? values.hostName : undefined}
                      />
                      <ReviewRow
                         icon={<Building2 />}
                         label="Department"
                         value={
                            values.departmentId
-                              ? getDepartmentName(values.departmentId)
+                              ? values.departmentName
                               : undefined
                         }
                      />

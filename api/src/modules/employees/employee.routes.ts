@@ -18,12 +18,7 @@ import {
 const router = Router();
 
 router.get('/', requireAuth, validate(listEmployeesSchema), getEmployees);
-router.get(
-   '/search-host',
-   requireAuth,
-   validate(searchHostSchema),
-   getHostOptions,
-);
+router.get('/search-host', validate(searchHostSchema), getHostOptions);
 router.get('/:id', requireAuth, validate(employeeIdParamSchema), getEmployee);
 
 router.post(

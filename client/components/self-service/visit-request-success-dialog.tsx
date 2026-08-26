@@ -10,17 +10,20 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import type { SubmitVisitRequestResponse } from '@/types/self-service.types';
 
 type VisitRequestSuccessDialogProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
    onDone: () => void;
+   visit: SubmitVisitRequestResponse | null;
 };
 
 export function VisitRequestSuccessDialog({
    open,
    onOpenChange,
    onDone,
+   visit,
 }: VisitRequestSuccessDialogProps) {
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,6 +44,16 @@ export function VisitRequestSuccessDialog({
                      when your host responds.
                   </DialogDescription>
                </DialogHeader>
+               {visit && (
+                  <div className="w-full rounded-lg bg-muted/50 px-4 py-3 text-sm">
+                     <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">
+                           Visit code
+                        </span>
+                        <span className="font-semibold">{visit.visitCode}</span>
+                     </div>
+                  </div>
+               )}
                <DialogClose asChild>
                   <Button
                      type="button"

@@ -28,7 +28,9 @@ export const employeeHostOptionSelect = {
    lastName: true,
    email: true,
    departmentName: true,
+   departmentCode: true,
    position: true,
+   isActive: true,
 } satisfies Prisma.EmployeeSelect;
 
 export type EmployeeHostOption = Prisma.EmployeeGetPayload<{

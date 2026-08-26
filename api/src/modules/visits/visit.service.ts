@@ -67,8 +67,8 @@ const toVisitPurpose = (purpose: string): VisitPurpose => {
 
 const formatHhMm = (value?: Date): string => {
    if (!value) return '09:00';
-   const hours = String(value.getHours()).padStart(2, '0');
-   const minutes = String(value.getMinutes()).padStart(2, '0');
+   const hours = String(value.getUTCHours()).padStart(2, '0');
+   const minutes = String(value.getUTCMinutes()).padStart(2, '0');
    return `${hours}:${minutes}`;
 };
 
@@ -78,7 +78,7 @@ const uniqueDates = (scheduleDates: ScheduleDateInput[]): Date[] => {
 
    for (const schedule of scheduleDates) {
       const day = new Date(schedule.date);
-      day.setHours(0, 0, 0, 0);
+      day.setUTCHours(0, 0, 0, 0);
       const key = day.toISOString().slice(0, 10);
       if (!seen.has(key)) {
          seen.add(key);

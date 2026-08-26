@@ -55,11 +55,8 @@ import {
    AutocompleteSeparator,
    AutocompleteStatus,
 } from '@/components/ui/autocomplete';
-import {
-   HOST_DEPARTMENT_ORDER,
-   HOST_EMPLOYEES,
-   type HostEmployee,
-} from '@/constants/visit-request';
+import { selfServiceService } from '@/services/self-service.service';
+import type { EmployeeSearchResult } from '@/types/self-service.types';
 
 type CreateUserProps = {
    open: boolean;
@@ -72,31 +69,27 @@ type CreateUserProps = {
 const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 
-function matchesQuery(text: string, query: string) {
-   return text.toLowerCase().includes(query.toLowerCase());
+async function searchEmployees(query: string): Promise<EmployeeSearchResult[]> {
+   const { data } = await selfServiceService.searchEmployees({
+      q: query.trim(),
+      limit: 25,
+   });
+   return data.data;
 }
 
-async function searchEmployees(query: string): Promise<HostEmployee[]> {
-   await new Promise((resolve) =>
-      setTimeout(resolve, Math.random() * 400 + 150),
-   );
-
-   const q = query.trim();
-   if (!q) return HOST_EMPLOYEES;
-
-   return HOST_EMPLOYEES.filter(
-      (host) =>
-         matchesQuery(host.name, q) ||
-         matchesQuery(host.title, q) ||
-         matchesQuery(host.departmentName, q),
-   );
-}
-
-function groupEmployeesByDepartment(hosts: HostEmployee[]) {
-   return HOST_DEPARTMENT_ORDER.map((departmentName) => ({
+function groupEmployeesByDepartment(hosts: EmployeeSearchResult[]) {
+   const groups = new Map<string, EmployeeSearchResult[]>();
+   hosts
+      .filter((employee) => employee.isActive)
+      .forEach((employee) => {
+         const group = groups.get(employee.departmentName) ?? [];
+         group.push(employee);
+         groups.set(employee.departmentName, group);
+      });
+   return [...groups.entries()].map(([departmentName, items]) => ({
       departmentName,
-      items: hosts.filter((h) => h.departmentName === departmentName),
-   })).filter((group) => group.items.length > 0);
+      items,
+   }));
 }
 
 const CIRCLE_RADIUS = 7;
@@ -436,13 +429,13 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
    const [autocompleteOpen, setAutocompleteOpen] = React.useState(false);
    const [inputValue, setInputValue] = React.useState('');
    const [isLoadingEmployees, setIsLoadingEmployees] = React.useState(false);
-   const [results, setResults] = React.useState<HostEmployee[]>(HOST_EMPLOYEES);
+   const [results, setResults] = React.useState<EmployeeSearchResult[]>([]);
    const [searchError, setSearchError] = React.useState<string | null>(null);
 
    const selectedEmployeeId = watch('employeeId');
    const selectedEmployee = React.useMemo(
-      () => HOST_EMPLOYEES.find((e) => e.id === selectedEmployeeId),
-      [selectedEmployeeId],
+      () => results.find((e) => e.id === selectedEmployeeId),
+      [results, selectedEmployeeId],
    );
 
    React.useEffect(() => {
@@ -535,9 +528,9 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                               }}
                               onInputValueChange={setInputValue}
                               defaultInputValue={
-                                 HOST_EMPLOYEES.find(
-                                    (e) => e.id === field.value,
-                                 )?.name ?? ''
+                                 results.find((e) => e.id === field.value)
+                                    ? `${results.find((e) => e.id === field.value)?.firstName} ${results.find((e) => e.id === field.value)?.lastName}`
+                                    : ''
                               }
                            >
                               <AutocompleteInput
@@ -576,14 +569,16 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                                 <AutocompleteItem
                                                    key={employee.id}
                                                    value={employee.id}
-                                                   label={employee.name}
+                                                   label={`${employee.firstName} ${employee.lastName}`}
                                                 >
                                                    <div className="min-w-0 flex-1">
                                                       <p className="truncate text-sm font-medium">
-                                                         {employee.name}
+                                                         {employee.firstName}{' '}
+                                                         {employee.lastName}
                                                       </p>
                                                       <p className="truncate text-xs text-muted-foreground">
-                                                         {employee.title}
+                                                         {employee.position ??
+                                                            employee.departmentName}
                                                       </p>
                                                    </div>
                                                 </AutocompleteItem>
@@ -607,7 +602,8 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  Full Name
                               </p>
                               <p className="text-sm font-medium">
-                                 {selectedEmployee.name}
+                                 {selectedEmployee.firstName}{' '}
+                                 {selectedEmployee.lastName}
                               </p>
                            </div>
                            <div className="space-y-0.5">
@@ -631,7 +627,8 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  Job Title
                               </p>
                               <p className="text-sm font-medium">
-                                 {selectedEmployee.title}
+                                 {selectedEmployee.position ??
+                                    selectedEmployee.departmentName}
                               </p>
                            </div>
                         </div>

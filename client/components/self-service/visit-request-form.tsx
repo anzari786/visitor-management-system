@@ -21,8 +21,9 @@ import {
    type VisitRequestFormInput,
    type VisitRequestFormValues,
 } from '@/lib/validations/visit-request.schema';
-/** Mock submit — swap for `useSubmitVisitRequest` from `@/hooks/use-self-service`. */
-import { submitVisitRequest } from '@/services/visit-request.service';
+import { toSubmitVisitRequestPayload } from '@/services/visit-request.service';
+import { useSubmitVisitRequest } from '@/hooks/use-self-service';
+import type { SubmitVisitRequestResponse } from '@/types/self-service.types';
 import { Button } from '@/components/ui/button';
 import { VisitRequestSuccessDialog } from './visit-request-success-dialog';
 import { VisitorsStep } from './visitors-step';
@@ -48,8 +49,8 @@ const steps: Step[] = [
       icon: CalendarDays,
    },
    {
-      title: 'Review & Submit',
-      description: 'Confirm your request',
+      title: 'Review',
+      description: 'Check your request',
       icon: CheckCircle2,
    },
 ];
@@ -66,27 +67,29 @@ const VISIT_DETAILS_FIELDS = [
 
 export default function VisitRequestForm() {
    const [activeStep, setActiveStep] = useState(0);
-   const [isSubmitting, setIsSubmitting] = useState(false);
    const [successOpen, setSuccessOpen] = useState(false);
+   const [submittedVisit, setSubmittedVisit] =
+      useState<SubmitVisitRequestResponse | null>(null);
+   const submitVisitRequest = useSubmitVisitRequest();
 
-   const form = useForm<
-      VisitRequestFormInput,
-      unknown,
-      VisitRequestFormValues
-   >({
-      resolver: zodResolver(visitRequestSchema),
-      defaultValues: {
-         visitors: [{ ...emptyVisitorValues }],
-         hostId: undefined,
-         departmentId: undefined,
-         purpose: undefined,
-         startDate: undefined,
-         endDate: undefined,
-         startTime: '',
-         endTime: '',
+   const form = useForm<VisitRequestFormInput, unknown, VisitRequestFormValues>(
+      {
+         resolver: zodResolver(visitRequestSchema),
+         defaultValues: {
+            visitors: [{ ...emptyVisitorValues }],
+            hostId: undefined,
+            hostName: '',
+            departmentId: undefined,
+            departmentName: '',
+            purpose: undefined,
+            startDate: undefined,
+            endDate: undefined,
+            startTime: '',
+            endTime: '',
+         },
+         mode: 'onTouched',
       },
-      mode: 'onTouched',
-   });
+   );
 
    const handleNext = async () => {
       if (activeStep === 0) {
@@ -114,7 +117,9 @@ export default function VisitRequestForm() {
       form.reset({
          visitors: [{ ...emptyVisitorValues }],
          hostId: undefined,
+         hostName: '',
          departmentId: undefined,
+         departmentName: '',
          purpose: undefined,
          startDate: undefined,
          endDate: undefined,
@@ -123,12 +128,15 @@ export default function VisitRequestForm() {
       });
       setActiveStep(0);
       setSuccessOpen(false);
+      setSubmittedVisit(null);
    };
 
    const handleSubmitRequest = form.handleSubmit(async (values) => {
-      setIsSubmitting(true);
       try {
-         await submitVisitRequest(values);
+         const response = await submitVisitRequest.mutateAsync(
+            toSubmitVisitRequestPayload(values),
+         );
+         setSubmittedVisit(response);
          setSuccessOpen(true);
       } catch (error) {
          const message =
@@ -136,8 +144,6 @@ export default function VisitRequestForm() {
                ? error.message
                : 'Unable to submit your visit request. Please try again.';
          toast.error(message);
-      } finally {
-         setIsSubmitting(false);
       }
    });
 
@@ -246,7 +252,7 @@ export default function VisitRequestForm() {
                   type="button"
                   variant="outline"
                   onClick={handleBack}
-                  disabled={activeStep === 0 || isSubmitting}
+                  disabled={activeStep === 0 || submitVisitRequest.isPending}
                   className={cn(
                      'cursor-pointer gap-1.5',
                      'disabled:pointer-events-none disabled:opacity-50',
@@ -261,10 +267,10 @@ export default function VisitRequestForm() {
                      <Button
                         type="button"
                         onClick={handleSubmitRequest}
-                        disabled={isSubmitting}
+                        disabled={submitVisitRequest.isPending}
                         className="w-full cursor-pointer gap-2 hover:bg-primary/90 sm:w-auto"
                      >
-                        {isSubmitting ? (
+                        {submitVisitRequest.isPending ? (
                            <>
                               <Loader2 className="size-4 animate-spin" />
                               Submitting...
@@ -296,6 +302,7 @@ export default function VisitRequestForm() {
                if (!open) handleReset();
             }}
             onDone={handleReset}
+            visit={submittedVisit}
          />
       </>
    );

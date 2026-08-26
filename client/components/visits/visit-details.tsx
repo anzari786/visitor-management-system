@@ -20,6 +20,7 @@ import {
    SheetHeader,
    SheetTitle,
 } from '@/components/ui/sheet';
+import { getVisitTypeLabel } from '@/constants/visit-types';
 import { getMeetingTypeLabel } from '@/constants/meeting-types';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import {
@@ -44,12 +45,15 @@ import {
    CalendarDays,
    Clock3,
    FileText,
+   Footprints,
+   Handshake,
    Hash,
    IdCard,
    Loader2,
    LogIn,
    LogOut,
    Mail,
+   MailPlus,
    MapPin,
    Phone,
    Sparkles,
@@ -63,6 +67,7 @@ import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import { VisitorInformationDialog } from './visitor-information-dialog';
 import {
    ManagedVisitStatusBadge,
    VisitorAttendanceBadge,
@@ -95,6 +100,10 @@ function formatIdType(idType: IdType) {
          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
          .join(' ')
    );
+}
+
+export function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
+   return visitType === 'invitation' ? MailPlus : Footprints;
 }
 
 function DetailRow({
@@ -163,9 +172,9 @@ export function VisitDetailsSheet({
    onVisitChange,
    initialMode = 'view',
 }: VisitDetailsSheetProps) {
-   const [selectedIds, setSelectedIds] = React.useState<Record<string, boolean>>(
-      {},
-   );
+   const [selectedIds, setSelectedIds] = React.useState<
+      Record<string, boolean>
+   >({});
    const [checkOutConfirmOpen, setCheckOutConfirmOpen] = React.useState(false);
    const [checkOutSuccessOpen, setCheckOutSuccessOpen] = React.useState(false);
    const [checkInDialogOpen, setCheckInDialogOpen] = React.useState(false);
@@ -180,6 +189,7 @@ export function VisitDetailsSheet({
    const [pendingCheckInIds, setPendingCheckInIds] = React.useState<string[]>(
       [],
    );
+   const [visitorInfoOpen, setVisitorInfoOpen] = React.useState(false);
    const [isResending, setIsResending] = React.useState(false);
 
    React.useEffect(() => {
@@ -204,16 +214,19 @@ export function VisitDetailsSheet({
 
       // Open the Check-In stepper when launched in check-in mode (parity with Check Out sheet flow).
       if (initialMode === 'check_in' && canCheckIn(visit)) {
-         const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
-         setPendingCheckInIds(ids);
-         setCheckInDialogOpen(true);
+         if (visit.visitType === 'invitation') {
+            setVisitorInfoOpen(true);
+         } else {
+            const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
+            setPendingCheckInIds(ids);
+            setCheckInDialogOpen(true);
+         }
       }
    }, [visit?.id, open, initialMode]);
 
    if (!visit) return null;
 
-   const attendanceDay =
-      getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
+   const attendanceDay = getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
    const displayVisit = syncVisitAttendanceForDay(visit, attendanceDay);
    const windowOpen = isVisitAttendanceWindowOpen(visit);
    const group = isGroupVisit(visit);
@@ -267,7 +280,11 @@ export function VisitDetailsSheet({
       );
    });
 
-   const toggleVisitor = (id: string, checked: boolean, selectable: boolean) => {
+   const toggleVisitor = (
+      id: string,
+      checked: boolean,
+      selectable: boolean,
+   ) => {
       if (!selectable) return;
       setSelectedIds((prev) => ({ ...prev, [id]: checked }));
    };
@@ -284,6 +301,38 @@ export function VisitDetailsSheet({
          return;
       }
 
+      if (visit.visitType === 'invitation') {
+         setVisitorInfoOpen(true);
+         return;
+      }
+
+      setPendingCheckInIds(ids);
+      setCheckInDialogOpen(true);
+   };
+
+   const handleVisitorInfoComplete = (visitorData: any[]) => {
+      if (!visit) return;
+
+      const updatedVisitors = visit.visitors.map((v, i) => {
+         const data = visitorData[i];
+         if (!data) return v;
+         return {
+            ...v,
+            name: `${data.firstName} ${data.lastName}`,
+            email: data.email,
+            phone: data.phone,
+            idType: data.idType,
+            idNumber: data.idNumber,
+            organization: data.organization,
+         };
+      });
+
+      const updatedVisit = { ...visit, visitors: updatedVisitors };
+      onVisitChange(updatedVisit);
+
+      setVisitorInfoOpen(false);
+
+      const ids = getCheckInEligibleVisitors(updatedVisit).map((v) => v.id);
       setPendingCheckInIds(ids);
       setCheckInDialogOpen(true);
    };
@@ -291,9 +340,7 @@ export function VisitDetailsSheet({
    const confirmCheckIn = async (payload: CheckInConfirmPayload) => {
       if (!visit) return;
       const ids =
-         payload.visitorIds.length > 0
-            ? payload.visitorIds
-            : pendingCheckInIds;
+         payload.visitorIds.length > 0 ? payload.visitorIds : pendingCheckInIds;
       if (ids.length === 0) return;
 
       const selected = visit.visitors.filter((v) => ids.includes(v.id));
@@ -301,10 +348,7 @@ export function VisitDetailsSheet({
       let usedApi = false;
 
       for (const visitor of selected) {
-         if (
-            visitor.visitParticipantId != null &&
-            visitor.visitDayId != null
-         ) {
+         if (visitor.visitParticipantId != null && visitor.visitDayId != null) {
             try {
                const { data } = await visitAttendanceService.checkIn({
                   visitParticipantId: visitor.visitParticipantId,
@@ -472,9 +516,7 @@ export function VisitDetailsSheet({
                            <DetailRow
                               icon={Building2}
                               label="Organization"
-                              value={
-                                 visit.organization ?? 'Individual visitor'
-                              }
+                              value={visit.organization ?? 'Individual visitor'}
                            />
                            <DetailRow
                               icon={Users}
@@ -487,7 +529,19 @@ export function VisitDetailsSheet({
                               value={visit.department}
                            />
                            <DetailRow
-                              icon={Sparkles}
+                              icon={getVisitTypeIcon(visit.visitType)}
+                              label="Visit type"
+                              value={
+                                 <Badge
+                                    variant="secondary"
+                                    className="h-6 rounded-md px-2 font-medium"
+                                 >
+                                    {getVisitTypeLabel(visit.visitType)}
+                                 </Badge>
+                              }
+                           />
+                           <DetailRow
+                              icon={Handshake}
                               label="Meeting type"
                               value={
                                  <Badge
@@ -497,11 +551,6 @@ export function VisitDetailsSheet({
                                     {getMeetingTypeLabel(visit.meetingType)}
                                  </Badge>
                               }
-                           />
-                           <DetailRow
-                              icon={FileText}
-                              label="Purpose"
-                              value={visit.purpose}
                            />
                            <DetailRow
                               icon={CalendarDays}
@@ -587,11 +636,9 @@ export function VisitDetailsSheet({
                                  const canSelectForCheckIn =
                                     showCheckIn && dayStatus === 'pending';
                                  const canSelectForCheckOut =
-                                    showCheckOut &&
-                                    dayStatus === 'checked_in';
+                                    showCheckOut && dayStatus === 'checked_in';
                                  const selectable =
-                                    canSelectForCheckIn ||
-                                    canSelectForCheckOut;
+                                    canSelectForCheckIn || canSelectForCheckOut;
                                  const checked = Boolean(
                                     selectedIds[visitor.id],
                                  );
@@ -681,9 +728,7 @@ export function VisitDetailsSheet({
                            ) : (
                               <Mail className="size-4" />
                            )}
-                           {isResending
-                              ? 'Sending…'
-                              : 'Resend Approval Email'}
+                           {isResending ? 'Sending…' : 'Resend Approval Email'}
                         </Button>
                      )}
                      {showCheckIn && (
@@ -728,6 +773,13 @@ export function VisitDetailsSheet({
                )}
             </SheetContent>
          </Sheet>
+
+         <VisitorInformationDialog
+            open={visitorInfoOpen}
+            onOpenChange={setVisitorInfoOpen}
+            visit={visit}
+            onComplete={handleVisitorInfoComplete}
+         />
 
          <CheckInDialog
             open={checkInDialogOpen}

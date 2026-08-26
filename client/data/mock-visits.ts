@@ -57,9 +57,9 @@ function withIds(
  */
 export const MOCK_VISITS: ManagedVisit[] = [
    {
-      id: 'VMS-2026-0142',
+      id: 'VMS-0142',
       visitorName: 'Sara Bekele',
-      visitors: withIds('VMS-2026-0142', '2026-08-10', [
+      visitors: withIds('VMS-0142', '2026-08-10', [
          {
             name: 'Sara Bekele',
             attendanceStatus: 'checked_in',
@@ -77,8 +77,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'Addis Talent Group',
       host: 'Abebe Kebede',
       department: 'Human Resources',
+      visitType: 'visit',
       meetingType: 'interview',
-      purpose: 'Final round interview for Talent Coordinator role',
       startDate: '2026-08-10',
       startTime: '09:30',
       endTime: '20:00',
@@ -88,9 +88,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0141',
+      id: 'VMS-0141',
       visitorName: 'Daniel Haile',
-      visitors: withIds('VMS-2026-0141', '2026-08-11', [
+      visitors: withIds('VMS-0141', '2026-08-11', [
          {
             name: 'Daniel Haile',
             phone: '+251 911 100 221',
@@ -127,9 +127,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'Nexus Systems',
       host: 'Yonas Hailu',
       department: 'Information Technology',
+      visitType: 'visit',
       meetingType: 'vendor_review',
-      purpose: 'Quarterly vendor performance review',
-      startDate: '2026-08-11',
+      startDate: '2026-08-22',
       startTime: '00:00',
       endTime: '23:59',
       floor: '5',
@@ -138,9 +138,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0140',
+      id: 'VMS-0140',
       visitorName: 'Meron Tadesse',
-      visitors: withIds('VMS-2026-0140', '2026-08-10', [
+      visitors: withIds('VMS-0140', '2026-08-10', [
          {
             name: 'Meron Tadesse',
             phone: '+251 911 778 901',
@@ -154,8 +154,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'BluePeak Consulting',
       host: 'Dawit Mengistu',
       department: 'Finance',
+      visitType: 'invitation',
       meetingType: 'meeting',
-      purpose: 'Budget planning discussion',
       startDate: '2026-08-10',
       startTime: '14:00',
       endTime: '15:00',
@@ -165,9 +165,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0139',
+      id: 'VMS-0139',
       visitorName: 'Kirubel Assefa',
-      visitors: withIds('VMS-2026-0139', '2026-08-11', [
+      visitors: withIds('VMS-0139', '2026-08-11', [
          {
             name: 'Kirubel Assefa',
             phone: '+251 911 555 010',
@@ -212,8 +212,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'Horizon Labs',
       host: 'Kidus Berhanu',
       department: 'Research & Development',
+      visitType: 'visit',
       meetingType: 'training',
-      purpose: 'Three-day research methods workshop',
       startDate: '2026-08-11',
       endDate: '2026-08-13',
       startTime: '00:00',
@@ -224,9 +224,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: true,
    },
    {
-      id: 'VMS-2026-0138',
+      id: 'VMS-0138',
       visitorName: 'Hanna Girma',
-      visitors: withIds('VMS-2026-0138', '2026-08-09', [
+      visitors: withIds('VMS-0138', '2026-08-09', [
          {
             name: 'Hanna Girma',
             attendanceStatus: 'checked_out',
@@ -239,8 +239,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       visitorCount: 1,
       host: 'Helen Tesfaye',
       department: 'Human Resources',
+      visitType: 'visit',
       meetingType: 'interview',
-      purpose: 'HR screening interview',
       startDate: '2026-08-09',
       startTime: '11:00',
       endTime: '12:00',
@@ -250,9 +250,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0137',
+      id: 'VMS-0137',
       visitorName: 'Tekle Mekonnen',
-      visitors: withIds('VMS-2026-0137', '2026-08-11', [
+      visitors: withIds('VMS-0137', '2026-08-11', [
          {
             name: 'Tekle Mekonnen',
             attendanceStatus: 'checked_out',
@@ -294,8 +294,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'Swift Logistics',
       host: 'Samuel Tadesse',
       department: 'Procurement',
+      visitType: 'invitation',
       meetingType: 'delivery',
-      purpose: 'Equipment delivery and handover',
       startDate: '2026-08-11',
       startTime: '00:00',
       endTime: '23:59',
@@ -305,17 +305,15 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0136',
+      id: 'VMS-0136',
       visitorName: 'Liya Solomon',
-      visitors: withIds('VMS-2026-0136', '2026-08-12', [
-         { name: 'Liya Solomon' },
-      ]),
+      visitors: withIds('VMS-0136', '2026-08-12', [{ name: 'Liya Solomon' }]),
       visitorCount: 1,
       organization: 'Compliance Partners',
       host: 'Nahom Desta',
       department: 'Legal Affairs',
+      visitType: 'visit',
       meetingType: 'audit',
-      purpose: 'Internal controls audit',
       startDate: '2026-08-12',
       endDate: '2026-08-14',
       startTime: '09:00',
@@ -326,9 +324,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: true,
    },
    {
-      id: 'VMS-2026-0135',
+      id: 'VMS-0135',
       visitorName: 'Biruk Alemayehu',
-      visitors: withIds('VMS-2026-0135', '2026-08-08', [
+      visitors: withIds('VMS-0135', '2026-08-08', [
          { name: 'Biruk Alemayehu' },
          { name: 'Selam Awol' },
       ]),
@@ -336,8 +334,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'CoolAir Services',
       host: 'Liya Girma',
       department: 'Information Technology',
+      visitType: 'visit',
       meetingType: 'maintenance',
-      purpose: 'Server room HVAC maintenance',
       startDate: '2026-08-08',
       startTime: '13:00',
       endTime: '16:00',
@@ -345,17 +343,15 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0134',
+      id: 'VMS-0134',
       visitorName: 'Eden Fikru',
-      visitors: withIds('VMS-2026-0134', '2026-08-07', [
-         { name: 'Eden Fikru' },
-      ]),
+      visitors: withIds('VMS-0134', '2026-08-07', [{ name: 'Eden Fikru' }]),
       visitorCount: 1,
       organization: 'Northwind Partners',
       host: 'Selam Awoke',
       department: 'Finance',
+      visitType: 'visit',
       meetingType: 'meeting',
-      purpose: 'Partnership exploratory meeting',
       startDate: '2026-08-07',
       startTime: '15:30',
       endTime: '16:30',
@@ -363,9 +359,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0133',
+      id: 'VMS-0133',
       visitorName: 'Michael Worku',
-      visitors: withIds('VMS-2026-0133', '2026-08-15', [
+      visitors: withIds('VMS-0133', '2026-08-15', [
          { name: 'Michael Worku' },
          { name: 'Sara Hailu' },
          { name: 'Bemnet Kassahun' },
@@ -379,8 +375,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'GreenField Energy',
       host: 'Marta Asfaw',
       department: 'Research & Development',
+      visitType: 'visit',
       meetingType: 'site_visit',
-      purpose: 'Facility orientation and lab tour',
       startDate: '2026-08-15',
       endDate: '2026-08-16',
       startTime: '10:00',
@@ -391,17 +387,15 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: true,
    },
    {
-      id: 'VMS-2026-0132',
+      id: 'VMS-0132',
       visitorName: 'Rahel Desta',
-      visitors: withIds('VMS-2026-0132', '2026-08-11', [
-         { name: 'Rahel Desta' },
-      ]),
+      visitors: withIds('VMS-0132', '2026-08-11', [{ name: 'Rahel Desta' }]),
       visitorCount: 1,
       organization: 'Ministry Liaison Office',
       host: 'Rahel Fikru',
       department: 'Legal Affairs',
       meetingType: 'official_visit',
-      purpose: 'Official compliance briefing',
+      visitType: 'visit',
       startDate: '2026-08-11',
       startTime: '00:00',
       endTime: '23:59',
@@ -411,9 +405,9 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0131',
+      id: 'VMS-0131',
       visitorName: 'Yared Mulugeta',
-      visitors: withIds('VMS-2026-0131', '2026-08-06', [
+      visitors: withIds('VMS-0131', '2026-08-06', [
          { name: 'Yared Mulugeta', attendanceStatus: 'checked_out' },
          { name: 'Tigist Bekele', attendanceStatus: 'checked_out' },
          { name: 'Henok Asrat', attendanceStatus: 'checked_out' },
@@ -424,8 +418,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'Prime Supplies PLC',
       host: 'Beten Wolde',
       department: 'Procurement',
+      visitType: 'visit',
       meetingType: 'vendor_review',
-      purpose: 'Contract renewal discussion',
       startDate: '2026-08-06',
       startTime: '09:00',
       endTime: '11:00',
@@ -435,16 +429,14 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0130',
+      id: 'VMS-0130',
       visitorName: 'Saba Negash',
-      visitors: withIds('VMS-2026-0130', '2026-08-11', [
-         { name: 'Saba Negash' },
-      ]),
+      visitors: withIds('VMS-0130', '2026-08-11', [{ name: 'Saba Negash' }]),
       visitorCount: 1,
       host: 'Abebe Kebede',
       department: 'Human Resources',
+      visitType: 'visit',
       meetingType: 'other',
-      purpose: 'Employee referral meet-and-greet',
       startDate: '2026-08-11',
       startTime: '14:30',
       endTime: '15:30',
@@ -454,11 +446,11 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: false,
    },
    {
-      id: 'VMS-2026-0129',
+      id: 'VMS-0129',
       visitorName: 'Abel Getachew',
       visitors: [
          {
-            id: 'VMS-2026-0129-v1',
+            id: 'VMS-0129-v1',
             name: 'Abel Getachew',
             attendanceStatus: 'pending',
             phone: '+251 911 880 001',
@@ -479,7 +471,7 @@ export const MOCK_VISITS: ManagedVisit[] = [
             },
          },
          {
-            id: 'VMS-2026-0129-v2',
+            id: 'VMS-0129-v2',
             name: 'Frehiwot Desta',
             attendanceStatus: 'checked_in',
             checkedInAt: '2026-08-11T09:05:00.000Z',
@@ -508,8 +500,8 @@ export const MOCK_VISITS: ManagedVisit[] = [
       organization: 'CloudBridge Ethiopia',
       host: 'Yonas Hailu',
       department: 'Information Technology',
+      visitType: 'invitation',
       meetingType: 'meeting',
-      purpose: 'Integration architecture workshop',
       startDate: '2026-08-10',
       endDate: '2026-08-11',
       startTime: '00:00',
@@ -520,17 +512,17 @@ export const MOCK_VISITS: ManagedVisit[] = [
       isMultiDay: true,
    },
    {
-      id: 'VMS-2026-0128',
+      id: 'VMS-0128',
       visitorName: 'Tigist Alemu',
-      visitors: withIds('VMS-2026-0128', '2026-08-05', [
+      visitors: withIds('VMS-0128', '2026-08-05', [
          { name: 'Tigist Alemu', attendanceStatus: 'checked_out' },
       ]),
       visitorCount: 1,
       organization: 'Express Couriers',
       host: 'Dawit Mengistu',
       department: 'Finance',
+      visitType: 'visit',
       meetingType: 'delivery',
-      purpose: 'Document package delivery',
       startDate: '2026-08-05',
       startTime: '08:00',
       endTime: '08:45',

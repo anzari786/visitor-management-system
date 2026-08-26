@@ -11,6 +11,7 @@ export const api = axios.create({
 
 const PUBLIC_API_PATHS = [
    '/auth/login',
+   '/auth/password/setup/',
    '/public/',
    '/self-service/',
    '/employees/search',

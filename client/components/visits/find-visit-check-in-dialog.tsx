@@ -79,8 +79,7 @@ export function FindVisitCheckInDialog({
                   Find Visit for Check-In
                </DialogTitle>
                <DialogDescription className="text-sm leading-relaxed">
-                  Search and select an approved visit to start check-in. QR
-                  scanning is optional — you can check guests in without it.
+                  Search and select an approved visit to start check-in.
                </DialogDescription>
             </DialogHeader>
 

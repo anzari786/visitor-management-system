@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
 import { format, startOfDay } from 'date-fns';
-import {
-   CalendarIcon,
-   ChevronDown,
-   LoaderCircleIcon,
-} from 'lucide-react';
+import { CalendarIcon, ChevronDown, LoaderCircleIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
    HOST_DEPARTMENT_ORDER,
@@ -44,6 +40,7 @@ import {
    PopoverContent,
    PopoverTrigger,
 } from '@/components/ui/popover';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
    Autocomplete,
    AutocompleteContent,
@@ -222,11 +219,9 @@ function HostEmployeeField({ form }: { form: FormType }) {
                   </AutocompleteContent>
                </Autocomplete>
                <FieldDescription>
-                  The employee who will review and approve your visit request
+                  Select the employee you’ll be visiting.
                </FieldDescription>
-               <FieldError>
-                  {form.formState.errors.hostId?.message}
-               </FieldError>
+               <FieldError>{form.formState.errors.hostId?.message}</FieldError>
             </Field>
          )}
       />
@@ -315,13 +310,17 @@ function DateField({
 }
 
 export function VisitDetailsStep({ form }: { form: FormType }) {
+   const startDate = form.watch('startDate');
+   const [scheduleType, setScheduleType] = useState<'single_day' | 'multi_day'>(
+      'single_day',
+   );
+
    return (
       <div className="space-y-8">
          <FieldSet className="w-full">
             <FieldLegend>Visit Details</FieldLegend>
             <FieldDescription>
-               Provide details about your visit, including who you are visiting
-               and the purpose of your visit.
+               Provide your host, visit purpose, and preferred schedule.
             </FieldDescription>
             <FieldGroup>
                <HostEmployeeField form={form} />
@@ -357,8 +356,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                            </SelectContent>
                         </Select>
                         <FieldDescription>
-                           Filled from the selected host. You can change it if
-                           needed.
+                           Automatically filled from the selected host.
                         </FieldDescription>
                         <FieldError>
                            {form.formState.errors.departmentId?.message}
@@ -389,10 +387,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                            </SelectTrigger>
                            <SelectContent>
                               {VISIT_PURPOSE_OPTIONS.map((opt) => (
-                                 <SelectItem
-                                    key={opt.value}
-                                    value={opt.value}
-                                 >
+                                 <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
                                  </SelectItem>
                               ))}
@@ -405,29 +400,61 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                   )}
                />
             </FieldGroup>
-         </FieldSet>
 
-         <FieldSet className="w-full">
-            <FieldLegend>Schedule</FieldLegend>
-            <FieldDescription>
-               Choose a single day or a date range for multi-day visits, along
-               with daily visit hours.
-            </FieldDescription>
             <FieldGroup>
-               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+               <Field>
+                  <FieldLabel>Schedule Type</FieldLabel>
+                  <Tabs
+                     value={scheduleType}
+                     onValueChange={(value) => {
+                        setScheduleType(value as 'single_day' | 'multi_day');
+                        if (value === 'single_day' && startDate) {
+                           form.setValue('endDate', startDate, {
+                              shouldValidate: true,
+                           });
+                        }
+                     }}
+                  >
+                     <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger
+                           value="single_day"
+                           className="cursor-pointer"
+                        >
+                           Single Day
+                        </TabsTrigger>
+                        <TabsTrigger
+                           value="multi_day"
+                           className="cursor-pointer"
+                        >
+                           Multi-Day
+                        </TabsTrigger>
+                     </TabsList>
+                  </Tabs>
+               </Field>
+
+               {scheduleType === 'single_day' ? (
                   <DateField
                      form={form}
                      name="startDate"
-                     label="Start Date"
-                     placeholder="Select start date"
+                     label="Visit Date"
+                     placeholder="Select visit date"
                   />
-                  <DateField
-                     form={form}
-                     name="endDate"
-                     label="End Date"
-                     placeholder="Select end date"
-                  />
-               </div>
+               ) : (
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                     <DateField
+                        form={form}
+                        name="startDate"
+                        label="Start Date"
+                        placeholder="Select start date"
+                     />
+                     <DateField
+                        form={form}
+                        name="endDate"
+                        label="End Date"
+                        placeholder="Select end date"
+                     />
+                  </div>
+               )}
 
                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Controller
@@ -443,9 +470,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               id="startTime"
                               type="time"
                               className="bg-background appearance-none"
-                              aria-invalid={
-                                 !!form.formState.errors.startTime
-                              }
+                              aria-invalid={!!form.formState.errors.startTime}
                               value={field.value}
                               onChange={field.onChange}
                               onBlur={field.onBlur}

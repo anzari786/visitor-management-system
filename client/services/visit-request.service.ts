@@ -4,7 +4,6 @@ import {
    VISIT_PURPOSE_OPTIONS,
    VISIT_REQUEST_DEPARTMENTS,
 } from '@/constants/visit-request';
-import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import { format, isSameDay } from 'date-fns';
 import type {
    SubmitVisitRequestPayload,
@@ -71,10 +70,6 @@ export async function submitVisitRequest(
       submittedAt: new Date().toISOString(),
       status: 'submitted',
    };
-}
-
-export function getIdTypeLabel(value: string) {
-   return ID_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? value;
 }
 
 export function getPurposeLabel(value: string) {

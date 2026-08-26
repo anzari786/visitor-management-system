@@ -17,6 +17,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LogOut, UserCircle } from 'lucide-react';
 import { useLogout } from '@/hooks/use-auth';
+import { useState } from 'react';
+import { LogoutConfirmDialog } from './logout-confirm-dialog';
 
 type AppCommandProps = {
    open: boolean;
@@ -28,7 +30,8 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    const user = useAuthStore((state) => state.user);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const setSettingsOpen = useSettingsDialogStore((s) => s.setOpen);
-   const { mutate: logout } = useLogout();
+   const { mutate: logout, isPending: isLoggingOut } = useLogout();
+   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
    useEffect(() => {
       const handler = (e: KeyboardEvent) => {
@@ -69,31 +72,15 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    const adminItems = filteredNav.filter((i) => i.group === 'Administration');
 
    return (
-      <CommandDialog open={open} onOpenChange={onOpenChange}>
-         <CommandInput placeholder="Search pages and actions..." />
-         <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
+      <>
+         <CommandDialog open={open} onOpenChange={onOpenChange}>
+            <CommandInput placeholder="Search pages and actions..." />
+            <CommandList>
+               <CommandEmpty>No results found.</CommandEmpty>
 
-            {workspaceItems.length > 0 && (
-               <CommandGroup heading="Workspace">
-                  {workspaceItems.map((item) => (
-                     <CommandItem
-                        key={item.href ?? item.action ?? item.title}
-                        value={item.title}
-                        onSelect={() => selectNavItem(item)}
-                     >
-                        <item.icon />
-                        <span>{item.title}</span>
-                     </CommandItem>
-                  ))}
-               </CommandGroup>
-            )}
-
-            {adminItems.length > 0 && (
-               <>
-                  <CommandSeparator />
-                  <CommandGroup heading="Administration">
-                     {adminItems.map((item) => (
+               {workspaceItems.length > 0 && (
+                  <CommandGroup heading="Workspace">
+                     {workspaceItems.map((item) => (
                         <CommandItem
                            key={item.href ?? item.action ?? item.title}
                            value={item.title}
@@ -104,27 +91,56 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                         </CommandItem>
                      ))}
                   </CommandGroup>
-               </>
-            )}
+               )}
 
-            <CommandSeparator />
-            <CommandGroup heading="Account">
-               <CommandItem
-                  value="profile"
-                  onSelect={() => run(() => setProfileOpen(true))}
-               >
-                  <UserCircle />
-                  <span>Profile</span>
-               </CommandItem>
-               <CommandItem
-                  value="logout sign out"
-                  onSelect={() => run(() => logout())}
-               >
-                  <LogOut />
-                  <span>Log Out</span>
-               </CommandItem>
-            </CommandGroup>
-         </CommandList>
-      </CommandDialog>
+               {adminItems.length > 0 && (
+                  <>
+                     <CommandSeparator />
+                     <CommandGroup heading="Administration">
+                        {adminItems.map((item) => (
+                           <CommandItem
+                              key={item.href ?? item.action ?? item.title}
+                              value={item.title}
+                              onSelect={() => selectNavItem(item)}
+                           >
+                              <item.icon />
+                              <span>{item.title}</span>
+                           </CommandItem>
+                        ))}
+                     </CommandGroup>
+                  </>
+               )}
+
+               <CommandSeparator />
+               <CommandGroup heading="Account">
+                  <CommandItem
+                     value="profile"
+                     onSelect={() => run(() => setProfileOpen(true))}
+                  >
+                     <UserCircle />
+                     <span>Profile</span>
+                  </CommandItem>
+                  <CommandItem
+                     value="logout sign out"
+                     onSelect={() => {
+                        onOpenChange(false);
+                        // Small delay to ensure CommandDialog closes before opening LogoutConfirmDialog
+                        setTimeout(() => setLogoutConfirmOpen(true), 100);
+                     }}
+                  >
+                     <LogOut />
+                     <span>Log Out</span>
+                  </CommandItem>
+               </CommandGroup>
+            </CommandList>
+         </CommandDialog>
+
+         <LogoutConfirmDialog
+            open={logoutConfirmOpen}
+            onOpenChange={setLogoutConfirmOpen}
+            onConfirm={() => logout()}
+            isPending={isLoggingOut}
+         />
+      </>
    );
 }

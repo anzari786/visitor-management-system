@@ -79,9 +79,7 @@ function VisitorFields({
                aria-invalid={!!errors?.email}
                {...form.register(`visitors.${index}.email`)}
             />
-            <FieldDescription>
-               Used for the invitation email.
-            </FieldDescription>
+            <FieldDescription>Used for the invitation email.</FieldDescription>
             <FieldError>{errors?.email?.message}</FieldError>
          </Field>
 
@@ -126,7 +124,17 @@ function VisitorFields({
    );
 }
 
-export function InvitationVisitorsFields({ form }: { form: FormType }) {
+type InvitationVisitorsFieldsProps = {
+   form: FormType;
+   heading: string;
+   description: string;
+};
+
+export function InvitationVisitorsFields({
+   form,
+   heading,
+   description,
+}: InvitationVisitorsFieldsProps) {
    const { fields, append, remove } = useFieldArray({
       control: form.control,
       name: 'visitors',
@@ -137,12 +145,9 @@ export function InvitationVisitorsFields({ form }: { form: FormType }) {
          <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
                <h3 className="text-sm font-medium text-foreground">
-                  Known Visitors
+                  {heading}
                </h3>
-               <p className="text-sm text-muted-foreground">
-                  Add each invited guest with their contact details. At least
-                  one visitor is required.
-               </p>
+               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
             <Button
                type="button"
@@ -181,9 +186,7 @@ export function InvitationVisitorsFields({ form }: { form: FormType }) {
          ))}
 
          {form.formState.errors.visitors?.root?.message && (
-            <FieldError>
-               {form.formState.errors.visitors.root.message}
-            </FieldError>
+            <FieldError>{form.formState.errors.visitors.root.message}</FieldError>
          )}
          {typeof form.formState.errors.visitors?.message === 'string' && (
             <FieldError>{form.formState.errors.visitors.message}</FieldError>

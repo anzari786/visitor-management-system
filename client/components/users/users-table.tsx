@@ -22,7 +22,9 @@ import {
    useReactTable,
 } from '@tanstack/react-table';
 import { format } from 'date-fns';
+import { KeyRound, ShieldCheck } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+
 import * as React from 'react';
 import UserDetailsSheet from './user-details';
 import { UserRowActions } from './user-row-actions';
@@ -32,9 +34,7 @@ import { UserStatusBadge } from './user-status-badge';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const getColumns = (
-   onViewDetails: (user: User) => void,
-): ColumnDef<User>[] => [
+const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    {
       id: 'name',
       header: 'Name',
@@ -80,7 +80,31 @@ const getColumns = (
       },
    },
    {
+      id: 'type',
+      header: 'Account Type',
+      cell: ({ row }) => {
+         const isSso = !!row.original.employee;
+         const TypeIcon = isSso ? ShieldCheck : KeyRound;
+
+         return (
+            <Badge
+               variant="outline"
+               className={cn(
+                  'h-6 gap-1.5 rounded-md px-2 font-medium',
+                  isSso
+                     ? 'bg-primary/5 text-primary border-primary/20'
+                     : 'bg-muted/30 text-muted-foreground border-border',
+               )}
+            >
+               <TypeIcon className="size-3" />
+               {isSso ? 'SSO' : 'Local'}
+            </Badge>
+         );
+      },
+   },
+   {
       id: 'status',
+
       header: 'Status',
       cell: ({ row }) => <UserStatusBadge isActive={row.original.isActive} />,
    },

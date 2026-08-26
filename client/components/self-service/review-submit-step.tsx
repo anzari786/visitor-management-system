@@ -8,12 +8,9 @@ import {
    CalendarDays,
    CheckCircle2,
    Clock,
-   CreditCard,
-   IdCard,
    Mail,
    Pencil,
    Phone,
-   Send,
    User,
    Users,
 } from 'lucide-react';
@@ -29,7 +26,6 @@ import {
    formatVisitTime,
    getDepartmentName,
    getHostName,
-   getIdTypeLabel,
    getPurposeLabel,
 } from '@/services/visit-request.service';
 
@@ -97,10 +93,7 @@ function SectionHeader({
 
 function ValueBadge({ children }: { children: ReactNode }) {
    return (
-      <Badge
-         variant="secondary"
-         className="rounded-md px-2 py-0.5 font-medium"
-      >
+      <Badge variant="secondary" className="rounded-md px-2 py-0.5 font-medium">
          {children}
       </Badge>
    );
@@ -127,7 +120,7 @@ export function ReviewSubmitStep({
                Review your information
             </h2>
             <p className="text-sm text-muted-foreground">
-               Make sure everything looks correct before submitting.
+               Review your details and visit information before submitting.
             </p>
          </div>
 
@@ -192,23 +185,6 @@ export function ReviewSubmitStep({
                                     icon={<Phone />}
                                     label="Phone"
                                     value={visitor.phone}
-                                 />
-                                 <ReviewRow
-                                    icon={<IdCard />}
-                                    label="ID Type"
-                                    value={
-                                       visitor.idType ? (
-                                          <ValueBadge>
-                                             {getIdTypeLabel(visitor.idType)}
-                                          </ValueBadge>
-                                       ) : undefined
-                                    }
-                                 />
-                                 <ReviewRow
-                                    icon={<CreditCard />}
-                                    label="ID Number"
-                                    value={visitor.idNumber}
-                                    valueClassName="font-mono text-[13px]"
                                  />
                                  {organization ? (
                                     <ReviewRow
@@ -336,22 +312,6 @@ export function ReviewSubmitStep({
                      ) : null}
                   </div>
                </section>
-            </div>
-         </div>
-
-         <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3.5 sm:px-5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-               <Send className="size-4" />
-            </div>
-            <div className="min-w-0 space-y-0.5 pt-0.5">
-               <p className="text-sm font-semibold text-foreground">
-                  Almost there!
-               </p>
-               <p className="text-sm text-muted-foreground">
-                  Your host will review this request and you&apos;ll be notified
-                  of their decision by email. Double-check the details above,
-                  then submit when you&apos;re ready.
-               </p>
             </div>
          </div>
       </div>

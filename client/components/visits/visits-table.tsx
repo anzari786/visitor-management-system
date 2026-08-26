@@ -10,6 +10,10 @@ import {
    TableRow,
 } from '@/components/ui/table';
 import {
+   getVisitTypeLabel,
+   type VisitTypeValue,
+} from '@/constants/visit-types';
+import {
    getMeetingTypeLabel,
    type MeetingTypeValue,
 } from '@/constants/meeting-types';
@@ -34,7 +38,7 @@ import {
    useReactTable,
 } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
-import { CalendarRange, Users } from 'lucide-react';
+import { CalendarRange, CalendarSearch, Users } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { FindVisitCheckInDialog } from './find-visit-check-in-dialog';
@@ -43,8 +47,9 @@ import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import { VisitorInformationDialog } from './visitor-information-dialog';
 import { ManagedVisitStatusBadge } from './managed-visit-status-badge';
-import VisitDetailsSheet from './visit-details';
+import VisitDetailsSheet, { getVisitTypeIcon } from './visit-details';
 import { VisitRowActions } from './visit-row-actions';
 import { VisitsTableFilters } from './visits-table-filters';
 import { VisitsTablePagination } from './visits-table-pagination';
@@ -81,6 +86,7 @@ function filterVisits(
       search?: string;
       status?: ManagedVisitStatus | 'all';
       department?: string;
+      visitType?: VisitTypeValue | 'all';
       meetingType?: MeetingTypeValue | 'all';
    },
 ) {
@@ -93,13 +99,24 @@ function filterVisits(
             visit.visitors.some((v) => v.name.toLowerCase().includes(q));
          if (!matches) return false;
       }
-      if (opts.status && opts.status !== 'all' && visit.status !== opts.status) {
+      if (
+         opts.status &&
+         opts.status !== 'all' &&
+         visit.status !== opts.status
+      ) {
          return false;
       }
       if (
          opts.department &&
          opts.department !== 'all' &&
          visit.department !== opts.department
+      ) {
+         return false;
+      }
+      if (
+         opts.visitType &&
+         opts.visitType !== 'all' &&
+         visit.visitType !== opts.visitType
       ) {
          return false;
       }
@@ -128,7 +145,7 @@ type RowHandlers = {
 const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    {
       accessorKey: 'id',
-      header: 'Visit ID',
+      header: 'Visit Code',
       cell: ({ row }) => (
          <span className="font-mono text-xs font-medium tracking-wide text-foreground">
             {row.original.id}
@@ -139,14 +156,24 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
       id: 'visitor',
       header: 'Visitor',
       cell: ({ row }) => {
-         const { visitorName, visitorCount } = row.original;
+         const { visitorName, visitorCount, organization } = row.original;
          const isGroup = visitorCount > 1;
+
+         const displayName =
+            visitorName?.trim() || organization?.trim() || null;
 
          return (
             <div className="min-w-0">
-               <p className="truncate text-sm font-medium text-foreground">
-                  {visitorName}
-               </p>
+               {displayName ? (
+                  <p className="truncate text-sm font-medium text-foreground">
+                     {displayName}
+                  </p>
+               ) : (
+                  <Badge variant="secondary" className="text-xs font-medium">
+                     Unknown
+                  </Badge>
+               )}
+
                {isGroup && (
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                      <Users className="size-3 shrink-0" />
@@ -193,6 +220,19 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
             {row.original.department}
          </span>
       ),
+   },
+   {
+      accessorKey: 'visitType',
+      header: 'Visit type',
+      cell: ({ row }) => {
+         const Icon = getVisitTypeIcon(row.original.visitType);
+         return (
+            <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
+               <Icon className="size-4 text-muted-foreground" />
+               {getVisitTypeLabel(row.original.visitType)}
+            </span>
+         );
+      },
    },
    {
       accessorKey: 'meetingType',
@@ -272,25 +312,29 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const [badgeSuccessLabel, setBadgeSuccessLabel] = React.useState('');
    const [badgeSuccessVisitId, setBadgeSuccessVisitId] = React.useState('');
    const [qrCheckInOpen, setQrCheckInOpen] = React.useState(false);
-   const [qrCheckInVisitId, setQrCheckInVisitId] = React.useState<string | null>(
-      null,
-   );
+   const [qrCheckInVisitId, setQrCheckInVisitId] = React.useState<
+      string | null
+   >(null);
    const [qrCheckInVisitorIds, setQrCheckInVisitorIds] = React.useState<
       string[] | null
    >(null);
-   const [qrCheckInSuccessOpen, setQrCheckInSuccessOpen] = React.useState(false);
+   const [qrCheckInSuccessOpen, setQrCheckInSuccessOpen] =
+      React.useState(false);
    const [qrCheckInSuccessLabel, setQrCheckInSuccessLabel] = React.useState('');
    const [qrCheckInSuccessVisitId, setQrCheckInSuccessVisitId] =
       React.useState('');
    const [qrCheckInPrintTargets, setQrCheckInPrintTargets] = React.useState<
       CheckInPrintTarget[]
    >([]);
-   const [visitQrScannerOpen, setVisitQrScannerOpen] = React.useState(false);
    const [checkoutQrScannerOpen, setCheckoutQrScannerOpen] =
       React.useState(false);
    const [findVisitOpen, setFindVisitOpen] = React.useState(false);
    const [checkoutVisitorIds, setCheckoutVisitorIds] = React.useState<
       string[] | null
+   >(null);
+   const [visitorInfoOpen, setVisitorInfoOpen] = React.useState(false);
+   const [pendingInfoVisitId, setPendingInfoVisitId] = React.useState<
+      string | null
    >(null);
 
    const page = Number(searchParams.get('page')) || 1;
@@ -299,6 +343,8 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    const statusFilter =
       (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
    const departmentFilter = searchParams.get('department') || 'all';
+   const visitTypeFilter =
+      (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
    const meetingTypeFilter =
       (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
 
@@ -308,9 +354,17 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             search,
             status: statusFilter,
             department: departmentFilter,
+            visitType: visitTypeFilter,
             meetingType: meetingTypeFilter,
          }),
-      [visits, search, statusFilter, departmentFilter, meetingTypeFilter],
+      [
+         visits,
+         search,
+         statusFilter,
+         departmentFilter,
+         visitTypeFilter,
+         meetingTypeFilter,
+      ],
    );
 
    const total = filtered.length;
@@ -328,6 +382,9 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       visits.find((visit) => visit.id === badgeCheckoutVisitId) ??
       visits.find((visit) => canCheckOut(visit)) ??
       null;
+
+   const pendingInfoVisit =
+      visits.find((visit) => visit.id === pendingInfoVisitId) ?? null;
 
    const qrCheckInVisit =
       visits.find((visit) => visit.id === qrCheckInVisitId) ??
@@ -379,10 +436,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setCheckoutQrScannerOpen(true);
    }, []);
 
-   const handleScanVisitorQr = React.useCallback(() => {
-      setVisitQrScannerOpen(true);
-   }, []);
-
    const handleFindVisit = React.useCallback(() => {
       setFindVisitOpen(true);
    }, []);
@@ -392,35 +445,54 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          toast.error('This visit is not ready for check-in');
          return;
       }
+
+      if (visit.visitType === 'invitation') {
+         setPendingInfoVisitId(visit.id);
+         setVisitorInfoOpen(true);
+         return;
+      }
+
       const eligible = getCheckInEligibleVisitors(visit);
       setQrCheckInVisitId(visit.id);
       setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
       setQrCheckInOpen(true);
    }, []);
 
-   const handleVisitQrScanned = React.useCallback(
-      async (code: string) => {
-         const result =
-            await visitAttendanceLookupService.lookupVisitForCheckIn(
-               code,
-               visits,
-            );
+   const handleVisitorInfoComplete = React.useCallback(
+      (visitorData: any[]) => {
+         if (!pendingInfoVisit) return;
 
-         if (!result.eligibleForCheckIn || result.eligibleVisitors.length === 0) {
-            throw new Error(
-               result.reason ??
-                  'This visit is not eligible for check-in right now',
-            );
-         }
-
-         setQrCheckInVisitId(result.visit.id);
-         setQrCheckInVisitorIds(result.eligibleVisitors.map((v) => v.id));
-         setQrCheckInOpen(true);
-         toast.success('Visit found', {
-            description: `${result.visit.visitorName} · ${result.visit.id}`,
+         // Map updated visitor data back to the visit
+         const updatedVisitors = pendingInfoVisit.visitors.map((v, i) => {
+            const data = visitorData[i];
+            if (!data) return v;
+            return {
+               ...v,
+               name: `${data.firstName} ${data.lastName}`,
+               email: data.email,
+               phone: data.phone,
+               idType: data.idType,
+               idNumber: data.idNumber,
+               organization: data.organization,
+            };
          });
+
+         const updatedVisit = {
+            ...pendingInfoVisit,
+            visitors: updatedVisitors,
+         };
+         upsertVisit(updatedVisit);
+
+         // Close info dialog and proceed to check-in
+         setVisitorInfoOpen(false);
+         setPendingInfoVisitId(null);
+
+         const eligible = getCheckInEligibleVisitors(updatedVisit);
+         setQrCheckInVisitId(updatedVisit.id);
+         setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
+         setQrCheckInOpen(true);
       },
-      [visits],
+      [pendingInfoVisit, upsertVisit],
    );
 
    const handleCheckoutQrScanned = React.useCallback(
@@ -433,8 +505,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
          if (!result.eligibleForCheckOut || result.visitors.length === 0) {
             throw new Error(
-               result.reason ??
-                  'No checked-in visitor found for this badge',
+               result.reason ?? 'No checked-in visitor found for this badge',
             );
          }
 
@@ -450,12 +521,11 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
    const handleBadgeCheckoutConfirm = React.useCallback(() => {
       if (!badgeCheckoutVisit) return;
-      const eligible =
-         checkoutVisitorIds?.length
-            ? badgeCheckoutVisit.visitors.filter((visitor) =>
-                 checkoutVisitorIds.includes(visitor.id),
-              )
-            : getCheckOutEligibleVisitors(badgeCheckoutVisit);
+      const eligible = checkoutVisitorIds?.length
+         ? badgeCheckoutVisit.visitors.filter((visitor) =>
+              checkoutVisitorIds.includes(visitor.id),
+           )
+         : getCheckOutEligibleVisitors(badgeCheckoutVisit);
       const ids = eligible.map((visitor) => visitor.id);
       const updated = applyVisitorAttendance(
          badgeCheckoutVisit,
@@ -510,9 +580,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                         : error instanceof Error
                           ? error.message
                           : undefined;
-                  toast.error(
-                     message ?? `Unable to check in ${visitor.name}`,
-                  );
+                  toast.error(message ?? `Unable to check in ${visitor.name}`);
                   return;
                }
             }
@@ -530,8 +598,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                ids.includes(v.id),
             )) {
                printTargets.push({
-                  attendanceId:
-                     visitor.attendanceId ?? `mock-${visitor.id}`,
+                  attendanceId: visitor.attendanceId ?? `mock-${visitor.id}`,
                   visitorName: visitor.name,
                   initialStatus: 'QUEUED',
                   simulate: true,
@@ -626,7 +693,6 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                <VisitsTableFilters
                   onFindVisit={handleFindVisit}
                   onScanBadge={handleScanBadge}
-                  onScanVisitorQr={handleScanVisitorQr}
                />
             )}
 
@@ -684,6 +750,9 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                               className="h-40 px-4 text-center"
                            >
                               <div className="mx-auto flex max-w-sm flex-col items-center gap-1.5">
+                                 <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-muted">
+                                    <CalendarSearch className="size-6 text-muted-foreground" />
+                                 </div>
                                  <p className="text-sm font-medium text-foreground">
                                     No visits found
                                  </p>
@@ -722,12 +791,11 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
             onSelectVisit={openManualCheckIn}
          />
 
-         <QrScannerDialog
-            open={visitQrScannerOpen}
-            onOpenChange={setVisitQrScannerOpen}
-            title="Scan Visitor QR"
-            description="Optional shortcut — scan the visitor approval email QR, or use Find / Search Visit instead."
-            onScan={handleVisitQrScanned}
+         <VisitorInformationDialog
+            open={visitorInfoOpen}
+            onOpenChange={setVisitorInfoOpen}
+            visit={pendingInfoVisit}
+            onComplete={handleVisitorInfoComplete}
          />
 
          <QrScannerDialog

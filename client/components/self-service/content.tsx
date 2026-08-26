@@ -11,9 +11,10 @@ const VisitRequestContent = () => {
                <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   Request a Visit
                </h1>
+
                <p className="text-sm text-muted-foreground sm:text-base">
-                  Submit your visit details below. Your request will be reviewed
-                  and confirmed by the host.
+                  Provide your details and visit information below. Your request
+                  will be reviewed and confirmed by the host.
                </p>
             </div>
             <VisitRequestForm />

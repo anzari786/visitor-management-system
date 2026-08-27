@@ -1,125 +1,67 @@
 import { api } from '@/lib/axios';
-import { API_ENDPOINTS } from '@/constants/api-endpoints';
+import type { CreateHostInvitationApiPayload } from '@/lib/map-host-invitation';
 import type { ApiResponse } from '@/types/api.types';
 import type {
    ApproveHostVisitPayload,
    CancelHostVisitPayload,
-   CreateHostInvitationPayload,
-   HostInvitation,
-   HostNotification,
-   HostProfile,
-   HostRoom,
    HostVisit,
    HostVisitsParams,
-   MarkNotificationsReadPayload,
    RejectHostVisitPayload,
    RescheduleHostVisitPayload,
-   ResendApprovalEmailData,
 } from '@/types/host.types';
 
-/**
- * Host Portal API service.
- * Paths are placeholders in `API_ENDPOINTS` — update when the backend is ready.
- */
-export const hostService = {
-   getProfile() {
-      return api.get<ApiResponse<HostProfile>>(API_ENDPOINTS.host.profile);
-   },
+export type HostInvitationCreated = {
+   id: string;
+   visitCode: string;
+};
 
+export const hostService = {
    getPendingVisits(params?: HostVisitsParams) {
       return api.get<ApiResponse<HostVisit[]>>(
-         API_ENDPOINTS.host.pendingVisits,
+         '/v1/employees/me/visits/pending-approvals',
          { params },
       );
    },
 
    getUpcomingVisits(params?: HostVisitsParams) {
       return api.get<ApiResponse<HostVisit[]>>(
-         API_ENDPOINTS.host.upcomingVisits,
+         '/v1/employees/me/visits/upcoming',
          { params },
       );
    },
 
-   getVisits(params?: HostVisitsParams) {
-      return api.get<ApiResponse<HostVisit[]>>(API_ENDPOINTS.host.visits, {
-         params,
-      });
-   },
-
-   getVisit(id: string) {
-      return api.get<ApiResponse<HostVisit>>(API_ENDPOINTS.host.visit(id));
-   },
-
    approveVisit(id: string, payload: ApproveHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         API_ENDPOINTS.host.approveVisit(id),
+         `/v1/visits/${id}/approve`,
          payload,
       );
    },
 
    rejectVisit(id: string, payload?: RejectHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         API_ENDPOINTS.host.rejectVisit(id),
+         `/v1/visits/${id}/reject`,
          payload ?? {},
       );
    },
 
    rescheduleVisit(id: string, payload: RescheduleHostVisitPayload) {
-      return api.patch<ApiResponse<HostVisit>>(
-         API_ENDPOINTS.host.rescheduleVisit(id),
+      return api.post<ApiResponse<HostVisit>>(
+         `/v1/visits/${id}/reschedule`,
          payload,
       );
    },
 
    cancelVisit(id: string, payload?: CancelHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         API_ENDPOINTS.host.cancelVisit(id),
+         `/v1/visits/${id}/cancel`,
          payload ?? {},
       );
    },
 
-   resendApprovalEmail(id: string) {
-      return api.post<ApiResponse<ResendApprovalEmailData>>(
-         API_ENDPOINTS.host.resendApprovalEmail(id),
-      );
-   },
-
-   createInvitation(payload: CreateHostInvitationPayload) {
-      return api.post<ApiResponse<HostInvitation>>(
-         API_ENDPOINTS.host.invitations,
+   createHostInvitation(payload: CreateHostInvitationApiPayload) {
+      return api.post<ApiResponse<HostInvitationCreated>>(
+         '/v1/visits/invite',
          payload,
-      );
-   },
-
-   getInvitation(id: string) {
-      return api.get<ApiResponse<HostInvitation>>(
-         API_ENDPOINTS.host.invitation(id),
-      );
-   },
-
-   getRooms(params?: { floor?: string; search?: string }) {
-      return api.get<ApiResponse<HostRoom[]>>(API_ENDPOINTS.host.rooms, {
-         params,
-      });
-   },
-
-   getNotifications(params?: { unreadOnly?: boolean }) {
-      return api.get<ApiResponse<HostNotification[]>>(
-         API_ENDPOINTS.host.notifications,
-         { params },
-      );
-   },
-
-   markNotificationRead(id: string) {
-      return api.patch<ApiResponse<HostNotification>>(
-         API_ENDPOINTS.host.markNotificationRead(id),
-      );
-   },
-
-   markAllNotificationsRead(payload?: MarkNotificationsReadPayload) {
-      return api.post<ApiResponse<{ updatedCount: number }>>(
-         API_ENDPOINTS.host.markAllNotificationsRead,
-         payload ?? {},
       );
    },
 };

@@ -11,7 +11,6 @@ import {
    type VisitLocationInput,
    type VisitLocationValues,
 } from '@/lib/validations/visit-location.schema';
-import { sendVisitApprovalEmail } from '@/services/visit-notification.service';
 import { VisitLocationFields } from '@/components/shared/visit-location-fields';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,21 +69,13 @@ export function ApproveVisitDialog({
 
       setIsSubmitting(true);
       try {
-         const email = await sendVisitApprovalEmail({
-            visitorName: request.visitorName,
-            floor: values.floor,
-            room: values.room,
-         });
-
          onApproved?.({
             requestId: request.id,
             floor: values.floor,
             room: values.room,
          });
 
-         toast.success(`Visit approved for ${request.visitorName}`, {
-            description: email.body,
-         });
+         toast.success(`Visit approved for ${request.visitorName}`);
          handleOpenChange(false);
       } catch (error) {
          const message =

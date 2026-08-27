@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { parse } from 'date-fns';
 import { Ban, CalendarDays, Clock, Search, SearchX } from 'lucide-react';
-import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,13 +13,8 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { sendVisitUpdateEmail } from '@/services/visit-notification.service';
-import { formatScheduleSummary } from '@/lib/host-visit-schedule';
 import { CancelVisitDialog } from './cancel-visit-dialog';
-import {
-   HostVisitCard,
-   type HostVisitCardData,
-} from './host-visit-card';
+import { HostVisitCard, type HostVisitCardData } from './host-visit-card';
 import {
    VisitUpdateDetails,
    type VisitUpdateDetailsValue,
@@ -187,17 +181,7 @@ export function UpcomingVisits({
                      defaultRoom={rescheduleVisit.room}
                      onCancel={() => setRescheduleVisit(null)}
                      onConfirm={async (value) => {
-                        const scheduleSummary = formatScheduleSummary(value);
-                        const email = await sendVisitUpdateEmail({
-                           visitorName: rescheduleVisit.visitorName,
-                           floor: value.floor,
-                           room: value.room,
-                           scheduleSummary,
-                        });
-                        onReschedule(rescheduleVisit, value);
-                        toast.success('Visit rescheduled', {
-                           description: email.body,
-                        });
+                        await onReschedule(rescheduleVisit, value);
                         setRescheduleVisit(null);
                      }}
                   />
@@ -211,12 +195,7 @@ export function UpcomingVisits({
             onOpenChange={(open) => !open && setCancelVisit(null)}
             onConfirm={async (reason) => {
                if (!cancelVisit) return;
-               onCancel(cancelVisit.id, reason);
-               toast.success('Visit cancelled', {
-                  description: reason
-                     ? `${cancelVisit.visitorName} has been notified. Reason: ${reason}`
-                     : `${cancelVisit.visitorName} has been notified.`,
-               });
+               await onCancel(cancelVisit.id, reason);
             }}
          />
       </>

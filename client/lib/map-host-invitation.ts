@@ -64,16 +64,29 @@ export const mapHostInvitationToApi = (
    hostEmployeeId: number,
 ): CreateHostInvitationApiPayload => {
    const scheduleDates = buildScheduleDates(values);
-   const isKnown = values.knowsVisitorInfo === 'yes';
+   const visitorCount =
+      values.knowsVisitorInfo === 'yes'
+         ? values.visitors.length
+         : Number(values.visitorCount ?? 1);
 
-   if (isKnown) {
-      const visitorCount = values.visitors.length;
+   const groupType: CreateHostInvitationApiPayload['groupType'] =
+      visitorCount > 1 ? 'GROUP' : 'SINGLE';
+   const durationType: CreateHostInvitationApiPayload['durationType'] =
+      values.scheduleType === 'multi_day' ? 'MULTI_DAY' : 'SINGLE_DAY';
+
+   const basePayload: Omit<CreateHostInvitationApiPayload, 'visitors'> = {
+      groupType,
+      durationType,
+      purpose: values.purpose,
+      hostEmployeeId,
+      scheduleDates,
+      floor: values.floor,
+      room: values.room,
+   };
+
+   if (values.knowsVisitorInfo === 'yes') {
       return {
-         groupType: visitorCount > 1 ? 'GROUP' : 'SINGLE',
-         durationType:
-            values.scheduleType === 'multi_day' ? 'MULTI_DAY' : 'SINGLE_DAY',
-         purpose: values.purpose,
-         hostEmployeeId,
+         ...basePayload,
          visitors: values.visitors.map((visitor) => ({
             firstName: visitor.firstName,
             lastName: visitor.lastName,
@@ -81,25 +94,13 @@ export const mapHostInvitationToApi = (
             email: visitor.email,
             organization: visitor.organization,
          })),
-         scheduleDates,
-         floor: values.floor,
-         room: values.room,
       };
    }
 
-   const expectedVisitorCount = values.visitorCount ?? 1;
-
    return {
-      groupType: expectedVisitorCount > 1 ? 'GROUP' : 'SINGLE',
-      durationType:
-         values.scheduleType === 'multi_day' ? 'MULTI_DAY' : 'SINGLE_DAY',
-      purpose: values.purpose,
-      hostEmployeeId,
+      ...basePayload,
       visitors: [],
-      expectedVisitorCount,
-      organization: values.visitorOrganization?.trim() || undefined,
-      scheduleDates,
-      floor: values.floor,
-      room: values.room,
+      expectedVisitorCount: Number(values.visitorCount ?? 1),
+      organization: values.visitorOrganization,
    };
 };

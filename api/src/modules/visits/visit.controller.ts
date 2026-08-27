@@ -16,11 +16,6 @@ import {
    assertVisitActorAccess,
 } from './visit.service.js';
 import {
-   formatInvitationCreated,
-   formatInvitationPreview,
-   getInvitationByToken,
-} from './visit-invitation.service.js';
-import {
    formatRegistrationProgress,
    formatRegistrationResult,
    getVisitRegistrationProgress,
@@ -35,8 +30,6 @@ import type {
    visitDecisionSchema,
    approveVisitSchema,
    rescheduleVisitSchema,
-   invitationTokenParamSchema,
-   registerViaInvitationSchema,
    registerVisitorAtVisitSchema,
 } from './visit.validation.js';
 
@@ -52,22 +45,11 @@ type VisitDecisionBody = z.infer<typeof visitDecisionSchema>['body'];
 type ApproveVisitBody = z.infer<typeof approveVisitSchema>['body'];
 type RescheduleVisitParams = z.infer<typeof rescheduleVisitSchema>['params'];
 type RescheduleVisitBody = z.infer<typeof rescheduleVisitSchema>['body'];
-type InvitationTokenParams = z.infer<
-   typeof invitationTokenParamSchema
->['params'];
-type RegisterViaInvitationBody = z.infer<
-   typeof registerViaInvitationSchema
->['body'];
 type RegisterVisitorAtVisitBody = z.infer<
    typeof registerVisitorAtVisitSchema
 >['body'];
 
-const HOST_VIEW_ROLES: RoleName[] = [
-   'MANAGER',
-   'ADMIN',
-   'RECEPTION',
-   'GUARD',
-];
+const HOST_VIEW_ROLES: RoleName[] = ['MANAGER', 'ADMIN', 'RECEPTION', 'GUARD'];
 
 const INVITE_STAFF_ROLES: RoleName[] = ['RECEPTION', 'ADMIN', 'MANAGER'];
 
@@ -135,7 +117,7 @@ export const submitHostInvitation = async (req: Request, res: Response) => {
       input.hostEmployeeId,
    );
 
-   const { visit, registrationInvitation } = await createVisit(input, {
+   const { visit } = await createVisit(input, {
       source: 'HOST_INVITATION',
       createdById: req.session.userId,
    });
@@ -143,12 +125,7 @@ export const submitHostInvitation = async (req: Request, res: Response) => {
    return res.status(201).json({
       success: true,
       message: 'Host invitation created successfully',
-      data: {
-         ...formatVisitDetail(visit),
-         ...(registrationInvitation && {
-            registration: formatInvitationCreated(registrationInvitation),
-         }),
-      },
+      data: formatVisitDetail(visit),
    });
 };
 
@@ -264,34 +241,6 @@ export const cancelVisitHandler = async (req: Request, res: Response) => {
       success: true,
       message: 'Visit cancelled successfully',
       data: formatVisitDetail(visit),
-   });
-};
-
-/** Public — preview an invitation before self-registration. */
-export const getInvitationPreview = async (req: Request, res: Response) => {
-   const { token } = req.validatedParams as InvitationTokenParams;
-
-   const { preview } = await getInvitationByToken(token);
-
-   return res.status(200).json({
-      success: true,
-      data: formatInvitationPreview(preview),
-   });
-};
-
-/** Public — visitor self-registers via host-shared invitation link. */
-export const registerViaInvitation = async (req: Request, res: Response) => {
-   const { token } = req.validatedParams as InvitationTokenParams;
-   const body = req.validatedBody as RegisterViaInvitationBody;
-
-   const { visitId } = await getInvitationByToken(token);
-
-   const result = await registerVisitorForVisit(visitId, body);
-
-   return res.status(201).json({
-      success: true,
-      message: 'Registration successful',
-      data: formatRegistrationResult(result),
    });
 };
 

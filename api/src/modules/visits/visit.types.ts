@@ -83,13 +83,6 @@ export const visitDetailSelect = {
       },
       orderBy: { createdAt: 'desc' },
    },
-   invitation: {
-      select: {
-         expiresAt: true,
-         revokedAt: true,
-         createdAt: true,
-      },
-   },
 } satisfies Prisma.VisitSelect;
 
 export type VisitDetail = Prisma.VisitGetPayload<{
@@ -189,9 +182,6 @@ export interface RescheduleVisitInput {
    note?: string;
 }
 
-import type { InvitationCreated } from './visit-registration.types.js';
-
 export interface CreateVisitResult {
    visit: VisitDetail;
-   registrationInvitation?: InvitationCreated;
 }

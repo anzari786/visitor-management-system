@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
-import { Check, Copy, Loader2, Send } from 'lucide-react';
+import { Check, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
 import {
@@ -17,10 +17,7 @@ import {
 } from '@/lib/validations/host-invitation.schema';
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
-import {
-   visitInvitationService,
-   type HostInvitationCreated,
-} from '@/services/visit-invitation.service';
+import { hostService, type HostInvitationCreated } from '@/services/host.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -73,11 +70,6 @@ function SectionHeading({
    );
 }
 
-function normalizeOrganization(value?: string) {
-   const trimmed = value?.trim();
-   return trimmed ? trimmed : undefined;
-}
-
 export function CreateInvitationDialog({
    open,
    onOpenChange,
@@ -85,7 +77,6 @@ export function CreateInvitationDialog({
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
-   const [copiedLink, setCopiedLink] = useState(false);
 
    const form = useForm<
       HostInvitationFormInput,
@@ -108,7 +99,6 @@ export function CreateInvitationDialog({
       if (!nextOpen) {
          form.reset(hostInvitationDefaultValues);
          setCreatedInvitation(null);
-         setCopiedLink(false);
       }
       onOpenChange(nextOpen);
    };
@@ -119,18 +109,23 @@ export function CreateInvitationDialog({
 
       if (knows === 'yes') {
          form.clearErrors(['visitorCount', 'visitorOrganization']);
-         form.setValue('visitorCount', 1);
-         form.setValue('visitorOrganization', '');
+         form.setValue('visitorCount', 1, { shouldDirty: true });
+         form.setValue('visitorOrganization', '', { shouldDirty: true });
          const visitors = form.getValues('visitors');
          if (!visitors?.length) {
-            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+               shouldDirty: true,
+            });
          }
       } else {
          form.clearErrors(['visitors']);
-         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+            shouldDirty: true,
+         });
          form.setValue(
             'visitorCount',
-            Math.max(1, form.getValues('visitorCount') ?? 1),
+            Math.max(1, Number(form.getValues('visitorCount') ?? 1)),
+            { shouldDirty: true },
          );
       }
    };
@@ -153,9 +148,9 @@ export function CreateInvitationDialog({
                ? {
                     ...values,
                     visitors: [],
-                    visitorOrganization: normalizeOrganization(
-                       values.visitorOrganization,
-                    ),
+                    visitorOrganization: values.visitorOrganization?.trim()
+                       ? values.visitorOrganization.trim()
+                       : undefined,
                     visitorCount: values.visitorCount ?? 1,
                  }
                : {
@@ -177,45 +172,11 @@ export function CreateInvitationDialog({
          }
 
          const apiPayload = mapHostInvitationToApi(payload, Number(employeeId));
+         await hostService.createHostInvitation(apiPayload);
 
-         const { data } =
-            await visitInvitationService.createHostInvitation(apiPayload);
-         const created = data.data;
-
-         const count =
-            payload.knowsVisitorInfo === 'yes'
-               ? payload.visitors.length
-               : (payload.visitorCount ?? 1);
-
-         const locationSummary = `${payload.floor}, ${payload.room}`;
-
-         if (payload.knowsVisitorInfo === 'no' && created.registration) {
-            setCreatedInvitation(created);
-            toast.success(
-               count > 1
-                  ? 'Group invitation created successfully'
-                  : 'Invitation created successfully',
-               {
-                  description: `Share the registration link with your visitors. Location: ${locationSummary}`,
-               },
-            );
-            return;
-         }
-
-         toast.success(
-            payload.knowsVisitorInfo === 'yes'
-               ? count > 1
-                  ? `Invitations sent to ${count} visitors`
-                  : 'Invitation sent to the visitor'
-               : count > 1
-                 ? 'Group invitation created successfully'
-                 : 'Invitation created successfully',
-            {
-               description: `Visit location: ${locationSummary}`,
-            },
-         );
+         setCreatedInvitation({ id: 'created', visitCode: 'created' });
+         toast.success('Invitation created successfully');
          form.reset(hostInvitationDefaultValues);
-         onOpenChange(false);
       } catch (error) {
          const message =
             error instanceof Error
@@ -227,67 +188,24 @@ export function CreateInvitationDialog({
       }
    }, onInvalid);
 
-   const copyRegistrationLink = async () => {
-      const url = createdInvitation?.registration?.registrationUrl;
-      if (!url) return;
-
-      await navigator.clipboard.writeText(url);
-      setCopiedLink(true);
-      toast.success('Registration link copied');
-      setTimeout(() => setCopiedLink(false), 2000);
-   };
-
-   if (createdInvitation?.registration) {
-      const expected = createdInvitation.expectedVisitorCount;
-      const registered = createdInvitation.registeredCount;
-
+   if (createdInvitation) {
       return (
          <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent
                aria-describedby={undefined}
-               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
             >
                <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
                   <DialogTitle>Invitation Created</DialogTitle>
                </DialogHeader>
 
-               <div className="space-y-6 px-6 py-5">
-                  <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                     <p className="font-medium text-foreground">
-                        Expected visitors: {expected}
-                     </p>
-                     <p className="text-muted-foreground">
-                        Registered: {registered} / {expected}
-                     </p>
-                  </div>
-
-                  <div className="space-y-2">
-                     <p className="text-sm font-medium">Registration link</p>
-                     <div className="flex gap-2">
-                        <Input
-                           readOnly
-                           value={
-                              createdInvitation.registration.registrationUrl
-                           }
-                           className="font-mono text-xs"
-                        />
-                        <Button
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           className="shrink-0 cursor-pointer"
-                           onClick={copyRegistrationLink}
-                        >
-                           {copiedLink ? (
-                              <Check className="size-4" />
-                           ) : (
-                              <Copy className="size-4" />
-                           )}
-                        </Button>
+               <div className="space-y-4 px-6 py-5">
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
+                     <div className="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                        <Check className="size-5" />
                      </div>
-                     <p className="text-xs text-muted-foreground">
-                        Share this link with your visitors so they can register
-                        before arriving.
+                     <p className="text-sm font-medium text-foreground">
+                        Your invitation was created successfully.
                      </p>
                   </div>
                </div>
@@ -366,7 +284,7 @@ export function CreateInvitationDialog({
                         <InvitationVisitorsFields
                            form={form}
                            heading="Known Visitors"
-                           description="Add each invited guest with their contact details. At least one visitor is required."
+                           description="Add the details of each invited visitor."
                         />
                      ) : (
                         <>
@@ -383,8 +301,10 @@ export function CreateInvitationDialog({
                                        id="visitorCount"
                                        min={1}
                                        max={50}
-                                       value={field.value ?? 1}
-                                       onChange={field.onChange}
+                                       value={Number(field.value ?? 1)}
+                                       onChange={(nextValue) =>
+                                          field.onChange(Number(nextValue))
+                                       }
                                        aria-invalid={
                                           !!form.formState.errors.visitorCount
                                        }
@@ -393,8 +313,8 @@ export function CreateInvitationDialog({
                               />
                               <FieldDescription>
                                  {(visitorCount ?? 1) === 1
-                                    ? 'Use 1 for a single unknown visitor (e.g. technician or courier).'
-                                    : 'Use 2 or more for a group visit. Names and contact details are not required.'}
+                                    ? 'For a single unknown visitor.'
+                                    : 'For a group of unknown visitors.'}
                               </FieldDescription>
                               <FieldError>
                                  {form.formState.errors.visitorCount?.message}
@@ -402,13 +322,13 @@ export function CreateInvitationDialog({
                            </Field>
 
                            <Field>
-                              <FieldLabel htmlFor="unknownOrganization">
+                              <FieldLabel htmlFor="visitorOrganization">
                                  Organization
                               </FieldLabel>
                               <Input
-                                 id="unknownOrganization"
+                                 id="visitorOrganization"
                                  autoComplete="off"
-                                 placeholder="Visiting company or organization (optional)"
+                                 placeholder="Visiting company or organization"
                                  {...form.register('visitorOrganization')}
                               />
                            </Field>

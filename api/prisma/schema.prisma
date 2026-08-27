@@ -317,7 +317,6 @@ model Visit {
 
   days          VisitDay[]
   participants  VisitParticipant[]
-  invitation    VisitInvitation?
   statusHistory VisitStatusHistory[]
   notifications Notification[]
 
@@ -329,21 +328,6 @@ model Visit {
   @@index([purpose])
   @@index([createdAt])
   @@map("visits")
-}
-
-/// Secure registration link for host invitations with unknown visitors.
-model VisitInvitation {
-  id        Int       @id @default(autoincrement())
-  visitId   Int       @unique
-  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@index([expiresAt])
-  @@map("visit_invitations")
 }
 
 /// One calendar day within a (possibly multi-day) visit.

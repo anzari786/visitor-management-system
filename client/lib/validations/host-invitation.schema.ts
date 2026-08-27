@@ -77,8 +77,18 @@ const baseInvitationSchema = z.object({
       message: 'Please select a visit purpose',
    }),
    visitors: z.array(invitationVisitorInputSchema).default([]),
-   visitorOrganization: z.string().optional(),
-   visitorCount: z.number().optional(),
+   visitorCount: z.coerce
+      .number()
+      .int('Visitor count must be a whole number')
+      .min(1, 'Visitor count must be at least 1')
+      .max(50, 'Visitor count must be 50 or fewer')
+      .default(1),
+   visitorOrganization: z
+      .string()
+      .trim()
+      .max(150, 'Organization must be 150 characters or fewer')
+      .optional()
+      .transform((val) => (val?.trim() ? val.trim() : undefined)),
    visitDate: z.date().optional(),
    startDate: z.date().optional(),
    endDate: z.date().optional(),
@@ -119,24 +129,11 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
       }
 
       if (data.knowsVisitorInfo === 'no') {
-         if (
-            data.visitorCount == null ||
-            !Number.isFinite(data.visitorCount) ||
-            data.visitorCount < 1
-         ) {
+         if (!data.visitorCount) {
             ctx.addIssue({
                code: 'custom',
                path: ['visitorCount'],
-               message: 'Enter at least 1 visitor',
-            });
-         }
-
-         const org = data.visitorOrganization?.trim();
-         if (!org) {
-            ctx.addIssue({
-               code: 'custom',
-               path: ['visitorOrganization'],
-               message: 'Organization is required for unknown visitors',
+               message: 'Visitor count is required',
             });
          }
       }
@@ -212,8 +209,8 @@ export const hostInvitationDefaultValues = {
    scheduleType: 'single_day' as const,
    purpose: undefined as HostInvitationFormValues['purpose'] | undefined,
    visitors: [{ ...emptyInvitationVisitorValues }],
-   visitorOrganization: '',
    visitorCount: 1,
+   visitorOrganization: '',
    visitDate: undefined as Date | undefined,
    startDate: undefined as Date | undefined,
    endDate: undefined as Date | undefined,

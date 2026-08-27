@@ -1,3 +1,13 @@
+import { hostService } from '@/services/host.service';
+import type { ApiErrorResponse } from '@/types/api.types';
+import type {
+   ApproveHostVisitPayload,
+   CancelHostVisitPayload,
+   HostVisit,
+   HostVisitsParams,
+   RejectHostVisitPayload,
+   RescheduleHostVisitPayload,
+} from '@/types/host.types';
 import {
    keepPreviousData,
    useMutation,
@@ -5,29 +15,12 @@ import {
    useQueryClient,
 } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import { hostService } from '@/services/host.service';
-import type { ApiErrorResponse } from '@/types/api.types';
-import type {
-   ApproveHostVisitPayload,
-   CancelHostVisitPayload,
-   CreateHostInvitationPayload,
-   HostInvitation,
-   HostNotification,
-   HostVisit,
-   HostVisitsParams,
-   MarkNotificationsReadPayload,
-   RejectHostVisitPayload,
-   RescheduleHostVisitPayload,
-   ResendApprovalEmailData,
-} from '@/types/host.types';
+import { format, parseISO } from 'date-fns';
 
 type ApiError = AxiosError<ApiErrorResponse>;
 
-// ─── Query Keys ────────────────────────────────────────────────────────────────
-
 export const hostQueryKeys = {
    all: ['host'] as const,
-   profile: () => [...hostQueryKeys.all, 'profile'] as const,
    visits: () => [...hostQueryKeys.all, 'visits'] as const,
    pendingVisits: (params?: HostVisitsParams) =>
       [...hostQueryKeys.visits(), 'pending', params ?? {}] as const,
@@ -37,40 +30,106 @@ export const hostQueryKeys = {
       [...hostQueryKeys.visits(), 'list', params ?? {}] as const,
    visitDetail: (id: string) =>
       [...hostQueryKeys.visits(), 'detail', id] as const,
-   invitations: () => [...hostQueryKeys.all, 'invitations'] as const,
-   invitationDetail: (id: string) =>
-      [...hostQueryKeys.invitations(), 'detail', id] as const,
-   rooms: (params?: { floor?: string; search?: string }) =>
-      [...hostQueryKeys.all, 'rooms', params ?? {}] as const,
-   notifications: (params?: { unreadOnly?: boolean }) =>
-      [...hostQueryKeys.all, 'notifications', params ?? {}] as const,
 } as const;
 
-function invalidateHostVisits(
-   queryClient: ReturnType<typeof useQueryClient>,
-) {
+function invalidateHostVisits(queryClient: ReturnType<typeof useQueryClient>) {
    queryClient.invalidateQueries({ queryKey: hostQueryKeys.visits() });
 }
 
-// ─── Queries ───────────────────────────────────────────────────────────────────
+function normalizeMeetingType(value?: string): string {
+   const normalized = (value ?? '').trim();
+   if (!normalized) return 'Meeting';
 
-export function useHostProfile() {
-   return useQuery({
-      queryKey: hostQueryKeys.profile(),
-      queryFn: async () => {
-         const { data } = await hostService.getProfile();
-         return data.data;
-      },
-   });
+   const mapping: Record<string, string> = {
+      MEETING: 'Meeting',
+      INTERVIEW: 'Interview',
+      DELIVERY: 'Delivery',
+      OFFICIAL_VISIT: 'Official Visit',
+      OFFICIALVISIT: 'Official Visit',
+      MAINTENANCE: 'Maintenance',
+      OTHER: 'Other',
+      SITE_VISIT: 'Site Visit',
+      AUDIT: 'Audit',
+      TRAINING: 'Training',
+      VENDOR_REVIEW: 'Vendor Review',
+   };
+
+   return mapping[normalized.toUpperCase()] ?? normalized;
+}
+
+function normalizeStatus(value?: string): HostVisit['status'] {
+   const normalized = (value ?? '').toUpperCase();
+
+   if (normalized.includes('PENDING')) return 'pending';
+   if (normalized.includes('APPROVED')) return 'approved';
+   if (normalized.includes('RESCHEDULED')) return 'rescheduled';
+   if (normalized.includes('REJECTED')) return 'rejected';
+   if (normalized.includes('CANCEL')) return 'cancelled';
+   if (normalized.includes('CHECKED_OUT')) return 'completed';
+   if (normalized.includes('CHECKED_IN')) return 'upcoming';
+   if (normalized.includes('UPCOMING')) return 'upcoming';
+
+   return 'pending';
+}
+
+function mapVisitToHostCard(visit: any): HostVisit {
+   const scheduleDates = Array.isArray(visit.scheduleDates)
+      ? visit.scheduleDates
+      : visit.startDate
+        ? [visit.startDate]
+        : [];
+   const parsedStartDate = scheduleDates[0] ?? visit.startDate;
+   const parsedEndDate = Array.isArray(visit.scheduleDates)
+      ? visit.scheduleDates[visit.scheduleDates.length - 1]
+      : visit.endDate;
+
+   const visitorNames = Array.isArray(visit.visitors)
+      ? visit.visitors
+           .map((visitor: any) =>
+              `${visitor.firstName ?? ''} ${visitor.lastName ?? ''}`.trim(),
+           )
+           .filter(Boolean)
+      : Array.isArray(visit.visitorNames)
+        ? visit.visitorNames
+        : [];
+
+   const startTime = visit.startTime ?? visit.expectedStartTime;
+   const endTime = visit.endTime ?? visit.expectedEndTime;
+
+   const startDateValue = parsedStartDate ? format(parseISO(parsedStartDate), 'd MMM yyyy') : '—';
+   const endDateValue = parsedEndDate
+      ? format(parseISO(parsedEndDate), 'd MMM yyyy')
+      : undefined;
+
+   return {
+      id: String(visit.id),
+      visitorName: visitorNames.join(', ') || 'Visitor',
+      isGroup: visit.groupType === 'GROUP' || visit.groupType === 'group',
+      groupSize: visit.expectedVisitorCount ?? visit.groupSize,
+      orgName: visit.organization ?? visit.orgName,
+      meetingType: normalizeMeetingType(visit.purpose ?? visit.meetingType),
+      purpose: normalizeMeetingType(visit.purpose ?? visit.meetingType),
+      startDate: startDateValue,
+      endDate: endDateValue,
+      time: String(startTime ?? '').slice(0, 5),
+      endTime: String(endTime ?? '').slice(0, 5),
+      isMultiDay:
+         visit.durationType === 'MULTI_DAY' ||
+         visit.isMultiDay ||
+         (Array.isArray(visit.scheduleDates) && visit.scheduleDates.length > 1),
+      floor: visit.floor,
+      room: visit.room,
+      status: normalizeStatus(visit.status),
+   };
 }
 
 export function useHostPendingVisits(params?: HostVisitsParams) {
    return useQuery({
       queryKey: hostQueryKeys.pendingVisits(params),
-      queryFn: async () => {
-         const { data } = await hostService.getPendingVisits(params);
-         return data.data;
-      },
+      queryFn: async () =>
+         (await hostService.getPendingVisits(params)).data.data.map(
+            mapVisitToHostCard,
+         ),
       placeholderData: keepPreviousData,
    });
 }
@@ -78,81 +137,23 @@ export function useHostPendingVisits(params?: HostVisitsParams) {
 export function useHostUpcomingVisits(params?: HostVisitsParams) {
    return useQuery({
       queryKey: hostQueryKeys.upcomingVisits(params),
-      queryFn: async () => {
-         const { data } = await hostService.getUpcomingVisits(params);
-         return data.data;
-      },
+      queryFn: async () =>
+         (await hostService.getUpcomingVisits(params)).data.data.map(
+            mapVisitToHostCard,
+         ),
       placeholderData: keepPreviousData,
    });
 }
-
-export function useHostVisits(params?: HostVisitsParams) {
-   return useQuery({
-      queryKey: hostQueryKeys.visitList(params),
-      queryFn: async () => {
-         const { data } = await hostService.getVisits(params);
-         return data.data;
-      },
-      placeholderData: keepPreviousData,
-   });
-}
-
-export function useHostVisit(id: string, enabled = true) {
-   return useQuery({
-      queryKey: hostQueryKeys.visitDetail(id),
-      queryFn: async () => {
-         const { data } = await hostService.getVisit(id);
-         return data.data;
-      },
-      enabled: enabled && !!id,
-   });
-}
-
-export function useHostInvitation(id: string, enabled = true) {
-   return useQuery({
-      queryKey: hostQueryKeys.invitationDetail(id),
-      queryFn: async () => {
-         const { data } = await hostService.getInvitation(id);
-         return data.data;
-      },
-      enabled: enabled && !!id,
-   });
-}
-
-export function useHostRooms(params?: { floor?: string; search?: string }) {
-   return useQuery({
-      queryKey: hostQueryKeys.rooms(params),
-      queryFn: async () => {
-         const { data } = await hostService.getRooms(params);
-         return data.data;
-      },
-   });
-}
-
-export function useHostNotifications(params?: { unreadOnly?: boolean }) {
-   return useQuery({
-      queryKey: hostQueryKeys.notifications(params),
-      queryFn: async () => {
-         const { data } = await hostService.getNotifications(params);
-         return data.data;
-      },
-   });
-}
-
-// ─── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useApproveHostVisit() {
    const queryClient = useQueryClient();
-
    return useMutation<
       HostVisit,
       ApiError,
       { id: string; payload: ApproveHostVisitPayload }
    >({
-      mutationFn: async ({ id, payload }) => {
-         const { data } = await hostService.approveVisit(id, payload);
-         return data.data;
-      },
+      mutationFn: async ({ id, payload }) =>
+         (await hostService.approveVisit(id, payload)).data.data,
       onSuccess: (updated) => {
          invalidateHostVisits(queryClient);
          queryClient.setQueryData(
@@ -165,34 +166,26 @@ export function useApproveHostVisit() {
 
 export function useRejectHostVisit() {
    const queryClient = useQueryClient();
-
    return useMutation<
       HostVisit,
       ApiError,
       { id: string; payload?: RejectHostVisitPayload }
    >({
-      mutationFn: async ({ id, payload }) => {
-         const { data } = await hostService.rejectVisit(id, payload);
-         return data.data;
-      },
-      onSuccess: () => {
-         invalidateHostVisits(queryClient);
-      },
+      mutationFn: async ({ id, payload }) =>
+         (await hostService.rejectVisit(id, payload)).data.data,
+      onSuccess: () => invalidateHostVisits(queryClient),
    });
 }
 
 export function useRescheduleHostVisit() {
    const queryClient = useQueryClient();
-
    return useMutation<
       HostVisit,
       ApiError,
       { id: string; payload: RescheduleHostVisitPayload }
    >({
-      mutationFn: async ({ id, payload }) => {
-         const { data } = await hostService.rescheduleVisit(id, payload);
-         return data.data;
-      },
+      mutationFn: async ({ id, payload }) =>
+         (await hostService.rescheduleVisit(id, payload)).data.data,
       onSuccess: (updated) => {
          invalidateHostVisits(queryClient);
          queryClient.setQueryData(
@@ -205,85 +198,14 @@ export function useRescheduleHostVisit() {
 
 export function useCancelHostVisit() {
    const queryClient = useQueryClient();
-
    return useMutation<
       HostVisit,
       ApiError,
       { id: string; payload?: CancelHostVisitPayload }
    >({
-      mutationFn: async ({ id, payload }) => {
-         const { data } = await hostService.cancelVisit(id, payload);
-         return data.data;
-      },
-      onSuccess: () => {
-         invalidateHostVisits(queryClient);
-      },
+      mutationFn: async ({ id, payload }) =>
+         (await hostService.cancelVisit(id, payload)).data.data,
+      onSuccess: () => invalidateHostVisits(queryClient),
    });
 }
 
-export function useResendHostApprovalEmail() {
-   return useMutation<ResendApprovalEmailData, ApiError, string>({
-      mutationFn: async (id) => {
-         const { data } = await hostService.resendApprovalEmail(id);
-         return data.data;
-      },
-   });
-}
-
-export function useCreateHostInvitation() {
-   const queryClient = useQueryClient();
-
-   return useMutation<HostInvitation, ApiError, CreateHostInvitationPayload>({
-      mutationFn: async (payload) => {
-         const { data } = await hostService.createInvitation(payload);
-         return data.data;
-      },
-      onSuccess: () => {
-         queryClient.invalidateQueries({
-            queryKey: hostQueryKeys.invitations(),
-         });
-         invalidateHostVisits(queryClient);
-      },
-   });
-}
-
-export function useMarkHostNotificationRead() {
-   const queryClient = useQueryClient();
-
-   return useMutation<HostNotification, ApiError, string>({
-      mutationFn: async (id) => {
-         const { data } = await hostService.markNotificationRead(id);
-         return data.data;
-      },
-      onSuccess: (updated) => {
-         queryClient.setQueriesData<HostNotification[]>(
-            { queryKey: [...hostQueryKeys.all, 'notifications'] },
-            (old) =>
-               old?.map((n) =>
-                  n.id === updated.id ? { ...n, ...updated } : n,
-               ),
-         );
-      },
-   });
-}
-
-export function useMarkAllHostNotificationsRead() {
-   const queryClient = useQueryClient();
-
-   return useMutation<
-      { updatedCount: number },
-      ApiError,
-      MarkNotificationsReadPayload | undefined
-   >({
-      mutationFn: async (payload) => {
-         const { data } =
-            await hostService.markAllNotificationsRead(payload);
-         return data.data;
-      },
-      onSuccess: () => {
-         queryClient.invalidateQueries({
-            queryKey: [...hostQueryKeys.all, 'notifications'],
-         });
-      },
-   });
-}

@@ -26,13 +26,7 @@ type FormType = UseFormReturn<
    HostInvitationFormValues
 >;
 
-function VisitorFields({
-   form,
-   index,
-}: {
-   form: FormType;
-   index: number;
-}) {
+function VisitorFields({ form, index }: { form: FormType; index: number }) {
    const errors = form.formState.errors.visitors?.[index];
 
    return (
@@ -115,7 +109,7 @@ function VisitorFields({
             <Input
                id={`visitors.${index}.organization`}
                autoComplete="off"
-               placeholder="Visitor's company or organization (optional)"
+               placeholder="Visitor's company or organization"
                {...form.register(`visitors.${index}.organization`)}
             />
             <FieldError>{errors?.organization?.message}</FieldError>
@@ -167,7 +161,9 @@ export function InvitationVisitorsFields({
                className="w-full rounded-lg border border-border p-4 sm:p-5"
             >
                <div className="mb-4 flex items-center justify-between gap-3">
-                  <FieldLegend className="mb-0">Visitor {index + 1}</FieldLegend>
+                  <FieldLegend className="mb-0">
+                     Visitor {index + 1}
+                  </FieldLegend>
                   {fields.length > 1 && (
                      <Button
                         type="button"
@@ -186,7 +182,9 @@ export function InvitationVisitorsFields({
          ))}
 
          {form.formState.errors.visitors?.root?.message && (
-            <FieldError>{form.formState.errors.visitors.root.message}</FieldError>
+            <FieldError>
+               {form.formState.errors.visitors.root.message}
+            </FieldError>
          )}
          {typeof form.formState.errors.visitors?.message === 'string' && (
             <FieldError>{form.formState.errors.visitors.message}</FieldError>

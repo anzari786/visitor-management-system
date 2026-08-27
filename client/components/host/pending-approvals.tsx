@@ -26,18 +26,13 @@ import {
    SearchX,
    ClipboardCheck,
    XIcon,
-   Mail,
-   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
-import { MEETING_TYPE_OPTIONS } from '@/constants/meeting-types';
 import {
-   sendPendingApprovalReminderEmail,
-   sendVisitUpdateEmail,
-} from '@/services/visit-notification.service';
-import { formatScheduleSummary } from '@/lib/host-visit-schedule';
+   VISIT_PURPOSE_OPTIONS,
+   type VisitPurposeValue,
+} from '@/constants/visit-purpose';
 import { ApproveVisitDialog } from './approve-visit-dialog';
 import {
    VisitUpdateDetails,
@@ -51,8 +46,12 @@ type PendingApprovalsProps = {
       visit: HostVisitCardData,
       value: VisitUpdateDetailsValue,
    ) => void;
-   onReject: (visitId: string) => void;
-   onApprove: (visit: HostVisitCardData, floor: string, room: string) => void;
+   onReject: (visitId: string) => void | Promise<void>;
+   onApprove: (
+      visit: HostVisitCardData,
+      floor: string,
+      room: string,
+   ) => void | Promise<void>;
 };
 
 const PendingApprovals = ({
@@ -62,7 +61,7 @@ const PendingApprovals = ({
    onApprove,
 }: PendingApprovalsProps) => {
    const [searchQuery, setSearchQuery] = useState('');
-   const [typeFilter, setTypeFilter] = useState<string[]>([]);
+   const [typeFilter, setTypeFilter] = useState<VisitPurposeValue[]>([]);
    const [updateRequest, setUpdateRequest] = useState<HostVisitCardData | null>(
       null,
    );
@@ -85,42 +84,20 @@ const PendingApprovals = ({
          );
       }
       if (typeFilter.length > 0) {
-         result = result.filter((r) => typeFilter.includes(r.meetingType));
+         result = result.filter((r) =>
+            typeFilter.includes(r.meetingType as VisitPurposeValue),
+         );
       }
       return result;
    }, [searchQuery, typeFilter, visits]);
 
-   const toggleTypeFilter = (type: string) => {
+   const toggleTypeFilter = (type: VisitPurposeValue) => {
       setTypeFilter((prev) =>
          prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
       );
    };
 
    const hasFilters = typeFilter.length > 0;
-
-   // const handleResendApprovalEmail = async (request: HostVisitCardData) => {
-   //    if (resendingId) return;
-   //    setResendingId(request.id);
-   //    try {
-   //       await sendPendingApprovalReminderEmail({
-   //          visitorName: request.visitorName,
-   //          visitSummary: `${request.meetingType} · ${request.startDate}${
-   //             request.isMultiDay && request.endDate
-   //                ? ` → ${request.endDate}`
-   //                : ''
-   //          }`,
-   //       });
-   //       toast.success('Approval email resent', {
-   //          description: `Reminder sent for ${request.visitorName}'s visit request.`,
-   //       });
-   //    } catch {
-   //       toast.error('Could not resend email', {
-   //          description: 'Please try again in a moment.',
-   //       });
-   //    } finally {
-   //       setResendingId(null);
-   //    }
-   // };
 
    return (
       <>
@@ -173,12 +150,12 @@ const PendingApprovals = ({
                            All meeting types
                         </DropdownMenuCheckboxItem>
                         <DropdownMenuSeparator />
-                        {MEETING_TYPE_OPTIONS.map((type) => (
+                        {VISIT_PURPOSE_OPTIONS.map((type) => (
                            <DropdownMenuCheckboxItem
                               key={type.value}
-                              checked={typeFilter.includes(type.label)}
+                              checked={typeFilter.includes(type.value)}
                               onCheckedChange={() =>
-                                 toggleTypeFilter(type.label)
+                                 toggleTypeFilter(type.value)
                               }
                            >
                               {type.label}
@@ -229,24 +206,6 @@ const PendingApprovals = ({
                         statusClassName="bg-orange-200 text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                         actions={
                            <>
-                              {/* <Button
-                                 variant="outline"
-                                 size="sm"
-                                 className="h-8 cursor-pointer gap-1.5 px-2.5 text-xs"
-                                 disabled={resendingId === request.id}
-                                 onClick={() =>
-                                    handleResendApprovalEmail(request)
-                                 }
-                              >
-                                 {resendingId === request.id ? (
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                 ) : (
-                                    <Mail className="size-3.5" />
-                                 )}
-                                 {resendingId === request.id
-                                    ? 'Sending…'
-                                    : 'Resend Approval Email'}
-                              </Button> */}
                               <Button
                                  variant="outline"
                                  size="sm"
@@ -320,14 +279,7 @@ const PendingApprovals = ({
                      defaultRoom={updateRequest.room}
                      onCancel={() => setUpdateRequest(null)}
                      onConfirm={async (value) => {
-                        const scheduleSummary = formatScheduleSummary(value);
-                        await sendVisitUpdateEmail({
-                           visitorName: updateRequest.visitorName,
-                           floor: value.floor,
-                           room: value.room,
-                           scheduleSummary,
-                        });
-                        onReschedule(updateRequest, value);
+                        await onReschedule(updateRequest, value);
                         setUpdateRequest(null);
                      }}
                   />
@@ -339,9 +291,9 @@ const PendingApprovals = ({
             request={approveRequest}
             open={!!approveRequest}
             onOpenChange={(open) => !open && setApproveRequest(null)}
-            onApproved={(values) => {
+            onApproved={async (values) => {
                if (!approveRequest) return;
-               onApprove(approveRequest, values.floor, values.room);
+               await onApprove(approveRequest, values.floor, values.room);
                setApproveRequest(null);
             }}
          />
@@ -389,11 +341,8 @@ const PendingApprovals = ({
                               variant="destructive"
                               size="sm"
                               className="flex-1 cursor-pointer"
-                              onClick={() => {
-                                 onReject(rejectRequest.id);
-                                 toast.success('Visit request rejected', {
-                                    description: `${rejectRequest.visitorName} has been notified.`,
-                                 });
+                              onClick={async () => {
+                                 await onReject(rejectRequest.id);
                                  setRejectRequest(null);
                               }}
                            >

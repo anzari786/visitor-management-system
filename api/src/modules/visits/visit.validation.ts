@@ -193,19 +193,6 @@ export const createHostInvitationSchema = z.object({
    body: hostInvitationBodySchema,
 });
 
-export const invitationTokenParamSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-});
-
-export const registerViaInvitationSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-   body: registerVisitorBodySchema,
-});
-
 export const registerVisitorAtVisitSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),

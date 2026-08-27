@@ -27,7 +27,6 @@ import {
    findOrCreateVisitor,
    resolveVisitorForRegistration,
 } from '../visitors/visitor.service.js';
-import { createVisitInvitation } from './visit-invitation.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
 import type {
    ApproveVisitInput,
@@ -304,13 +303,7 @@ export const createVisit = async (
       await seedExpectedAttendances(visit.id);
    }
 
-   let registrationInvitation;
-
-   if (isHostInvitation) {
-      if (isUnknownVisitorInvitation) {
-         registrationInvitation = await createVisitInvitation(visit.id);
-      }
-   } else {
+   if (!isHostInvitation) {
       await notifyVisitSubmitted(visit);
    }
 
@@ -322,7 +315,6 @@ export const createVisit = async (
 
    return {
       visit: fullVisit,
-      registrationInvitation,
    };
 };
 
@@ -618,12 +610,6 @@ export const formatVisitDetail = (visit: VisitDetail) => {
       organization: visit.organization ?? undefined,
       registeredCount,
       remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
-      registration: visit.invitation
-         ? {
-              expiresAt: visit.invitation.expiresAt ?? undefined,
-              isRevoked: !!visit.invitation.revokedAt,
-           }
-         : undefined,
       host: visit.hostEmployee
          ? {
               id: String(visit.hostEmployee.id),

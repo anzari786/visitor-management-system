@@ -25,10 +25,12 @@ import {
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useDepartments } from '@/hooks/use-departments';
-import { useExportVisitLog } from '@/hooks/use-report';
-import type { ExportPeriod } from '@/types/report.types';
+import { useExportVisitLog } from '@/hooks/use-dashboard';
+import type {
+   ExportPeriod,
+   ExportVisitStatus,
+} from '@/types/dashboard.types';
 import { format, subDays } from 'date-fns';
 import {
    CalendarIcon,
@@ -49,16 +51,18 @@ const PERIOD_LABELS: Record<ExportPeriod, string> = {
    custom: 'Custom Range',
 };
 
-// Same grouped status model used by the visits table status toggle —
-// kept local here so this dialog has no hard dependency on that file.
 type ExportStatusFilter =
    | 'all'
-   | 'pending'
-   | 'approved'
-   | 'rejected'
-   | 'rescheduled'
-   | 'checked_in'
-   | 'checked_out';
+   | 'PENDING_APPROVAL'
+   | 'APPROVED'
+   | 'REJECTED'
+   | 'EXPIRED'
+   | 'RESCHEDULED'
+   | 'CANCELLED'
+   | 'PARTIALLY_CHECKED_IN'
+   | 'CHECKED_IN'
+   | 'PARTIALLY_CHECKED_OUT'
+   | 'CHECKED_OUT';
 
 const STATUS_OPTIONS: {
    value: ExportStatusFilter;
@@ -71,32 +75,52 @@ const STATUS_OPTIONS: {
       color: 'text-slate-400 fill-slate-400',
    },
    {
-      value: 'pending',
-      label: 'Pending',
+      value: 'PENDING_APPROVAL',
+      label: 'Pending Approval',
       color: 'text-amber-400 fill-amber-400',
    },
    {
-      value: 'approved',
+      value: 'APPROVED',
       label: 'Approved',
       color: 'text-teal-600 fill-teal-600',
    },
    {
-      value: 'rejected',
+      value: 'REJECTED',
       label: 'Rejected',
       color: 'text-red-500 fill-red-500',
    },
    {
-      value: 'rescheduled',
+      value: 'EXPIRED',
+      label: 'Expired',
+      color: 'text-slate-500 fill-slate-500',
+   },
+   {
+      value: 'RESCHEDULED',
       label: 'Rescheduled',
       color: 'text-violet-500 fill-violet-500',
    },
    {
-      value: 'checked_in',
+      value: 'CANCELLED',
+      label: 'Cancelled',
+      color: 'text-rose-500 fill-rose-500',
+   },
+   {
+      value: 'PARTIALLY_CHECKED_IN',
+      label: 'Partially Checked In',
+      color: 'text-amber-500 fill-amber-500',
+   },
+   {
+      value: 'CHECKED_IN',
       label: 'Checked In',
       color: 'text-blue-500 fill-blue-500',
    },
    {
-      value: 'checked_out',
+      value: 'PARTIALLY_CHECKED_OUT',
+      label: 'Partially Checked Out',
+      color: 'text-orange-500 fill-orange-500',
+   },
+   {
+      value: 'CHECKED_OUT',
       label: 'Checked Out',
       color: 'text-slate-500 fill-slate-500',
    },
@@ -119,7 +143,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
       to: new Date(),
    });
 
-   const { data: departments, isLoading: loadingDepts } = useDepartments();
+   const { data: departments = [] } = useDepartments(true);
    const { mutate: exportLog, isPending } = useExportVisitLog();
 
    const selectedStatus = STATUS_OPTIONS.find((s) => s.value === status);
@@ -146,7 +170,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
             period,
             departmentId:
                departmentId === 'all' ? undefined : Number(departmentId),
-            // status: status === 'all' ? undefined : status,
+            status: status === 'all' ? undefined : (status as ExportVisitStatus),
             from:
                period === 'custom' && dateRange?.from
                   ? format(dateRange.from, 'yyyy-MM-dd')
@@ -252,33 +276,29 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                   {/* Department */}
                   <Field>
                      <FieldLabel>Department</FieldLabel>
-                     {loadingDepts ? (
-                        <Skeleton className="h-9 w-full rounded-md" />
-                     ) : (
-                        <Select
-                           value={departmentId}
-                           onValueChange={setDepartmentId}
-                        >
-                           <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select department" />
-                           </SelectTrigger>
-                           <SelectContent>
-                              <SelectGroup>
-                                 <SelectItem value="all">
-                                    All Departments
+                     <Select
+                        value={departmentId}
+                        onValueChange={setDepartmentId}
+                     >
+                        <SelectTrigger className="w-full">
+                           <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectGroup>
+                              <SelectItem value="all">
+                                 All Departments
+                              </SelectItem>
+                              {departments.map((dept) => (
+                                 <SelectItem
+                                    key={dept.id}
+                                    value={String(dept.id)}
+                                 >
+                                    {dept.name}
                                  </SelectItem>
-                                 {departments?.map((dept) => (
-                                    <SelectItem
-                                       key={dept.id}
-                                       value={String(dept.id)}
-                                    >
-                                       {dept.name}
-                                    </SelectItem>
-                                 ))}
-                              </SelectGroup>
-                           </SelectContent>
-                        </Select>
-                     )}
+                              ))}
+                           </SelectGroup>
+                        </SelectContent>
+                     </Select>
                   </Field>
 
                   {/* Status */}

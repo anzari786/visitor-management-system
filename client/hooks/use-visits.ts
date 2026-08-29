@@ -18,7 +18,6 @@ import {
 } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { dashboardQueryKeys } from './use-dashboard';
-import { reportQueryKeys } from './use-report';
 
 type ApiError = AxiosError<ApiErrorResponse>;
 
@@ -27,7 +26,6 @@ function invalidateDownstream(queryClient: QueryClient) {
    queryClient.invalidateQueries({
       queryKey: dashboardQueryKeys.departmentsAll(),
    });
-   queryClient.invalidateQueries({ queryKey: reportQueryKeys.stats() });
 }
 
 // ─── Query Keys ────────────────────────────────────────────────────────────────

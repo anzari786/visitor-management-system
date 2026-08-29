@@ -1,64 +1,122 @@
 'use client';
 
+import { Skeleton } from '@/components/ui/skeleton';
+import { useVisitStats } from '@/hooks/use-dashboard';
+import type {
+   DashboardStatCard,
+   DashboardStatId,
+   VisitStats,
+} from '@/types/dashboard.types';
 import { Timer, TriangleAlert, UserPlus, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import type { DashboardStatCard } from '@/types/dashboard.types';
 
-/**
- * Static mock stats — swap for API data (e.g. useVisitStats) when backend is ready.
- */
-const MOCK_STATS: DashboardStatCard[] = [
-   {
-      id: 'total_visits',
-      title: 'Total Visits',
-      value: '1,248',
-      change: '+20%',
-      changeValue: '(208)',
-      isPositive: true,
-   },
-   {
-      id: 'currently_inside',
-      title: 'Currently Inside',
-      value: '42',
-      change: '+8%',
-      changeValue: '(3)',
-      isPositive: true,
-   },
-   {
-      id: 'avg_duration',
-      title: 'Avg. Visit Duration',
-      value: '1h 24m',
-      change: '-15%',
-      changeValue: '(12m)',
-      isPositive: false,
-   },
-   {
-      id: 'overstays',
-      title: 'Overstays',
-      value: '18',
-      change: '-12%',
-      changeValue: '(2)',
-      isPositive: false,
-   },
-];
-
-const STAT_ICONS: Record<DashboardStatCard['id'], LucideIcon> = {
+const STAT_ICONS: Record<DashboardStatId, LucideIcon> = {
    total_visits: Users,
    currently_inside: UserPlus,
    avg_duration: Timer,
-   overstays: TriangleAlert,
+   pending_approvals: TriangleAlert,
 };
 
-interface StatsCardsProps {
-   /** Optional override — defaults to mock data until backend is wired. */
-   data?: DashboardStatCard[];
+function formatSignedPercent(value: number) {
+   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+   return `${sign}${Math.abs(value)}%`;
 }
 
-export function StatsCards({ data = MOCK_STATS }: StatsCardsProps) {
+function formatSignedMinutes(value: number) {
+   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+   return `${sign}${Math.abs(value)}min`;
+}
+
+function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
+   return [
+      {
+         id: 'total_visits',
+         title: 'Total Visits',
+         value: stats.totalVisits.toLocaleString(),
+         change: formatSignedPercent(stats.totalVisitsChange),
+         changeValue: '',
+         isPositive: stats.totalVisitsChange >= 0,
+      },
+      {
+         id: 'currently_inside',
+         title: 'Currently Inside',
+         value: stats.currentlyInside.toLocaleString(),
+         change: formatSignedPercent(stats.currentlyInsideChange),
+         changeValue: '',
+         isPositive: stats.currentlyInsideChange >= 0,
+      },
+      {
+         id: 'avg_duration',
+         title: 'Avg. Visit Duration',
+         value: stats.averageVisitDuration,
+         change: formatSignedMinutes(stats.averageVisitDurationChange),
+         changeValue: '',
+         isPositive: stats.averageVisitDurationChange >= 0,
+      },
+      {
+         id: 'pending_approvals',
+         title: 'Pending Approvals',
+         value: '2',
+         change: '',
+         changeValue: '',
+         isPositive: true,
+      },
+   ];
+}
+
+export function StatsCards() {
+   const { data: stats, isPending, isError } = useVisitStats('today');
+
+   if (isPending) {
+      return (
+         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 rounded-xl border bg-card">
+            {Array.from({ length: 4 }).map((_, index) => (
+               <div key={index} className="space-y-3">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                     <Skeleton className="size-3.5 sm:size-[18px] rounded-sm" />
+                     <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-7 w-20" />
+                  <Skeleton className="h-4 w-16" />
+               </div>
+            ))}
+         </div>
+      );
+   }
+
+   if (isError) {
+      return (
+         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 rounded-xl border bg-card">
+            <p className="col-span-full text-sm text-destructive">
+               Failed to load dashboard statistics. Please refresh the page.
+            </p>
+         </div>
+      );
+   }
+
+   if (!stats) {
+      return (
+         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 rounded-xl border bg-card">
+            <p className="col-span-full text-sm text-muted-foreground">
+               No dashboard statistics available.
+            </p>
+         </div>
+      );
+   }
+
+   const data = mapStatsToCards(stats);
+
    return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 rounded-xl border bg-card">
          {data.map((stat, index) => {
             const Icon = STAT_ICONS[stat.id];
+            const isPendingApprovals = stat.id === 'pending_approvals';
+            const isCurrentlyInside = stat.id === 'currently_inside';
+            const subtitleText = isPendingApprovals
+               ? 'Awaiting host review'
+               : isCurrentlyInside
+                 ? 'Visitors on site now'
+                 : 'vs Last Months';
 
             return (
                <div key={stat.id} className="flex items-start">
@@ -72,23 +130,43 @@ export function StatsCards({ data = MOCK_STATS }: StatsCardsProps) {
                      <p className="text-lg sm:text-xl lg:text-[28px] font-semibold leading-tight tracking-tight">
                         {stat.value}
                      </p>
-                     <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
-                        <span
-                           className={
-                              stat.isPositive
-                                 ? 'text-emerald-600'
-                                 : 'text-red-600'
-                           }
-                        >
-                           {stat.change}
-                           <span className="hidden sm:inline">
-                              {stat.changeValue}
+
+                     {isPendingApprovals ? (
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
+                           <span className="text-muted-foreground">
+                              {subtitleText}
                            </span>
-                        </span>
-                        <span className="text-muted-foreground hidden sm:inline">
-                           vs Last Months
-                        </span>
-                     </div>
+                        </div>
+                     ) : (
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
+                           {!isCurrentlyInside && (
+                              <span
+                                 className={
+                                    stat.isPositive
+                                       ? 'text-emerald-600'
+                                       : 'text-red-600'
+                                 }
+                              >
+                                 {stat.change}
+                                 {!isPendingApprovals && stat.changeValue && (
+                                    <span className="hidden sm:inline">
+                                       {stat.changeValue}
+                                    </span>
+                                 )}
+                              </span>
+                           )}
+                           {isCurrentlyInside && (
+                              <span className="text-muted-foreground hidden sm:inline">
+                                 {subtitleText}
+                              </span>
+                           )}
+                           {!isCurrentlyInside && !isPendingApprovals && (
+                              <span className="text-muted-foreground hidden sm:inline">
+                                 {subtitleText}
+                              </span>
+                           )}
+                        </div>
+                     )}
                   </div>
                   {index < data.length - 1 && (
                      <div className="hidden lg:block w-px h-full bg-border mx-4 xl:mx-6" />

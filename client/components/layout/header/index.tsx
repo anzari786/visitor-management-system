@@ -8,12 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { BellRing, Globe, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { getNavigationItem } from '@/lib/navigation';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
 import { AppCommand } from '@/components/layout/app-command';
 import { ThemeToggle } from '@/components/theme-toggle';
 import LanguageDropdown from './dropdown-language';
@@ -27,13 +22,8 @@ export default function Header() {
    const currentNavItem = getNavigationItem(pathname);
    const Icon = currentNavItem?.icon ?? LayoutGrid;
    const user = useAuthStore((state) => state.user);
-   const avatarId = useProfileAvatarStore(
-      (s) =>
-         (user ? s.selections[String(user.id)] : undefined) ??
-         DEFAULT_PROFILE_AVATAR_ID,
-   );
    const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U';
-   const avatarSrc = getProfileAvatarById(avatarId).image;
+   const avatarSrc = user?.avatar ?? undefined;
 
    return (
       <header className="bg-card sticky top-0 z-50 border-b shrink-0">
@@ -91,14 +81,16 @@ export default function Header() {
                         suppressHydrationWarning
                      >
                         <Avatar className="size-7 rounded-full">
-                           <AvatarImage
-                              src={avatarSrc}
-                              alt={
-                                 user
-                                    ? `${user.firstName} ${user.lastName}`
-                                    : 'User'
-                              }
-                           />
+                           {avatarSrc ? (
+                              <AvatarImage
+                                 src={avatarSrc}
+                                 alt={
+                                    user
+                                       ? `${user.firstName} ${user.lastName}`
+                                       : 'User'
+                                 }
+                              />
+                           ) : null}
                            <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                      </Button>

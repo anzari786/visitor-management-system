@@ -21,8 +21,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { DEFAULT_PROFILE_AVATAR_ID } from '@/constants/profile-avatars';
-import { useCheckUsername, useUpdateProfile } from '@/hooks/use-auth';
+import { PROFILE_AVATARS } from '@/constants/profile-avatars';
+import {
+   useCheckUsername,
+   useCurrentUser,
+   useUpdateProfile,
+} from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { formatEthiopianPhone } from '@/lib/phone';
 import {
@@ -31,12 +35,13 @@ import {
    type ProfileFormValues,
 } from '@/lib/validations/profile.schema';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
+import type { User } from '@/types/user.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { CheckIcon, KeyRound, Loader2, XIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import SpinnerBars from '@/components/shared/spinner-bars';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -44,19 +49,20 @@ import { toast } from 'sonner';
 export function EditProfileDialog() {
    const open = useProfileDialogStore((s) => s.open);
    const setOpen = useProfileDialogStore((s) => s.setOpen);
-   const user = useAuthStore((s) => s.user);
-   const getAvatarId = useProfileAvatarStore((s) => s.getAvatarId);
-   const setAvatar = useProfileAvatarStore((s) => s.setAvatar);
+   const storeUser = useAuthStore((s) => s.user);
+   const { data: fetchedUser, isLoading, isError } = useCurrentUser(open);
+   const fetchedUserData = fetchedUser as User | undefined;
+   const user: User | null = storeUser ?? (fetchedUserData ?? null);
    const { mutateAsync: updateProfile } = useUpdateProfile();
    const { theme, setTheme, resolvedTheme } = useTheme();
    const [passwordOpen, setPasswordOpen] = React.useState(false);
    const [themeMounted, setThemeMounted] = React.useState(false);
-   const [selectedAvatarId, setSelectedAvatarId] = React.useState(
-      DEFAULT_PROFILE_AVATAR_ID,
-   );
-   const [initialAvatarId, setInitialAvatarId] = React.useState(
-      DEFAULT_PROFILE_AVATAR_ID,
-   );
+   const [selectedAvatarId, setSelectedAvatarId] = React.useState<
+      string | null
+   >(null);
+   const [initialAvatarId, setInitialAvatarId] = React.useState<
+      string | null
+   >(null);
 
    React.useEffect(() => setThemeMounted(true), []);
 
@@ -78,7 +84,14 @@ export function EditProfileDialog() {
 
    React.useEffect(() => {
       if (open && user) {
-         const avatarId = getAvatarId(user.id);
+         const currentAvatar = user.avatar?.trim();
+         const avatarId =
+            currentAvatar && currentAvatar.length > 0
+               ?
+                    PROFILE_AVATARS.find(
+                       (avatar) => avatar.image === currentAvatar,
+                    )?.id ?? currentAvatar
+               : null;
          setSelectedAvatarId(avatarId);
          setInitialAvatarId(avatarId);
          reset({
@@ -87,7 +100,7 @@ export function EditProfileDialog() {
             phone: user.phone ?? '+251 ',
          });
       }
-   }, [open, user, reset, getAvatarId]);
+   }, [open, user, reset]);
 
    const usernameValue = watch('username');
    const phoneValue = watch('phone');
@@ -117,15 +130,58 @@ export function EditProfileDialog() {
    const previewName =
       fullNameValue?.trim() || (user ? getUserFullName(user) : 'User');
 
+   if (isLoading && !user) {
+      return (
+         <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-md">
+               <div className="flex items-center justify-center gap-3 py-6 text-sm text-muted-foreground">
+                  <SpinnerBars
+                     bars={3}
+                     barWidth={6}
+                     minHeight={8}
+                     maxHeight={22}
+                     gap={4}
+                     duration={0.8}
+                     color="currentColor"
+                     className="text-muted-foreground"
+                  />
+                  <span>Loading profile…</span>
+               </div>
+            </DialogContent>
+         </Dialog>
+      );
+   }
+
+   if (isError && !user) {
+      return (
+         <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-md">
+               <div className="py-6 text-center text-sm text-muted-foreground">
+                  We couldn’t load your profile right now. Please try again.
+               </div>
+            </DialogContent>
+         </Dialog>
+      );
+   }
+
    if (!user) return null;
 
-   const onSubmit = handleSubmit(async (values) => {
+    const onSubmit = handleSubmit(async (values) => {
       if (usernameTaken) return;
 
       const { firstName, lastName } = splitFullName(values.fullName);
+      const nextAvatar =
+         selectedAvatarId && selectedAvatarId.trim().length > 0
+            ?
+                 PROFILE_AVATARS.find(
+                    (avatar) =>
+                       avatar.id === selectedAvatarId ||
+                       avatar.image === selectedAvatarId,
+                 )?.image ?? selectedAvatarId
+            : null;
 
       try {
-         if (isDirty) {
+         if (isDirty || isAvatarDirty) {
             await updateProfile({
                firstName,
                lastName,
@@ -134,11 +190,8 @@ export function EditProfileDialog() {
                   !values.phone || values.phone === '+251 '
                      ? undefined
                      : values.phone,
+               avatar: isAvatarDirty ? nextAvatar : undefined,
             });
-         }
-
-         if (isAvatarDirty) {
-            setAvatar(user.id, selectedAvatarId);
             setInitialAvatarId(selectedAvatarId);
          }
 

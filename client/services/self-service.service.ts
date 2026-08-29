@@ -1,5 +1,4 @@
 import { api } from '@/lib/axios';
-import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import type { ApiResponse } from '@/types/api.types';
 import type {
    EmployeeSearchParams,
@@ -8,18 +7,21 @@ import type {
    SubmitVisitRequestResponse,
 } from '@/types/self-service.types';
 
+const SELF_SERVICE_VISITS_URL = '/v1/self-service/visits';
+const EMPLOYEES_SEARCH_URL = '/v1/employees/search';
+
 /** Self-service visit request and public directory API service. */
 export const selfServiceService = {
    submitVisitRequest(payload: SubmitVisitRequestPayload) {
       return api.post<ApiResponse<SubmitVisitRequestResponse>>(
-         API_ENDPOINTS.selfService.visits,
+         SELF_SERVICE_VISITS_URL,
          payload,
       );
    },
 
    searchEmployees(params: EmployeeSearchParams = {}) {
       return api.get<ApiResponse<EmployeeSearchResult[]>>(
-         API_ENDPOINTS.employees.search,
+         EMPLOYEES_SEARCH_URL,
          { params },
       );
    },

@@ -10,16 +10,17 @@ import {
    PROFILE_AVATARS,
    type ProfileAvatarOption,
 } from '@/constants/profile-avatars';
+import { USER_ROLES } from '@/constants/user';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/user.types';
 import { Check } from 'lucide-react';
 import { motion } from 'motion/react';
 
 type ProfileAvatarPickerProps = {
-   value: string;
-   onChange: (avatarId: string) => void;
+   value?: string | null;
+   onChange: (avatarId: string | null) => void;
    previewName: string;
-   role: UserRole;
+   role?: UserRole | null;
 };
 
 function AvatarOption({
@@ -80,8 +81,24 @@ export function ProfileAvatarPicker({
    previewName,
    role,
 }: ProfileAvatarPickerProps) {
-   const selected = PROFILE_AVATARS.find((avatar) => avatar.id === value);
-   const previewSrc = selected?.image ?? PROFILE_AVATARS[0].image;
+   const safeRole: UserRole =
+      role && USER_ROLES.includes(role as UserRole)
+         ? (role as UserRole)
+         : 'GUARD';
+   const normalizedValue = value?.trim() ?? null;
+   const selected =
+      normalizedValue && normalizedValue.length > 0
+         ? PROFILE_AVATARS.find(
+              (avatar) =>
+                 avatar.id === normalizedValue || avatar.image === normalizedValue,
+           ) ?? null
+         : null;
+   const previewSrc =
+      selected?.image ??
+      (normalizedValue && (normalizedValue.startsWith('/') || normalizedValue.startsWith('http'))
+         ? normalizedValue
+         : null);
+   const hasAvatar = Boolean(normalizedValue && normalizedValue.length > 0);
 
    return (
       <div className="flex flex-col gap-5">
@@ -93,18 +110,20 @@ export function ProfileAvatarPicker({
          </div>
 
          <motion.div
-            key={previewSrc}
+            key={previewSrc ?? 'initials'}
             initial={{ opacity: 0.6, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2 }}
             className="mx-auto"
          >
             <Avatar className="size-30 ring-2 ring-border">
-               <AvatarImage
-                  src={previewSrc}
-                  alt={previewName}
-                  className="object-cover object-top"
-               />
+               {previewSrc ? (
+                  <AvatarImage
+                     src={previewSrc}
+                     alt={previewName}
+                     className="object-cover object-top"
+                  />
+               ) : null}
                <AvatarFallback className="text-2xl">
                   {previewName.slice(0, 1)}
                </AvatarFallback>
@@ -113,7 +132,7 @@ export function ProfileAvatarPicker({
 
          <div className="flex flex-col items-center gap-1.5 text-center">
             <h5 className="text-base font-medium text-primary">{previewName}</h5>
-            <RoleBadge role={role} />
+            <RoleBadge role={safeRole} />
          </div>
 
          <div className="space-y-2.5">
@@ -125,12 +144,24 @@ export function ProfileAvatarPicker({
                   <AvatarOption
                      key={option.id}
                      option={option}
-                     selected={option.id === value}
+                     selected={option.id === normalizedValue}
                      onSelect={() => onChange(option.id)}
                   />
                ))}
             </div>
          </div>
+
+         {hasAvatar ? (
+            <div className="flex justify-center">
+               <button
+                  type="button"
+                  onClick={() => onChange(null)}
+                  className="rounded-full border border-border bg-background/80 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive hover:bg-destructive/5"
+               >
+                  Remove avatar
+               </button>
+            </div>
+         ) : null}
       </div>
    );
 }

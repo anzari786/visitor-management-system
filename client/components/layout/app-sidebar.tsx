@@ -12,13 +12,8 @@ import {
    useSidebar,
 } from '@/components/ui/sidebar';
 import { getSidebarNavItems } from '@/lib/navigation';
-import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
+import { useCurrentUser } from '@/hooks/use-auth';
 import { ChevronsUpDown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -66,10 +61,7 @@ function SidebarBrand() {
 function NavUser({ user }: { user: User }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
-   const avatarId = useProfileAvatarStore(
-      (s) => s.selections[String(user.id)] ?? DEFAULT_PROFILE_AVATAR_ID,
-   );
-   const avatarSrc = getProfileAvatarById(avatarId).image;
+   const avatarSrc = user.avatar ?? undefined;
 
    return (
       <SidebarMenu>
@@ -84,7 +76,9 @@ function NavUser({ user }: { user: User }) {
                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
                      <Avatar className="size-8 rounded-full">
-                        <AvatarImage src={avatarSrc} alt={fullName} />
+                        {avatarSrc ? (
+                           <AvatarImage src={avatarSrc} alt={fullName} />
+                        ) : null}
                         <AvatarFallback className="rounded-full">
                            {user.firstName[0]}
                            {user.lastName[0]}
@@ -110,41 +104,19 @@ function NavUser({ user }: { user: User }) {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
    const user = useAuthStore((state) => state.user);
    const isHydrated = useAuthStore((state) => state.isHydrated);
-   const setUser = useAuthStore((state) => state.setUser);
-   const clearAuth = useAuthStore((state) => state.clearAuth);
+   const { data: fetchedUser, isLoading } = useCurrentUser(!user && isHydrated);
+   const activeUser: User | null =
+      user ?? (fetchedUser as User | undefined) ?? null;
 
-   React.useEffect(() => {
-      if (user || !isHydrated) return;
-
-      let isMounted = true;
-
-      authService
-         .getMe()
-         .then(({ data }) => {
-            if (isMounted && data?.data) {
-               setUser(data.data);
-            }
-         })
-         .catch(() => {
-            if (isMounted) {
-               clearAuth();
-            }
-         });
-
-      return () => {
-         isMounted = false;
-      };
-   }, [clearAuth, isHydrated, setUser, user]);
-
-   if (!isHydrated) {
+   if (!isHydrated || (isLoading && !user)) {
       return <AppSidebarSkeleton {...props} />;
    }
 
-   if (!user) {
+   if (!activeUser) {
       return null;
    }
 
-   const navItems = getSidebarNavItems(user.role);
+   const navItems = getSidebarNavItems(activeUser.role);
 
    return (
       <Sidebar
@@ -163,7 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarContent>
 
             <SidebarFooter className="px-2 pb-2">
-               <NavUser user={user} />
+               <NavUser user={activeUser} />
             </SidebarFooter>
          </div>
       </Sidebar>

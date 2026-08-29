@@ -5,7 +5,7 @@ export const DEV_USER: User = {
    firstName: 'Dev',
    lastName: 'Admin',
    username: 'dev.admin',
-   role: 'admin',
+   role: 'ADMIN',
    isActive: true,
    mustChangePassword: false,
    createdAt: new Date().toISOString(),

@@ -13,13 +13,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useLogout } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { getUserFullName } from '@/lib/user';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
 import { LogOut, UserCircle } from 'lucide-react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';
 
@@ -43,11 +38,6 @@ export default function ProfileDropdown({
    const [logoutOpen, setLogoutOpen] = useState(false);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const user = useAuthStore((state) => state.user);
-   const avatarId = useProfileAvatarStore(
-      (s) =>
-         (user ? s.selections[String(user.id)] : undefined) ??
-         DEFAULT_PROFILE_AVATAR_ID,
-   );
    const { mutate: logout, isPending: loggingOut } = useLogout();
 
    const fullName = user ? getUserFullName(user) : 'User';
@@ -55,7 +45,7 @@ export default function ProfileDropdown({
       ? `${user.firstName[0]}${user.lastName[0]}`
       : 'U';
    const subtitle = user?.username ?? '';
-   const avatarSrc = getProfileAvatarById(avatarId).image;
+   const avatarSrc = user?.avatar ?? undefined;
 
    return (
       <>
@@ -72,7 +62,10 @@ export default function ProfileDropdown({
                   <DropdownMenuLabel className="flex items-center gap-2.5 px-2.5 py-2 font-normal">
                      <div className="relative shrink-0">
                         <Avatar className="size-9">
-                           <AvatarImage src={avatarSrc} alt={fullName} />                           <AvatarFallback>{initials}</AvatarFallback>
+                           {avatarSrc ? (
+                              <AvatarImage src={avatarSrc} alt={fullName} />
+                           ) : null}
+                           <AvatarFallback>{initials}</AvatarFallback>
                         </Avatar>
                         <span className="ring-card absolute right-0 bottom-0 size-2 rounded-full bg-green-600 ring-2" />
                      </div>

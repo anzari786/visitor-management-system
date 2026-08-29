@@ -4,8 +4,8 @@ import { UserRole } from '@/types/user.types';
 
 // Add new resources here as the app grows.
 const ACCESS_MAP: Record<string, UserRole[]> = {
-   users: ['admin'],
-   settings: ['admin'],
+   users: ['ADMIN'],
+   settings: ['ADMIN'],
 };
 
 export function canAccess(role: UserRole, resource: string): boolean {

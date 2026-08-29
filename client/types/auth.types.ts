@@ -14,6 +14,7 @@ export type UpdateProfilePayload = {
    lastName: string;
    username: string;
    phone?: string;
+   avatar?: string | null;
 };
 
 export type ChangePasswordPayload = {

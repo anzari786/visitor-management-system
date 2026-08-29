@@ -25,7 +25,7 @@ import {
    getAuthUserById,
 
    buildSessionUser,
-
+   updateCurrentUserProfile,
    formatAuthUser,
 
 } from './auth.service.js';
@@ -39,6 +39,8 @@ import type {
    changePasswordSchema,
 
    completePasswordSetupSchema,
+
+   updateProfileSchema,
 
 } from './auth.validation.js';
 
@@ -57,6 +59,8 @@ type CompletePasswordSetupBody = z.infer<
    typeof completePasswordSetupSchema
 
 >['body'];
+
+type UpdateProfileBody = z.infer<typeof updateProfileSchema>['body'];
 
 
 
@@ -261,6 +265,25 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 
+
+export const updateCurrentUser = async (req: Request, res: Response) => {
+   const { firstName, lastName, username, phone, avatar } =
+      req.validatedBody as UpdateProfileBody;
+
+   const user = await updateCurrentUserProfile(req.session.userId!, {
+      firstName,
+      lastName,
+      username,
+      phone,
+      avatar,
+   });
+
+   return res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: formatAuthUser(user),
+   });
+};
 
 export const getCurrentUser = async (req: Request, res: Response) => {
 

@@ -161,6 +161,7 @@ model User {
   lastName  String
   email     String? @unique
   phone     String?
+  avatar    String?
 
   /// Local auth credentials. Never store plaintext passwords.
   username           String?   @unique

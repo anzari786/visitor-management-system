@@ -206,7 +206,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
          lastName: '',
          email: '',
          username: '',
-         role: 'front_desk',
+         role: 'RECEPTION',
       },
    });
 
@@ -343,9 +343,15 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
+                                 <SelectItem value="GUARD">Guard</SelectItem>
+                                 <SelectItem value="RECEPTION">
+                                    Reception
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    Administrator
+                                 </SelectItem>
+                                 <SelectItem value="MANAGER">
+                                    Manager
                                  </SelectItem>
                               </SelectContent>
                            </Select>
@@ -422,7 +428,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
       resolver: zodResolver(createSsoUserSchema),
       defaultValues: {
          employeeId: '',
-         role: 'front_desk',
+         role: 'RECEPTION',
       },
    });
 
@@ -655,9 +661,15 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
+                                 <SelectItem value="GUARD">Guard</SelectItem>
+                                 <SelectItem value="RECEPTION">
+                                    Reception
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    Administrator
+                                 </SelectItem>
+                                 <SelectItem value="MANAGER">
+                                    Manager
                                  </SelectItem>
                               </SelectContent>
                            </Select>

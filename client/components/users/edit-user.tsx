@@ -388,11 +388,17 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                       <SelectItem value="admin">
-                                          Admin
+                                       <SelectItem value="GUARD">
+                                          Guard
                                        </SelectItem>
-                                       <SelectItem value="front_desk">
-                                          Front Desk
+                                       <SelectItem value="RECEPTION">
+                                          Reception
+                                       </SelectItem>
+                                       <SelectItem value="ADMIN">
+                                          Administrator
+                                       </SelectItem>
+                                       <SelectItem value="MANAGER">
+                                          Manager
                                        </SelectItem>
                                     </SelectContent>
                                  </Select>

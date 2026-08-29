@@ -1,16 +1,10 @@
 import { User } from '@/types/user.types';
 import { cookies } from 'next/headers';
 import { DEV_USER } from '@/lib/auth-dev';
-
-// Server-only flag (no NEXT_PUBLIC_ prefix) — never exposed to the browser bundle.
-const DEV_BYPASS_AUTH =
-   process.env.NODE_ENV === 'development' &&
-   process.env.DEV_BYPASS_AUTH === 'true';
+import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
 export async function getServerUser(): Promise<User | null> {
-   if (DEV_BYPASS_AUTH) {
-      return DEV_USER;
-   }
+   if (isDevelopmentAuthBypassEnabled) return DEV_USER;
 
    const cookieStore = await cookies();
 

@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
-const PUBLIC_ROUTES = ['/login'];
+const PUBLIC_ROUTES = ['/login', '/self-service'];
 
 export function middleware(request: NextRequest) {
-   console.log('Middleware cookies:', request.cookies.getAll());
    const { pathname } = request.nextUrl;
-   console.log('Path:', pathname);
-
    const isPublic = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
    const hasSession = request.cookies.has('vms.sid');
 
-   // Unauthenticated → /login (includes /change-password now)
-   if (!hasSession && !isPublic) {
+   if (!hasSession && !isPublic && !isDevelopmentAuthBypassEnabled) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('from', pathname);
       return NextResponse.redirect(loginUrl);
    }
 
-   // Authenticated → away from /login
    if (hasSession && pathname.startsWith('/login')) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
    }

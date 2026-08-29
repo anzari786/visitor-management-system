@@ -12,6 +12,7 @@ import {
    useSidebar,
 } from '@/components/ui/sidebar';
 import { getSidebarNavItems } from '@/lib/navigation';
+import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth-store';
 import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import {
@@ -108,9 +109,34 @@ function NavUser({ user }: { user: User }) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
    const user = useAuthStore((state) => state.user);
-   const isLoading = useAuthStore((state) => !state.isHydrated);
+   const isHydrated = useAuthStore((state) => state.isHydrated);
+   const setUser = useAuthStore((state) => state.setUser);
+   const clearAuth = useAuthStore((state) => state.clearAuth);
 
-   if (isLoading) {
+   React.useEffect(() => {
+      if (user || !isHydrated) return;
+
+      let isMounted = true;
+
+      authService
+         .getMe()
+         .then(({ data }) => {
+            if (isMounted && data?.data) {
+               setUser(data.data);
+            }
+         })
+         .catch(() => {
+            if (isMounted) {
+               clearAuth();
+            }
+         });
+
+      return () => {
+         isMounted = false;
+      };
+   }, [clearAuth, isHydrated, setUser, user]);
+
+   if (!isHydrated) {
       return <AppSidebarSkeleton {...props} />;
    }
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '@/store/auth-store';
+import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
 export const api = axios.create({
    baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -23,7 +24,11 @@ api.interceptors.response.use(
       const url = error.config?.url ?? '';
       const isPublicApiCall = PUBLIC_API_PATHS.some((p) => url.includes(p));
 
-      if (error.response?.status === 401 && !isPublicApiCall) {
+      if (
+         error.response?.status === 401 &&
+         !isPublicApiCall &&
+         !isDevelopmentAuthBypassEnabled
+      ) {
          useAuthStore.getState().clearAuth();
          if (window.location.pathname !== '/login') {
             window.location.href = '/login';

@@ -40,6 +40,7 @@ enum VisitStatus {
   PENDING_APPROVAL
   APPROVED
   REJECTED
+  EXPIRED
   RESCHEDULED
   CANCELLED
   PARTIALLY_CHECKED_IN
@@ -251,7 +252,7 @@ model Visitor {
   phone        String?
   organization String?
 
-  /// Collected on public/reception requests; may be filled at check-in for invitations.
+  /// Collected and verified at check-in for all visit types.
   idType   IdType?
   idNumber String?
 

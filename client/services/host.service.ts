@@ -15,52 +15,55 @@ export type HostInvitationCreated = {
    visitCode: string;
 };
 
+const EMPLOYEE_VISITS_BASE = '/v1/employees/me/visits';
+const VISITS_BASE = '/v1/visits';
+
 export const hostService = {
    getPendingVisits(params?: HostVisitsParams) {
       return api.get<ApiResponse<HostVisit[]>>(
-         '/v1/employees/me/visits/pending-approvals',
+         `${EMPLOYEE_VISITS_BASE}/pending-approvals`,
          { params },
       );
    },
 
    getUpcomingVisits(params?: HostVisitsParams) {
       return api.get<ApiResponse<HostVisit[]>>(
-         '/v1/employees/me/visits/upcoming',
+         `${EMPLOYEE_VISITS_BASE}/upcoming`,
          { params },
       );
    },
 
    approveVisit(id: string, payload: ApproveHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         `/v1/visits/${id}/approve`,
+         `${VISITS_BASE}/${id}/approve`,
          payload,
       );
    },
 
    rejectVisit(id: string, payload?: RejectHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         `/v1/visits/${id}/reject`,
+         `${VISITS_BASE}/${id}/reject`,
          payload ?? {},
       );
    },
 
    rescheduleVisit(id: string, payload: RescheduleHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         `/v1/visits/${id}/reschedule`,
+         `${VISITS_BASE}/${id}/reschedule`,
          payload,
       );
    },
 
    cancelVisit(id: string, payload?: CancelHostVisitPayload) {
       return api.post<ApiResponse<HostVisit>>(
-         `/v1/visits/${id}/cancel`,
+         `${VISITS_BASE}/${id}/cancel`,
          payload ?? {},
       );
    },
 
    createHostInvitation(payload: CreateHostInvitationApiPayload) {
       return api.post<ApiResponse<HostInvitationCreated>>(
-         '/v1/visits/invite',
+         `${VISITS_BASE}/invite`,
          payload,
       );
    },

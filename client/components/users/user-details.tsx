@@ -14,7 +14,6 @@ import {
    SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { USER_ROLE_CONFIG } from '@/constants/user';
 import {
    useResetPassword,
    useToggleUserStatus,
@@ -24,6 +23,7 @@ import { formatLastLogin } from '@/lib/format-last-login';
 import { getUserFullName } from '@/lib/user';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/user.types';
+import { AxiosError } from 'axios';
 import { format } from 'date-fns';
 import {
    CalendarDays,
@@ -45,8 +45,10 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { EditUser } from './edit-user';
 import { ResetPasswordDialog } from './reset-password-dialog';
+import { RoleBadge } from './role-badge';
 import { ToggleStatusDialog } from './toggle-status-dialog';
 import { UserStatusBadge } from './user-status-badge';
+import { UserRoleBadge } from './user-role-badge';
 
 type UserDetailsSheetProps = {
    open: boolean;
@@ -110,8 +112,6 @@ function UserDetailsSkeleton() {
 }
 
 function UserDetailsBody({ user }: { user: User }) {
-   const role = USER_ROLE_CONFIG[user.role];
-   const RoleIcon = role.icon;
    const isSso = !!user.employee;
    const TypeIcon = isSso ? ShieldCheck : KeyRound;
 
@@ -142,18 +142,7 @@ function UserDetailsBody({ user }: { user: User }) {
                <DetailRow
                   icon={Shield}
                   label="Role"
-                  value={
-                     <Badge
-                        variant="secondary"
-                        className={cn(
-                           'h-6 gap-1.5 rounded-md px-2 font-medium',
-                           role.color,
-                        )}
-                     >
-                        <RoleIcon className="size-3" />
-                        {role.label}
-                     </Badge>
-                  }
+                  value={<UserRoleBadge role={user.role} />}
                />
                <DetailRow
                   icon={isSso ? ShieldCheck : KeyRound}
@@ -225,7 +214,6 @@ export function UserDetailsSheet({
 
    const [editOpen, setEditOpen] = React.useState(false);
    const [resetDialogOpen, setResetDialogOpen] = React.useState(false);
-   const [tempPassword, setTempPassword] = React.useState<string | null>(null);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
    const { mutate: resetPassword, isPending: isResetting } = useResetPassword();
@@ -241,8 +229,14 @@ export function UserDetailsSheet({
             );
             setResetDialogOpen(false);
          },
-         onError: () => {
-            toast.error('Failed to send reset email. Please try again.');
+         onError: (error) => {
+            const message =
+               error instanceof AxiosError
+                  ? error.response?.data?.message
+                  : undefined;
+            toast.error(
+               message ?? 'Failed to send reset email. Please try again.',
+            );
             setResetDialogOpen(false);
          },
       });
@@ -254,17 +248,24 @@ export function UserDetailsSheet({
          { id: user.id, isActive: !user.isActive },
          {
             onSuccess: () =>
-               toast.success(
-                  `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
-               ),
-            onError: () =>
-               toast.error('Failed to update user status. Please try again.'),
-            onSettled: () => setStatusDialogOpen(false),
+               {
+                  toast.success(
+                     `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
+                  );
+                  setStatusDialogOpen(false);
+               },
+            onError: (error) => {
+               const message =
+                  error instanceof AxiosError
+                     ? error.response?.data?.message
+                     : undefined;
+               toast.error(
+                  message ?? 'Failed to update user status. Please try again.',
+               );
+            },
          },
       );
    };
-
-   const role = user ? USER_ROLE_CONFIG[user.role] : null;
 
    return (
       <>
@@ -289,7 +290,7 @@ export function UserDetailsSheet({
                      </div>
                      <SheetDescription className="text-sm text-muted-foreground">
                         {user
-                           ? `${user.username}${role ? ` · ${role.label}` : ''}`
+                           ? user.username
                            : 'Account details'}
                      </SheetDescription>
                   </div>

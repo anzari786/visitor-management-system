@@ -6,6 +6,8 @@ import type {
    CreateSsoUserFormValues,
    CreateUserFormValues,
 } from '@/lib/validations/user.schema';
+import type { CreateUserPayload } from '@/types/user.types';
+import { AxiosError } from 'axios';
 import { Plus } from 'lucide-react';
 import * as React from 'react';
 import { Suspense } from 'react';
@@ -24,16 +26,31 @@ export function UsersContent() {
       values: CreateUserFormValues | CreateSsoUserFormValues,
    ) {
       try {
-         if ('employeeId' in values) {
-            // SSO user — call whatever mutation/endpoint handles SSO provisioning
-            // await createSsoUser(values);
-         } else {
-            await createUser(values);
-         }
+         const payload: CreateUserPayload =
+            'employeeId' in values
+               ? {
+                    authProvider: 'SSO',
+                    employeeId: Number(values.employeeId),
+                    roles: [values.role],
+                 }
+               : {
+                    authProvider: 'LOCAL',
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    email: values.email,
+                    username: values.username,
+                    roles: [values.role],
+                 };
+
+         await createUser(payload);
          toast.success('User created successfully');
          setOpen(false);
-      } catch {
-         toast.error('Failed to create user. Please try again.');
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? error.response?.data?.message
+               : undefined;
+         toast.error(message ?? 'Failed to create user. Please try again.');
       }
    }
 

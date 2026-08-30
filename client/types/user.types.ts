@@ -9,6 +9,7 @@ export type User = {
    firstName: string;
    lastName: string;
    username: string;
+   email?: string;
    phone?: string;
    avatar?: string | null;
    role: UserRole;
@@ -28,6 +29,24 @@ export type User = {
    };
 };
 
+export type UserApiRecord = {
+   id: string;
+   authProvider: 'LOCAL' | 'SSO';
+   firstName: string;
+   lastName: string;
+   email?: string;
+   phone?: string;
+   username?: string;
+   isActive: boolean;
+   mustChangePassword?: boolean;
+   passwordSetupPending?: boolean;
+   lastLoginAt?: string;
+   createdAt: string;
+   updatedAt?: string;
+   employee?: User['employee'];
+   roles: UserRole[] | Array<{ name: UserRole }>;
+};
+
 export type UsersParams = {
    page: number;
    pageSize: number;
@@ -44,30 +63,39 @@ export type UsersPaginatedData = {
    pageCount: number;
 };
 
-export type CreateUserPayload = {
-   firstName: string;
-   lastName: string;
-   email: string;
-   username: string;
-   phone?: string;
-   role: UserRole;
-};
+export type CreateUserPayload =
+   | {
+        authProvider: 'LOCAL';
+        firstName: string;
+        lastName: string;
+        email?: string;
+        phone?: string;
+        username: string;
+        roles: UserRole[];
+     }
+   | {
+        authProvider: 'SSO';
+        employeeId: number;
+        roles: UserRole[];
+     };
 
 export type UpdateUserPayload = {
    id: number;
    firstName: string;
    lastName: string;
    username: string;
+   email?: string;
    phone?: string;
    role: UserRole;
 };
 
 export type ResetPasswordData = {
-   tempPassword: string;
+   expiresAt: string;
 };
 
 export type ChangeUserRolePayload = {
    id: number;
+   currentRole?: UserRole;
    role: UserRole;
 };
 

@@ -23,6 +23,7 @@ import {
 } from '@/hooks/use-users';
 import { getUserFullName } from '@/lib/user';
 import type { User, UserRole } from '@/types/user.types';
+import { AxiosError } from 'axios';
 import { Eye, KeyRound, Pencil, Shield, UserCheck, UserX } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -47,11 +48,10 @@ export function UserActionsMenu({
 
    const [editOpen, setEditOpen] = React.useState(false);
    const [resetDialogOpen, setResetDialogOpen] = React.useState(false);
-   const [tempPassword, setTempPassword] = React.useState<string | null>(null);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
    const { mutate: resetPassword, isPending: isResetting } = useResetPassword();
-   const { mutate: changeRole } = useChangeRole();
+   const { mutate: changeRole, isPending: isChangingRole } = useChangeRole();
    const { mutate: toggleStatus, isPending: isTogglingStatus } =
       useToggleUserStatus();
 
@@ -63,22 +63,34 @@ export function UserActionsMenu({
             );
             setResetDialogOpen(false);
          },
-         onError: () => {
-            toast.error('Failed to send reset email. Please try again.');
+         onError: (error) => {
+            const message =
+               error instanceof AxiosError
+                  ? error.response?.data?.message
+                  : undefined;
+            toast.error(
+               message ?? 'Failed to send reset email. Please try again.',
+            );
             setResetDialogOpen(false);
          },
-      });
+         });
    };
 
    const handleRoleChange = (nextRole: UserRole) => {
       setRole(nextRole);
       changeRole(
-         { id: user.id, role: nextRole },
+         { id: user.id, currentRole: user.role, role: nextRole },
          {
             onSuccess: () =>
                toast.success(`${getUserFullName(user)}'s role updated`),
-            onError: () => {
-               toast.error('Failed to update role. Please try again.');
+            onError: (error) => {
+               const message =
+                  error instanceof AxiosError
+                     ? error.response?.data?.message
+                     : undefined;
+               toast.error(
+                  message ?? 'Failed to update role. Please try again.',
+               );
                setRole(user.role);
             },
          },
@@ -90,12 +102,21 @@ export function UserActionsMenu({
          { id: user.id, isActive: !user.isActive },
          {
             onSuccess: () =>
-               toast.success(
-                  `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
-               ),
-            onError: () =>
-               toast.error('Failed to update user status. Please try again.'),
-            onSettled: () => setStatusDialogOpen(false),
+               {
+                  toast.success(
+                     `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
+                  );
+                  setStatusDialogOpen(false);
+               },
+            onError: (error) => {
+               const message =
+                  error instanceof AxiosError
+                     ? error.response?.data?.message
+                     : undefined;
+               toast.error(
+                  message ?? 'Failed to update user status. Please try again.',
+               );
+            },
          },
       );
    };
@@ -149,6 +170,7 @@ export function UserActionsMenu({
                            <DropdownMenuRadioGroup
                               value={role}
                               onValueChange={(value) =>
+                                 !isChangingRole &&
                                  handleRoleChange(value as UserRole)
                               }
                            >

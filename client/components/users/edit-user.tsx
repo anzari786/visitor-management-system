@@ -23,7 +23,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
-import { useUpdateUser } from '@/hooks/use-users';
+import { useChangeRole, useUpdateUser } from '@/hooks/use-users';
 import { getUserFullName } from '@/lib/user';
 import { createUserSchema } from '@/lib/validations/user.schema';
 import type { User } from '@/types/user.types';
@@ -32,11 +32,12 @@ import * as React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { AxiosError } from 'axios';
 import { KeyRound, ShieldCheck, Loader2, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
-const editUserSchema = createUserSchema.omit({ password: true });
+const editUserSchema = createUserSchema;
 type EditUserFormValues = z.infer<typeof editUserSchema>;
 
 type EditUserProps = {
@@ -150,6 +151,8 @@ function SectionHeading({
 export function EditUser({ open, onOpenChange, user }: EditUserProps) {
    const isSso = !!user.employee;
    const { mutateAsync: updateUser, isPending } = useUpdateUser();
+   const { mutateAsync: changeRole, isPending: isChangingRole } =
+      useChangeRole();
 
    const {
       register,
@@ -163,8 +166,8 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
       defaultValues: {
          firstName: user.firstName,
          lastName: user.lastName,
-         email: user.employee?.email ?? '',
-         username: user.username,
+         email: user.email ?? user.employee?.email ?? '',
+         username: user.username || 'sso-user',
          role: user.role,
       },
    });
@@ -180,8 +183,8 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
          reset({
             firstName: user.firstName,
             lastName: user.lastName,
-            email: user.employee?.email ?? '',
-            username: user.username,
+            email: user.email ?? user.employee?.email ?? '',
+            username: user.username || 'sso-user',
             role: user.role,
          });
       }
@@ -189,18 +192,33 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
 
    const onSubmit = handleSubmit(async (values) => {
       try {
-         await updateUser({
-            id: user.id,
-            firstName: values.firstName,
-            lastName: values.lastName,
-            username: values.username,
-            role: values.role,
-         });
+         if (!isSso) {
+            await updateUser({
+               id: user.id,
+               firstName: values.firstName,
+               lastName: values.lastName,
+               username: values.username,
+               email: values.email,
+               role: values.role,
+            });
+         }
+
+         if (values.role !== user.role) {
+            await changeRole({
+               id: user.id,
+               currentRole: user.role,
+               role: values.role,
+            });
+         }
 
          toast.success(`${getUserFullName(user)} updated`);
          onOpenChange(false);
-      } catch {
-         toast.error('Failed to update user. Please try again.');
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? error.response?.data?.message
+               : undefined;
+         toast.error(message ?? 'Failed to update user. Please try again.');
       }
    });
 
@@ -445,7 +463,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                      type="button"
                      variant="outline"
                      className="cursor-pointer"
-                     disabled={isPending}
+                     disabled={isPending || isChangingRole}
                      onClick={() => onOpenChange(false)}
                   >
                      Cancel
@@ -453,9 +471,9 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                   <Button
                      type="submit"
                      className="cursor-pointer gap-2"
-                     disabled={isPending}
+                        disabled={isPending || isChangingRole}
                   >
-                     {isPending ? (
+                        {isPending || isChangingRole ? (
                         <>
                            <Loader2 className="size-4 animate-spin" />
                            Saving…

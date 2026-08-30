@@ -4,6 +4,15 @@ export type ApiResponse<T> = {
    message?: string;
 };
 
+export type PaginatedApiResponse<T> = ApiResponse<T> & {
+   pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+   };
+};
+
 export interface ApiErrorResponse {
    success: false;
    message: string;

@@ -66,22 +66,20 @@ export function ToggleStatusDialog({
                         Cancel
                      </Button>
                   </DialogClose>
-                  <DialogClose asChild>
-                     <Button
-                        variant={isActive ? 'destructive' : 'default'}
-                        onClick={onConfirm}
-                        disabled={isPending}
-                        className="flex-1 cursor-pointer"
-                     >
-                        {isPending
-                           ? isActive
-                              ? 'Deactivating…'
-                              : 'Activating…'
-                           : isActive
-                             ? 'Deactivate User'
-                             : 'Activate User'}
-                     </Button>
-                  </DialogClose>
+                  <Button
+                     variant={isActive ? 'destructive' : 'default'}
+                     onClick={onConfirm}
+                     disabled={isPending}
+                     className="flex-1 cursor-pointer"
+                  >
+                     {isPending
+                        ? isActive
+                           ? 'Deactivating…'
+                           : 'Activating…'
+                        : isActive
+                          ? 'Deactivate User'
+                          : 'Activate User'}
+                  </Button>
                </div>
             </div>
          </DialogContent>

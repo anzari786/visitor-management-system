@@ -23,7 +23,6 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Badge } from '../reui/badge';
 import {
    Select,
    SelectContent,
@@ -36,7 +35,6 @@ import {
    KeyRound,
    ShieldCheck,
    Loader2,
-   Info,
    LoaderCircleIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -421,7 +419,6 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
       handleSubmit,
       control,
       reset,
-      setValue,
       watch,
       formState: { errors, isSubmitting },
    } = useForm<CreateSsoUserFormValues>({

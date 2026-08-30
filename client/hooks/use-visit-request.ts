@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import { selfServiceService } from '@/services/self-service.service';
+import { visitRequestService } from '@/services/visit-request.service';
 import type { ApiErrorResponse } from '@/types/api.types';
 import type {
    EmployeeSearchParams,
@@ -27,7 +27,7 @@ export function useEmployeeSearch(
    return useQuery({
       queryKey: selfServiceQueryKeys.employeeSearch(params),
       queryFn: async () => {
-         const { data } = await selfServiceService.searchEmployees(params);
+         const { data } = await visitRequestService.searchEmployees(params);
          return data.data;
       },
       enabled,
@@ -45,7 +45,20 @@ export function useSubmitVisitRequest() {
       SubmitVisitRequestPayload
    >({
       mutationFn: async (payload) => {
-         const { data } = await selfServiceService.submitVisitRequest(payload);
+         const { data } = await visitRequestService.submitVisitRequest(payload);
+         return data.data;
+      },
+   });
+}
+
+export function useSubmitWalkInVisit() {
+   return useMutation<
+      SubmitVisitRequestResponse,
+      ApiError,
+      SubmitVisitRequestPayload
+   >({
+      mutationFn: async (payload) => {
+         const { data } = await visitRequestService.submitWalkInVisit(payload);
          return data.data;
       },
    });

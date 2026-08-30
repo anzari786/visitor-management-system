@@ -1,7 +1,15 @@
+import { api } from '@/lib/axios';
+import type { ApiResponse } from '@/types/api.types';
+import type {
+   EmployeeSearchParams,
+   EmployeeSearchResult,
+   SubmitVisitRequestPayload,
+   SubmitVisitRequestResponse,
+} from '@/types/self-service.types';
+
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-request';
 import type { VisitRequestFormValues } from '@/lib/validations/visit-request.schema';
 import { eachDayOfInterval, format, isSameDay } from 'date-fns';
-import type { SubmitVisitRequestPayload } from '@/types/self-service.types';
 
 export function toSubmitVisitRequestPayload(
    values: VisitRequestFormValues,
@@ -56,3 +64,30 @@ export function formatVisitDateRange(startDate: Date, endDate: Date) {
    }
    return `${format(startDate, 'PPP')} – ${format(endDate, 'PPP')}`;
 }
+
+const VISITS_URL = '/v1/visits';
+const EMPLOYEES_SEARCH_URL = '/v1/employees/search-host';
+
+/** Self-service visit request and public directory API service. */
+export const visitRequestService = {
+   submitVisitRequest(payload: SubmitVisitRequestPayload) {
+      return api.post<ApiResponse<SubmitVisitRequestResponse>>(
+         `${VISITS_URL}/request`,
+         payload,
+      );
+   },
+
+   submitWalkInVisit(payload: SubmitVisitRequestPayload) {
+      return api.post<ApiResponse<SubmitVisitRequestResponse>>(
+         `${VISITS_URL}/walk-in`,
+         payload,
+      );
+   },
+
+   searchEmployees(params: EmployeeSearchParams = {}) {
+      return api.get<ApiResponse<EmployeeSearchResult[]>>(
+         EMPLOYEES_SEARCH_URL,
+         { params },
+      );
+   },
+};

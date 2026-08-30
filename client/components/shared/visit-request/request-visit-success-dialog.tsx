@@ -17,13 +17,19 @@ type VisitRequestSuccessDialogProps = {
    onOpenChange: (open: boolean) => void;
    onDone: () => void;
    visit: SubmitVisitRequestResponse | null;
+   title?: string;
+   description?: string;
+   doneLabel?: string;
 };
 
-export function VisitRequestSuccessDialog({
+export function RequestVisitSuccessDialog({
    open,
    onOpenChange,
    onDone,
    visit,
+   title = 'Visit Request Submitted',
+   description = "Your visit request has been submitted. We'll email you when your host responds.",
+   doneLabel = 'Done',
 }: VisitRequestSuccessDialogProps) {
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,12 +42,9 @@ export function VisitRequestSuccessDialog({
                   <CheckCircle2Icon size={32} strokeWidth={1.5} />
                </div>
                <DialogHeader className="items-center space-y-2">
-                  <DialogTitle className="text-lg">
-                     Visit Request Submitted
-                  </DialogTitle>
+                  <DialogTitle className="text-lg">{title}</DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     Your visit request has been submitted. We&apos;ll email you
-                     when your host responds.
+                     {description}
                   </DialogDescription>
                </DialogHeader>
                {visit && (
@@ -60,7 +63,7 @@ export function VisitRequestSuccessDialog({
                      className="w-full cursor-pointer hover:bg-primary/90"
                      onClick={onDone}
                   >
-                     Done
+                     {doneLabel}
                   </Button>
                </DialogClose>
             </div>

@@ -55,7 +55,7 @@ import {
    AutocompleteSeparator,
    AutocompleteStatus,
 } from '@/components/ui/autocomplete';
-import { selfServiceService } from '@/services/self-service.service';
+import { visitRequestService } from '@/services/visit-request.service';
 import type { EmployeeSearchResult } from '@/types/self-service.types';
 
 type CreateUserProps = {
@@ -70,7 +70,7 @@ const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 
 async function searchEmployees(query: string): Promise<EmployeeSearchResult[]> {
-   const { data } = await selfServiceService.searchEmployees({
+   const { data } = await visitRequestService.searchEmployees({
       q: query.trim(),
       limit: 25,
    });

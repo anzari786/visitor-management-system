@@ -6,7 +6,7 @@ import { format, startOfDay } from 'date-fns';
 import { CalendarIcon, ChevronDown, LoaderCircleIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-request';
-import { useEmployeeSearch } from '@/hooks/use-self-service';
+import { useEmployeeSearch } from '@/hooks/use-visit-request';
 import type {
    VisitRequestFormInput,
    VisitRequestFormValues,

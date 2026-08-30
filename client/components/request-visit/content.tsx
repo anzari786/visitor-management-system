@@ -1,8 +1,11 @@
-import React from 'react';
 import { PortalHeader } from '@/components/shared/portal-header';
-import VisitRequestForm from './visit-request-form';
+import VisitRequestForm from '@/components/shared/visit-request/visit-request-form';
+import { toSubmitVisitRequestPayload } from '@/services/visit-request.service';
+import { useSubmitVisitRequest } from '@/hooks/use-visit-request';
 
-const VisitRequestContent = () => {
+const RequestVisitContent = () => {
+   const submitVisitRequest = useSubmitVisitRequest();
+
    return (
       <main className="min-h-dvh w-full bg-background">
          <PortalHeader homeHref="/self-service" />
@@ -17,10 +20,17 @@ const VisitRequestContent = () => {
                   will be reviewed and confirmed by the host.
                </p>
             </div>
-            <VisitRequestForm />
+            <VisitRequestForm
+               submitAction={async (values) =>
+                  submitVisitRequest.mutateAsync(
+                     toSubmitVisitRequestPayload(values),
+                  )
+               }
+               isSubmitting={submitVisitRequest.isPending}
+            />
          </section>
       </main>
    );
 };
 
-export default VisitRequestContent;
+export default RequestVisitContent;

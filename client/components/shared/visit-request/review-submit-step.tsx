@@ -268,12 +268,12 @@ export function ReviewSubmitStep({
                      ) : (
                         <ReviewRow
                            icon={<CalendarDays />}
-                           label="Visit Date"
+                           label="Date"
                            value={
-                              values.startDate && values.endDate
+                              values.startDate
                                  ? formatVisitDateRange(
                                       values.startDate,
-                                      values.endDate,
+                                      values.startDate,
                                    )
                                  : undefined
                            }
@@ -281,29 +281,13 @@ export function ReviewSubmitStep({
                      )}
                      <ReviewRow
                         icon={<Clock />}
-                        label="Start Time"
+                        label="Time"
                         value={
-                           values.startTime
-                              ? formatVisitTime(values.startTime)
+                           values.startTime && values.endTime
+                              ? `${formatVisitTime(values.startTime)} – ${formatVisitTime(values.endTime)}`
                               : undefined
                         }
                      />
-                     <ReviewRow
-                        icon={<Clock />}
-                        label="End Time"
-                        value={
-                           values.endTime
-                              ? formatVisitTime(values.endTime)
-                              : undefined
-                        }
-                     />
-                     {isMultiDay ? (
-                        <ReviewRow
-                           icon={<CalendarDays />}
-                           label="Duration"
-                           value={<ValueBadge>Multi-day visit</ValueBadge>}
-                        />
-                     ) : null}
                   </div>
                </section>
             </div>

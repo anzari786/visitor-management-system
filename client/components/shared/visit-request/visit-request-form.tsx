@@ -22,10 +22,9 @@ import {
    type VisitRequestFormValues,
 } from '@/lib/validations/visit-request.schema';
 import { toSubmitVisitRequestPayload } from '@/services/visit-request.service';
-import { useSubmitVisitRequest } from '@/hooks/use-self-service';
 import type { SubmitVisitRequestResponse } from '@/types/self-service.types';
 import { Button } from '@/components/ui/button';
-import { VisitRequestSuccessDialog } from './visit-request-success-dialog';
+import { RequestVisitSuccessDialog } from './request-visit-success-dialog';
 import { VisitorsStep } from './visitors-step';
 import { VisitDetailsStep } from './visit-details-step';
 import { ReviewSubmitStep } from './review-submit-step';
@@ -65,31 +64,46 @@ const VISIT_DETAILS_FIELDS = [
    'endTime',
 ] as const;
 
-export default function VisitRequestForm() {
+type VisitRequestFormProps = {
+   submitAction: (
+      values: VisitRequestFormValues,
+   ) => Promise<SubmitVisitRequestResponse>;
+   isSubmitting: boolean;
+   submitLabel?: string;
+   successTitle?: string;
+   successDescription?: string;
+   doneLabel?: string;
+};
+
+export default function VisitRequestForm({
+   submitAction,
+   isSubmitting,
+   submitLabel = 'Submit Visit Request',
+   successTitle = 'Visit Request Submitted',
+   successDescription = "Your visit request has been submitted. We'll email you when your host responds.",
+   doneLabel = 'Done',
+}: VisitRequestFormProps) {
    const [activeStep, setActiveStep] = useState(0);
    const [successOpen, setSuccessOpen] = useState(false);
    const [submittedVisit, setSubmittedVisit] =
       useState<SubmitVisitRequestResponse | null>(null);
-   const submitVisitRequest = useSubmitVisitRequest();
 
-   const form = useForm<VisitRequestFormInput, unknown, VisitRequestFormValues>(
-      {
-         resolver: zodResolver(visitRequestSchema),
-         defaultValues: {
-            visitors: [{ ...emptyVisitorValues }],
-            hostId: undefined,
-            hostName: '',
-            departmentId: undefined,
-            departmentName: '',
-            purpose: undefined,
-            startDate: undefined,
-            endDate: undefined,
-            startTime: '',
-            endTime: '',
-         },
-         mode: 'onTouched',
+   const form = useForm<VisitRequestFormInput, unknown, VisitRequestFormValues>({
+      resolver: zodResolver(visitRequestSchema),
+      defaultValues: {
+         visitors: [{ ...emptyVisitorValues }],
+         hostId: undefined,
+         hostName: '',
+         departmentId: undefined,
+         departmentName: '',
+         purpose: undefined,
+         startDate: undefined,
+         endDate: undefined,
+         startTime: '',
+         endTime: '',
       },
-   );
+      mode: 'onTouched',
+   });
 
    const handleNext = async () => {
       if (activeStep === 0) {
@@ -133,16 +147,14 @@ export default function VisitRequestForm() {
 
    const handleSubmitRequest = form.handleSubmit(async (values) => {
       try {
-         const response = await submitVisitRequest.mutateAsync(
-            toSubmitVisitRequestPayload(values),
-         );
+         const response = await submitAction(values);
          setSubmittedVisit(response);
          setSuccessOpen(true);
       } catch (error) {
          const message =
             error instanceof Error
                ? error.message
-               : 'Unable to submit your visit request. Please try again.';
+               : 'Unable to submit this visit. Please try again.';
          toast.error(message);
       }
    });
@@ -252,7 +264,7 @@ export default function VisitRequestForm() {
                   type="button"
                   variant="outline"
                   onClick={handleBack}
-                  disabled={activeStep === 0 || submitVisitRequest.isPending}
+                  disabled={activeStep === 0 || isSubmitting}
                   className={cn(
                      'cursor-pointer gap-1.5',
                      'disabled:pointer-events-none disabled:opacity-50',
@@ -267,10 +279,10 @@ export default function VisitRequestForm() {
                      <Button
                         type="button"
                         onClick={handleSubmitRequest}
-                        disabled={submitVisitRequest.isPending}
+                        disabled={isSubmitting}
                         className="w-full cursor-pointer gap-2 hover:bg-primary/90 sm:w-auto"
                      >
-                        {submitVisitRequest.isPending ? (
+                        {isSubmitting ? (
                            <>
                               <Loader2 className="size-4 animate-spin" />
                               Submitting...
@@ -278,7 +290,7 @@ export default function VisitRequestForm() {
                         ) : (
                            <>
                               <Send className="size-4" />
-                              Submit Visit Request
+                              {submitLabel}
                            </>
                         )}
                      </Button>
@@ -295,7 +307,7 @@ export default function VisitRequestForm() {
             </div>
          </div>
 
-         <VisitRequestSuccessDialog
+         <RequestVisitSuccessDialog
             open={successOpen}
             onOpenChange={(open) => {
                setSuccessOpen(open);
@@ -303,6 +315,9 @@ export default function VisitRequestForm() {
             }}
             onDone={handleReset}
             visit={submittedVisit}
+            title={successTitle}
+            description={successDescription}
+            doneLabel={doneLabel}
          />
       </>
    );

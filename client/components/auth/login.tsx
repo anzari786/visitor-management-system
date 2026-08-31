@@ -1,202 +1,179 @@
 'use client';
 
-import Logo from '@/components/common/logo';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useLogin } from '@/hooks/use-auth';
 import {
-  loginSchema,
-  type LoginFormValues,
+   loginSchema,
+   type LoginFormValues,
 } from '@/lib/validations/auth.schema';
 import { ApiErrorResponse } from '@/types/api.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AxiosError } from 'axios';
-import { EyeIcon, EyeOffIcon, Lock, User, ArrowRight } from 'lucide-react';
+import { Eye, EyeClosed, Lock, User } from 'lucide-react';
+import Image from 'next/image';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Separator } from '../ui/separator';
 
 export default function Login() {
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [language, setLanguage] = useState<'en' | 'am'>('en');
-  const [rememberMe, setRememberMe] = useState(true);
+   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  const { mutate: login, isPending } = useLogin();
+   const { mutate: login, isPending } = useLogin();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    setFocus,
-    formState: { errors },
-  } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
+   const {
+      register,
+      handleSubmit,
+      setValue,
+      setFocus,
+      formState: { errors },
+   } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) });
 
-  const onSubmit = (values: LoginFormValues) => {
-    login(values, {
-      onError: (error: AxiosError<ApiErrorResponse>) => {
-        const code = error.response?.data?.code;
+   const onSubmit = (values: LoginFormValues) => {
+      login(values, {
+         onError: (error: AxiosError<ApiErrorResponse>) => {
+            const code = error.response?.data?.code;
 
-        if (code === 'INVALID_USERNAME') {
-          setValue('username', '', { shouldDirty: true });
-          setFocus('username');
-        } else {
-          setValue('password', '', { shouldDirty: true });
-          setFocus('password');
-        }
-      },
-    });
-  };
+            if (code === 'INVALID_USERNAME') {
+               setValue('username', '', { shouldDirty: true });
+               setFocus('username');
+            } else {
+               setValue('password', '', { shouldDirty: true });
+               setFocus('password');
+            }
+         },
+      });
+   };
 
-  return (
-    <div className="bg-[#f2f9f4]/85 backdrop-blur-xl rounded-[32px] p-8 sm:p-9 shadow-xl shadow-emerald-950/10 border border-white/90 flex flex-col justify-between">
-      <div>
-        {/* Top Header: Imported Logo from /image.png */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2.5">
-            <Logo width={32} height={32} />
-            <span className="font-bold text-slate-800 text-lg tracking-tight">
-              ATI <span className="text-[#00a859]">VMS</span>
-            </span>
-          </div>
-
-          {/* Language Selector */}
-          <div className="bg-white/90 border border-slate-200/70 p-1 rounded-full flex items-center gap-1 shadow-xs">
-            <button
-              type="button"
-              onClick={() => setLanguage('en')}
-              className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                language === 'en'
-                  ? 'bg-[#00a859] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              English
-            </button>
-            <button
-              type="button"
-              onClick={() => setLanguage('am')}
-              className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all ${
-                language === 'am'
-                  ? 'bg-[#00a859] text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              አማርኛ
-            </button>
-          </div>
-        </div>
-
-        {/* Center Avatar */}
-        <div className="flex justify-center mb-6">
-          <div className="relative w-16 h-16 flex items-center justify-center">
-            <div className="absolute top-0 w-7 h-7 bg-amber-400 rounded-full shadow-xs" />
-            <div className="absolute bottom-0 w-16 h-8 bg-[#00a859] rounded-t-full shadow-xs" />
-          </div>
-        </div>
-
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Visitor Management System
-          </h1>
-          <p className="text-sm text-slate-500 mt-1.5 font-medium">
-            Please sign in to continue.
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          {/* Username Input */}
-          <div className="space-y-1.5">
-            <label htmlFor="username" className="text-xs font-semibold text-slate-700 ml-1">
-              Username
-            </label>
-            <div className="relative flex items-center">
-              <User className="absolute left-4 w-4 h-4 text-slate-400" />
-              <input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                aria-invalid={!!errors.username}
-                {...register('username')}
-                className="w-full bg-[#f8fcf9] border border-slate-200/90 rounded-full py-3 pl-11 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-[#00a859] transition-all shadow-xs"
-              />
+   return (
+      <Card className="w-full rounded-4xl border border-border bg-card/85 px-6 py-10 pt-14 shadow-2xs shadow-primary/10 backdrop-blur-xl">
+         <div className="flex flex-col items-center space-y-8">
+            {/* Title */}
+            <div className="space-y-2 text-center">
+               <Image
+                  src="/logo.png"
+                  alt="ATI Logo"
+                  width={96}
+                  height={96}
+                  priority
+                  className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
+               />
+               <h1 className="text-balance font-semibold text-2xl text-foreground">
+                  Welcome back!
+               </h1>
+               <p className="text-sm text-pretty text-muted-foreground ">
+                  Please enter your details to access dashboard
+               </p>
             </div>
-            {errors.username && (
-              <p className="text-xs text-red-500 ml-3 font-medium">
-                {errors.username.message}
-              </p>
-            )}
-          </div>
 
-          {/* Password Input */}
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-xs font-semibold text-slate-700 ml-1">
-              Password
-            </label>
-            <div className="relative flex items-center">
-              <Lock className="absolute left-4 w-4 h-4 text-slate-400" />
-              <input
-                id="password"
-                type={isPasswordVisible ? 'text' : 'password'}
-                placeholder="Enter your password"
-                aria-invalid={!!errors.password}
-                {...register('password')}
-                className="w-full bg-[#f8fcf9] border border-slate-200/90 rounded-full py-3 pl-11 pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-[#00a859] transition-all shadow-xs"
-              />
-              <button
-                type="button"
-                onClick={() => setIsPasswordVisible((v) => !v)}
-                className="absolute right-4 text-slate-400 hover:text-slate-600 transition-colors"
-                aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
-              >
-                {isPasswordVisible ? (
-                  <EyeOffIcon className="w-4 h-4" />
-                ) : (
-                  <EyeIcon className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-            {errors.password && (
-              <p className="text-xs text-red-500 ml-3 font-medium">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          {/* Remember Me & Forgot Password */}
-          <div className="flex items-center justify-between text-xs pt-1 px-1">
-            <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-[#00a859] focus:ring-emerald-500 accent-[#00a859]"
-              />
-              Remember me
-            </label>
-            <a
-              href="#"
-              className="font-semibold text-[#00a859] hover:text-emerald-700 hover:underline transition-all"
+            {/* Form */}
+            <form
+               onSubmit={handleSubmit(onSubmit)}
+               className="w-full space-y-4"
             >
-              Forgot password?
-            </a>
-          </div>
+               {/* Username Input */}
+               <div className="space-y-2">
+                  <Label htmlFor="username" className="ml-1 text-foreground">
+                     Username
+                  </Label>
+                  <div className="relative">
+                     <Input
+                        id="username"
+                        type="text"
+                        placeholder="Enter Username"
+                        aria-invalid={!!errors.username}
+                        {...register('username')}
+                        className="rounded-xl border-input bg-background ps-9 text-sm text-foreground shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30"
+                     />
+                     <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground">
+                        <User aria-hidden="true" className="h-4 w-4" />
+                     </div>
+                  </div>
+                  {errors.username && (
+                     <p className="ml-3 text-xs font-medium text-destructive">
+                        {errors.username.message}
+                     </p>
+                  )}
+               </div>
 
-          {/* Submit Action Button */}
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full mt-2 bg-[#00a859] hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold py-3.5 px-6 rounded-full flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all hover:shadow-emerald-600/30 disabled:opacity-50"
-          >
-            <span>{isPending ? 'Signing in…' : 'Login'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-      </div>
+               {/* Password Input */}
+               <div className="space-y-2">
+                  <Label htmlFor="password" className="ml-1 text-foreground">
+                     Password
+                  </Label>
+                  <div className="relative">
+                     <Input
+                        id="password"
+                        type={isPasswordVisible ? 'text' : 'password'}
+                        placeholder="Enter Password"
+                        aria-invalid={!!errors.password}
+                        {...register('password')}
+                        className="rounded-xl border-input bg-background ps-9 pe-9 text-sm text-foreground shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30"
+                     />
+                     <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground">
+                        <Lock aria-hidden="true" className="h-4 w-4" />
+                     </div>
+                     <Button
+                        aria-controls="password"
+                        aria-label={
+                           isPasswordVisible ? 'Hide password' : 'Show password'
+                        }
+                        aria-pressed={isPasswordVisible}
+                        className="absolute top-0 right-0 h-full px-3 hover:bg-transparent cursor-pointer"
+                        onClick={() => setIsPasswordVisible((v) => !v)}
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                     >
+                        {isPasswordVisible ? (
+                           <Eye className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                           <EyeClosed className="h-4 w-4 text-muted-foreground" />
+                        )}
+                     </Button>
+                  </div>
+                  {errors.password && (
+                     <p className="ml-3 text-xs font-medium text-red-500">
+                        {errors.password.message}
+                     </p>
+                  )}
+               </div>
 
-      {/* Footer Notice */}
-      <div className="mt-8 text-center text-[11px] text-slate-400 font-medium leading-relaxed">
-        <p>© 2026 Ethiopian Agricultural Transformation Institute (ATI) •</p>
-        <p>Visitor Management System</p>
-      </div>
-    </div>
-  );
+               {/* Submit Action Button */}
+               <Button
+                  type="submit"
+                  disabled={isPending}
+                  size="lg"
+                        className="mt-2 w-full rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-primary/30 active:bg-primary/80 disabled:opacity-50"
+               >
+                  <span>{isPending ? 'Signing in…' : 'Login'}</span>
+               </Button>
+
+               <div className="flex items-center gap-4 py-2">
+                  <Separator className="flex-1" />
+                  <span className="text-muted-foreground text-sm">OR</span>
+                  <Separator className="flex-1" />
+               </div>
+
+               <Button
+                  className="w-full rounded-xl"
+                  size="lg"
+                  variant="outline"
+               >
+                  Single sign-on (SSO)
+               </Button>
+            </form>
+
+            {/* Footer Notice */}
+            <div className="text-pretty text-center text-muted-foreground text-xs">
+               <p>
+                  © 2026 Ethiopian Agricultural Transformation Institute (ATI) •
+               </p>
+               <p>Visitor Management System</p>
+            </div>
+         </div>
+      </Card>
+   );
 }

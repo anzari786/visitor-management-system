@@ -60,10 +60,10 @@ export default function Login() {
                   priority
                   className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
                />
-               <h1 className="text-balance font-semibold text-2xl text-foreground">
+               <h1 className="text-balance font-semibold text-xl text-foreground sm:text-2xl">
                   Welcome back!
                </h1>
-               <p className="text-sm text-pretty text-muted-foreground ">
+               <p className="text-sm text-pretty text-muted-foreground">
                   Please enter your details to access dashboard
                </p>
             </div>
@@ -146,7 +146,7 @@ export default function Login() {
                   type="submit"
                   disabled={isPending}
                   size="lg"
-                        className="mt-2 w-full rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-primary/30 active:bg-primary/80 disabled:opacity-50"
+                  className="mt-2 w-full rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-primary/30 active:bg-primary/80 disabled:opacity-50"
                >
                   <span>{isPending ? 'Signing in…' : 'Login'}</span>
                </Button>

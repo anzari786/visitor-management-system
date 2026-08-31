@@ -11,26 +11,27 @@ export default async function SetPasswordPage() {
    if (!user.mustChangePassword) redirect('/');
 
    return (
-      <div className="min-h-screen w-full relative">
-         {/* Layer 1: Emerald Glow */}
+      <div className="min-h-screen w-full relative bg-background">
+         {/* Layer 1: Primary Glow (theme-aware) */}
          <div
             className="absolute inset-0 z-0"
             style={{
-               backgroundImage: `radial-gradient(125% 125% at 50% 90%, #ffffff 40%, #8FFFB0 100%)`,
+               backgroundImage: `radial-gradient(125% 125% at 50% 90%, var(--background) 40%, color-mix(in oklch, var(--primary) 35%, var(--background)) 100%)`,
                backgroundSize: '100% 100%',
             }}
          />
 
-         {/* Layer 2: Dashed Grid */}
+         {/* Layer 2: Dashed Grid (theme-aware) */}
          <div
             className="absolute inset-0 z-0"
             style={{
                backgroundImage: `
-        linear-gradient(to right, #e7e5e4 1px, transparent 1px),
-        linear-gradient(to bottom, #e7e5e4 1px, transparent 1px)
+        linear-gradient(to right, var(--border) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--border) 1px, transparent 1px)
       `,
                backgroundSize: '20px 20px',
                backgroundPosition: '0 0, 0 0',
+               opacity: 0.6,
                maskImage: `
          repeating-linear-gradient(
               to right,

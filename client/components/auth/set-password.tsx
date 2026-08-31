@@ -32,6 +32,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import type { ApiErrorResponse } from '@/types/api.types';
 import { useAuthStore } from '@/store/auth-store';
+import Image from 'next/image';
 
 type ResultState = 'success' | 'expired' | 'invalid' | null;
 
@@ -123,17 +124,27 @@ const SetPassword = () => {
 
    return (
       <>
-         <div className="flex items-center justify-center min-h-dvh">
-            <Card className="mx-auto w-full max-w-md rounded-4xl">
-               <CardHeader className="items-center text-center">
-                  <CardTitle>Set your password</CardTitle>
-                  <CardDescription className="max-w-sm">
-                     Welcome to ATI VMS. Set a password to complete your account
-                     setup and get started.
+         <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
+            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 pt-12 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 sm:pt-14">
+               <CardHeader className=" px-0 pb-1.5 text-center sm:pb-3">
+                  <Image
+                     src="/logo.png"
+                     alt="ATI Logo"
+                     width={96}
+                     height={96}
+                     priority
+                     className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
+                  />
+                  <CardTitle className="text-balance text-xl font-semibold text-foreground sm:text-2xl">
+                     Create your password
+                  </CardTitle>
+                  <CardDescription className="text-pretty text-sm text-muted-foreground">
+                     Create a secure password to complete your ATI VMS account
+                     setup.
                   </CardDescription>
                </CardHeader>
-               <CardContent>
-                  <form onSubmit={onSubmit} className="grid gap-6">
+               <CardContent className="px-0">
+                  <form onSubmit={onSubmit} className="grid gap-5 sm:gap-6">
                      <div className="flex flex-col gap-4">
                         <Controller
                            control={control}
@@ -171,7 +182,7 @@ const SetPassword = () => {
                         className="w-full"
                         disabled={isPending}
                      >
-                        {isPending ? 'Setting password…' : 'Set password'}
+                        {isPending ? 'Creating password…' : 'Create password'}
                      </Button>
                   </form>
                </CardContent>

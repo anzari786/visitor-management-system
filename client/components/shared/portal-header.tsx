@@ -22,7 +22,7 @@ export function PortalHeader({
             <Link href={homeHref} className="flex items-center gap-3">
                <div className="rounded-xl border bg-card p-1">
                   <Image
-                     src="/logo.jpeg"
+                     src="/logo.png"
                      alt="Ethiopian Agricultural Transformation Institute logo"
                      width={40}
                      height={40}

@@ -39,7 +39,7 @@ function SidebarBrand() {
                <Link href="/dashboard">
                   <div className="flex aspect-square size-11 items-center justify-center rounded-xl border bg-card p-1 shrink-0">
                      <Image
-                        src="/logo.jpeg"
+                        src="/logo.png"
                         alt="Ethiopian Agricultural Transformation Institute logo"
                         width={44}
                         height={44}
@@ -66,8 +66,7 @@ function NavUser({ user }: { user: User }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
    const avatarId = useProfileAvatarStore(
-      (s) =>
-         s.selections[String(user.id)] ?? DEFAULT_PROFILE_AVATAR_ID,
+      (s) => s.selections[String(user.id)] ?? DEFAULT_PROFILE_AVATAR_ID,
    );
    const avatarSrc = getProfileAvatarById(avatarId).image;
 

@@ -1,0 +1,4 @@
+.env
+*/.pnpm-store
+*/.pnpm-store/*
+.pnpm/

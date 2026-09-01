@@ -27,7 +27,7 @@ export function AppSidebarSkeleton({
                <div className="flex items-center gap-3 px-2.5 py-3">
                   <div className="flex aspect-square size-11 items-center justify-center rounded-xl border bg-card p-1 shrink-0">
                      <Image
-                        src="/logo.jpeg"
+                        src="/logo.png"
                         alt="Ethiopian Agricultural Transformation Institute logo"
                         width={44}
                         height={44}

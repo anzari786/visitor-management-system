@@ -21,6 +21,7 @@ import {
 } from '@/lib/validations/department.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { Controller, useForm } from 'react-hook-form';
 import { Badge } from '../reui/badge';
 import { ColorPicker } from '../ui/color-picker';
@@ -36,6 +37,7 @@ const CreateDepartment = ({
    onOpenChange,
    onSubmit,
 }: CreateDepartmentProps) => {
+   const { t } = useTranslation();
    const {
       register,
       handleSubmit,
@@ -65,7 +67,7 @@ const CreateDepartment = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent className="sm:max-w-120 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-               <DialogTitle>Create Department</DialogTitle>
+               <DialogTitle>{t('departments.form.create')}</DialogTitle>
                <DialogDescription className="sr-only" />
             </DialogHeader>
 
@@ -74,7 +76,7 @@ const CreateDepartment = ({
                   {/* Department Name */}
                   <Field>
                      <FieldLabel htmlFor="name">
-                        Department Name
+                        {t('departments.form.name')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Input
@@ -90,9 +92,11 @@ const CreateDepartment = ({
                   {/* Short Name (optional) */}
                   <Field>
                      <div className="flex items-center justify-between gap-2">
-                        <FieldLabel htmlFor="short-name">Short Name</FieldLabel>
+                        <FieldLabel htmlFor="short-name">
+                           {t('departments.form.shortName')}
+                        </FieldLabel>
                         <Badge variant="warning-outline" size="sm">
-                           Optional
+                           {t('common.optional')}
                         </Badge>
                      </div>
                      <Input
@@ -107,7 +111,7 @@ const CreateDepartment = ({
 
                   {/* Color */}
                   <Field>
-                     <FieldLabel>Department Color</FieldLabel>
+                     <FieldLabel>{t('departments.form.color')}</FieldLabel>
                      <Controller
                         name="color"
                         control={control}
@@ -127,11 +131,13 @@ const CreateDepartment = ({
                <DialogFooter>
                   <DialogClose asChild>
                      <Button type="button" variant="outline">
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
                   <Button type="submit" disabled={isSubmitting}>
-                     {isSubmitting ? 'Creating…' : 'Create Department'}
+                     {isSubmitting
+                        ? t('departments.form.creating')
+                        : t('departments.form.create')}
                   </Button>
                </DialogFooter>
             </form>

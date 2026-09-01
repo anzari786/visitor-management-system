@@ -9,7 +9,7 @@ import {
    CommandList,
    CommandSeparator,
 } from '@/components/ui/command';
-import { navigation } from '@/lib/navigation';
+import { GROUP_LABEL_KEYS, navigation } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { useSettingsDialogStore } from '@/store/settings-dialog-store';
@@ -19,6 +19,7 @@ import { LogOut, UserCircle } from 'lucide-react';
 import { useLogout } from '@/hooks/use-auth';
 import { useState } from 'react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';
+import { useTranslation } from '@/lib/i18n';
 
 type AppCommandProps = {
    open: boolean;
@@ -26,6 +27,7 @@ type AppCommandProps = {
 };
 
 export function AppCommand({ open, onOpenChange }: AppCommandProps) {
+   const { t } = useTranslation();
    const router = useRouter();
    const user = useAuthStore((state) => state.user);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
@@ -74,20 +76,20 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
    return (
       <>
          <CommandDialog open={open} onOpenChange={onOpenChange}>
-            <CommandInput placeholder="Search pages and actions..." />
+            <CommandInput placeholder={t('command.placeholder')} />
             <CommandList>
-               <CommandEmpty>No results found.</CommandEmpty>
+               <CommandEmpty>{t('common.noResults')}</CommandEmpty>
 
                {workspaceItems.length > 0 && (
-                  <CommandGroup heading="Workspace">
+                  <CommandGroup heading={t(GROUP_LABEL_KEYS.Workspace)}>
                      {workspaceItems.map((item) => (
                         <CommandItem
                            key={item.href ?? item.action ?? item.title}
-                           value={item.title}
+                           value={`${item.title} ${t(item.titleKey)}`}
                            onSelect={() => selectNavItem(item)}
                         >
                            <item.icon />
-                           <span>{item.title}</span>
+                           <span>{t(item.titleKey)}</span>
                         </CommandItem>
                      ))}
                   </CommandGroup>
@@ -96,15 +98,15 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                {adminItems.length > 0 && (
                   <>
                      <CommandSeparator />
-                     <CommandGroup heading="Administration">
+                     <CommandGroup heading={t(GROUP_LABEL_KEYS.Administration)}>
                         {adminItems.map((item) => (
                            <CommandItem
                               key={item.href ?? item.action ?? item.title}
-                              value={item.title}
+                              value={`${item.title} ${t(item.titleKey)}`}
                               onSelect={() => selectNavItem(item)}
                            >
                               <item.icon />
-                              <span>{item.title}</span>
+                              <span>{t(item.titleKey)}</span>
                            </CommandItem>
                         ))}
                      </CommandGroup>
@@ -112,13 +114,13 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                )}
 
                <CommandSeparator />
-               <CommandGroup heading="Account">
+               <CommandGroup heading={t('command.account')}>
                   <CommandItem
                      value="profile"
                      onSelect={() => run(() => setProfileOpen(true))}
                   >
                      <UserCircle />
-                     <span>Profile</span>
+                     <span>{t('header.profile')}</span>
                   </CommandItem>
                   <CommandItem
                      value="logout sign out"
@@ -129,7 +131,7 @@ export function AppCommand({ open, onOpenChange }: AppCommandProps) {
                      }}
                   >
                      <LogOut />
-                     <span>Log Out</span>
+                     <span>{t('header.logout')}</span>
                   </CommandItem>
                </CommandGroup>
             </CommandList>

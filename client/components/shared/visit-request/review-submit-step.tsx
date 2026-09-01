@@ -26,6 +26,7 @@ import {
    formatVisitTime,
    getPurposeLabel,
 } from '@/services/visit-request.service';
+import { useTranslation } from '@/lib/i18n';
 
 type FormType = UseFormReturn<
    VisitRequestFormInput,
@@ -70,6 +71,7 @@ function SectionHeader({
    title: string;
    onEdit: () => void;
 }) {
+   const { t } = useTranslation();
    return (
       <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-2.5 sm:px-5">
          <h3 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -83,7 +85,7 @@ function SectionHeader({
             onClick={onEdit}
          >
             <Pencil className="size-3" />
-            Edit
+            {t('common.edit')}
          </Button>
       </div>
    );
@@ -104,6 +106,7 @@ export function ReviewSubmitStep({
    form: FormType;
    onEditStep: (step: number) => void;
 }) {
+   const { t } = useTranslation();
    const values = form.watch();
    const visitors = values.visitors ?? [];
    const isMultiDay =
@@ -115,10 +118,10 @@ export function ReviewSubmitStep({
       <div className="w-full space-y-5">
          <div className="space-y-1">
             <h2 className="text-xl font-semibold tracking-tight text-foreground">
-               Review your information
+               {t('selfService.review.title')}
             </h2>
             <p className="text-sm text-muted-foreground">
-               Review your details and visit information before submitting.
+               {t('selfService.review.description')}
             </p>
          </div>
 
@@ -128,20 +131,20 @@ export function ReviewSubmitStep({
                   <div className="flex items-center gap-2">
                      <span className="size-1.5 rounded-full bg-foreground" />
                      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                        Final Review
+                        {t('selfService.review.finalReview')}
                      </p>
                   </div>
                   <Badge
                      variant="secondary"
                      className="rounded-full px-2.5 py-0.5 text-xs font-medium"
                   >
-                     Ready to Submit
+                     {t('selfService.review.ready')}
                   </Badge>
                </div>
 
                <section>
                   <SectionHeader
-                     title="Visitor Information"
+                     title={t('selfService.review.visitorInfo')}
                      onEdit={() => onEditStep(0)}
                   />
                   <div className="divide-y divide-border/50">
@@ -171,23 +174,23 @@ export function ReviewSubmitStep({
                               <div className="divide-y divide-border/50">
                                  <ReviewRow
                                     icon={<User />}
-                                    label="Full Name"
+                                    label={t('common.fullName')}
                                     value={fullName || undefined}
                                  />
                                  <ReviewRow
                                     icon={<Mail />}
-                                    label="Email"
+                                    label={t('common.email')}
                                     value={visitor.email}
                                  />
                                  <ReviewRow
                                     icon={<Phone />}
-                                    label="Phone"
+                                    label={t('common.phone')}
                                     value={visitor.phone}
                                  />
                                  {organization ? (
                                     <ReviewRow
                                        icon={<Building2 />}
-                                       label="Organization"
+                                       label={t('visitDetails.organization')}
                                        value={organization}
                                     />
                                  ) : null}
@@ -200,18 +203,18 @@ export function ReviewSubmitStep({
 
                <section className="border-t border-border/60">
                   <SectionHeader
-                     title="Visit Details"
+                     title={t('selfService.details.title')}
                      onEdit={() => onEditStep(1)}
                   />
                   <div className="divide-y divide-border/50">
                      <ReviewRow
                         icon={<User />}
-                        label="Host"
+                        label={t('visits.col.host')}
                         value={values.hostId ? values.hostName : undefined}
                      />
                      <ReviewRow
                         icon={<Building2 />}
-                        label="Department"
+                        label={t('common.department')}
                         value={
                            values.departmentId
                               ? values.departmentName
@@ -220,7 +223,7 @@ export function ReviewSubmitStep({
                      />
                      <ReviewRow
                         icon={<CheckCircle2 />}
-                        label="Purpose"
+                        label={t('common.purpose')}
                         value={
                            values.purpose ? (
                               <ValueBadge>
@@ -234,7 +237,7 @@ export function ReviewSubmitStep({
 
                <section className="border-t border-border/60">
                   <SectionHeader
-                     title="Schedule"
+                     title={t('selfService.review.schedule')}
                      onEdit={() => onEditStep(1)}
                   />
                   <div className="divide-y divide-border/50">
@@ -242,7 +245,7 @@ export function ReviewSubmitStep({
                         <>
                            <ReviewRow
                               icon={<CalendarDays />}
-                              label="Start Date"
+                              label={t('schedule.startDate')}
                               value={
                                  values.startDate
                                     ? formatVisitDateRange(
@@ -254,7 +257,7 @@ export function ReviewSubmitStep({
                            />
                            <ReviewRow
                               icon={<CalendarDays />}
-                              label="End Date"
+                              label={t('schedule.endDate')}
                               value={
                                  values.endDate
                                     ? formatVisitDateRange(
@@ -268,7 +271,7 @@ export function ReviewSubmitStep({
                      ) : (
                         <ReviewRow
                            icon={<CalendarDays />}
-                           label="Date"
+                           label={t('common.date')}
                            value={
                               values.startDate
                                  ? formatVisitDateRange(
@@ -281,7 +284,7 @@ export function ReviewSubmitStep({
                      )}
                      <ReviewRow
                         icon={<Clock />}
-                        label="Time"
+                        label={t('common.time')}
                         value={
                            values.startTime && values.endTime
                               ? `${formatVisitTime(values.startTime)} – ${formatVisitTime(values.endTime)}`

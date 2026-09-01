@@ -11,7 +11,7 @@ import {
    TableRow,
 } from '@/components/ui/table';
 import { useUsers } from '@/hooks/use-users';
-import { formatLastLogin } from '@/lib/format-last-login';
+import { getLastLoginLabel } from '@/lib/format-last-login';
 import { getUserFullName } from '@/lib/user';
 import { cn } from '@/lib/utils';
 import type { User, UserStatusFilter } from '@/types/user.types';
@@ -32,13 +32,22 @@ import { UsersTableFilters } from './users-table-filters';
 import { UsersTablePagination } from './users-table-pagination';
 import { UserRoleBadge } from './user-role-badge';
 import { UserStatusBadge } from './user-status-badge';
+import { USER_ROLE_KEYS, useTranslation, type TranslationKey } from '@/lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
+type Translate = (
+   key: TranslationKey,
+   vars?: Record<string, string | number>,
+) => string;
+
+const getColumns = (
+   onViewDetails: (user: User) => void,
+   t: Translate,
+): ColumnDef<User>[] => [
    {
       id: 'name',
-      header: 'Name',
+      header: t('users.col.name'),
       cell: ({ row }) => (
          <button
             type="button"
@@ -51,7 +60,7 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    },
    {
       accessorKey: 'username',
-      header: 'Username',
+      header: t('users.col.username'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground font-mono tracking-wide">
             {row.original.username}
@@ -60,12 +69,12 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    },
    {
       accessorKey: 'role',
-      header: 'Role',
+      header: t('users.col.role'),
       cell: ({ row }) => <UserRoleBadge role={row.original.role} />,
    },
    {
       id: 'type',
-      header: 'Account Type',
+      header: t('users.col.accountType'),
       cell: ({ row }) => {
          const isSso = !!row.original.employee;
          const TypeIcon = isSso ? ShieldCheck : KeyRound;
@@ -81,7 +90,11 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
                )}
             >
                <TypeIcon className="size-3" />
-               {isSso ? 'SSO' : 'Local'}
+               {t(
+                  isSso
+                     ? 'users.accountType.sso'
+                     : 'users.accountType.local',
+               )}
             </Badge>
          );
       },
@@ -89,21 +102,24 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    {
       id: 'status',
 
-      header: 'Status',
+      header: t('common.status'),
       cell: ({ row }) => <UserStatusBadge isActive={row.original.isActive} />,
    },
    {
       id: 'lastActivity',
-      header: 'Last activity',
+      header: t('users.col.lastActivity'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground">
-            {formatLastLogin(row.original.lastLoginAt)}
+            {(() => {
+               const label = getLastLoginLabel(row.original.lastLoginAt);
+               return t(label.key, label.vars);
+            })()}
          </span>
       ),
    },
    {
       id: 'createdAt',
-      header: 'Created',
+      header: t('users.col.created'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground">
             {format(new Date(row.original.createdAt), 'MMM d, yyyy')}
@@ -124,6 +140,7 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ showFilters = true }: UsersTableProps) {
+   const { t } = useTranslation();
    const searchParams = useSearchParams();
 
    const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -157,8 +174,8 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
    }, []);
 
    const columns = React.useMemo(
-      () => getColumns(handleViewDetails),
-      [handleViewDetails],
+      () => getColumns(handleViewDetails, t),
+      [handleViewDetails, t],
    );
 
    const table = useReactTable({
@@ -216,7 +233,7 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
                               colSpan={columns.length}
                               className="h-40 px-4 text-center text-sm text-destructive"
                            >
-                              Failed to load users. Please try again.
+                              {t('users.loadError')}
                            </TableCell>
                         </TableRow>
                      ) : users.length ? (
@@ -252,11 +269,10 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
                            >
                               <div className="mx-auto flex max-w-sm flex-col items-center gap-1.5">
                                  <p className="text-sm font-medium text-foreground">
-                                    No users found
+                                    {t('users.emptyTitle')}
                                  </p>
                                  <p className="text-sm text-muted-foreground">
-                                    Try adjusting your search or filters to find
-                                    what you&apos;re looking for.
+                                    {t('visits.emptyDescription')}
                                  </p>
                               </div>
                            </TableCell>

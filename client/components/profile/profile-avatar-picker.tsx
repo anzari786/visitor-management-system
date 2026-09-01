@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types/user.types';
 import { Check } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useTranslation } from '@/lib/i18n';
 
 type ProfileAvatarPickerProps = {
    value?: string | null;
@@ -81,6 +82,7 @@ export function ProfileAvatarPicker({
    previewName,
    role,
 }: ProfileAvatarPickerProps) {
+   const { t } = useTranslation();
    const safeRole: UserRole =
       role && USER_ROLES.includes(role as UserRole)
          ? (role as UserRole)
@@ -103,9 +105,9 @@ export function ProfileAvatarPicker({
    return (
       <div className="flex flex-col gap-5">
          <div className="flex flex-col gap-1">
-            <h6 className="text-sm font-medium text-primary">Avatar</h6>
+            <h6 className="text-sm font-medium text-primary">{t('profile.avatar')}</h6>
             <p className="text-sm font-normal text-muted-foreground">
-               Choose a profile photo. Your selection updates instantly.
+               {t('profile.avatarHint')}
             </p>
          </div>
 
@@ -137,7 +139,7 @@ export function ProfileAvatarPicker({
 
          <div className="space-y-2.5">
             <p className="text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-               Select avatar
+               {t('profile.selectAvatar')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 sm:-space-x-1 sm:gap-0">
                {PROFILE_AVATARS.map((option) => (

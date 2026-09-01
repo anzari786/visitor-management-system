@@ -41,14 +41,15 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import type { DateRange } from 'react-day-picker';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
-const PERIOD_LABELS: Record<ExportPeriod, string> = {
-   '7d': 'Last 7 Days',
-   '30d': 'This Month',
-   '3m': 'Last 3 Months',
-   '6m': 'Last 6 Months',
-   all: 'All Time',
-   custom: 'Custom Range',
+const PERIOD_KEYS: Record<ExportPeriod, TranslationKey> = {
+   '7d': 'export.period.7d',
+   '30d': 'export.period.30d',
+   '3m': 'export.period.3m',
+   '6m': 'export.period.6m',
+   all: 'export.period.all',
+   custom: 'export.period.custom',
 };
 
 type ExportStatusFilter =
@@ -66,62 +67,62 @@ type ExportStatusFilter =
 
 const STATUS_OPTIONS: {
    value: ExportStatusFilter;
-   label: string;
+   labelKey: TranslationKey;
    color: string;
 }[] = [
    {
       value: 'all',
-      label: 'All Statuses',
+      labelKey: 'status.all',
       color: 'text-slate-400 fill-slate-400',
    },
    {
       value: 'PENDING_APPROVAL',
-      label: 'Pending Approval',
+      labelKey: 'visitStatus.pendingApproval',
       color: 'text-amber-400 fill-amber-400',
    },
    {
       value: 'APPROVED',
-      label: 'Approved',
+      labelKey: 'visitStatus.approved',
       color: 'text-teal-600 fill-teal-600',
    },
    {
       value: 'REJECTED',
-      label: 'Rejected',
+      labelKey: 'visitStatus.rejected',
       color: 'text-red-500 fill-red-500',
    },
    {
       value: 'EXPIRED',
-      label: 'Expired',
+      labelKey: 'status.expired',
       color: 'text-slate-500 fill-slate-500',
    },
    {
       value: 'RESCHEDULED',
-      label: 'Rescheduled',
+      labelKey: 'visitStatus.rescheduled',
       color: 'text-violet-500 fill-violet-500',
    },
    {
       value: 'CANCELLED',
-      label: 'Cancelled',
+      labelKey: 'visitStatus.cancelled',
       color: 'text-rose-500 fill-rose-500',
    },
    {
       value: 'PARTIALLY_CHECKED_IN',
-      label: 'Partially Checked In',
+      labelKey: 'visitStatus.partiallyCheckedIn',
       color: 'text-amber-500 fill-amber-500',
    },
    {
       value: 'CHECKED_IN',
-      label: 'Checked In',
+      labelKey: 'visitStatus.checkedIn',
       color: 'text-blue-500 fill-blue-500',
    },
    {
       value: 'PARTIALLY_CHECKED_OUT',
-      label: 'Partially Checked Out',
+      labelKey: 'visitStatus.partiallyCheckedOut',
       color: 'text-orange-500 fill-orange-500',
    },
    {
       value: 'CHECKED_OUT',
-      label: 'Checked Out',
+      labelKey: 'visitStatus.checkedOut',
       color: 'text-slate-500 fill-slate-500',
    },
 ];
@@ -134,6 +135,7 @@ interface ExportVisitLogDialogProps {
 }
 
 export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
+   const { t } = useTranslation();
    const [open, setOpen] = React.useState(false);
    const [period, setPeriod] = React.useState<ExportPeriod>('7d');
    const [departmentId, setDepartmentId] = React.useState('all');
@@ -190,24 +192,21 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
             {trigger ?? (
                <Button variant="outline" className="cursor-pointer gap-2">
                   <FileSpreadsheet className="size-4" />
-                  Export Visitor Log
+                  {t('export.title')}
                </Button>
             )}
          </DialogTrigger>
          <DialogContent className="data-open:slide-in-from-left-8 data-closed:slide-out-to-left-8 data-open:zoom-in-100 data-closed:zoom-out-100 flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 duration-300 sm:max-w-lg [[data-slot=dialog-overlay]:has(~_&)]:duration-300">
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Export Visitor Log</DialogTitle>
-               <DialogDescription>
-                  Choose your filters to generate a CSV report of visit
-                  activity.
-               </DialogDescription>
+               <DialogTitle>{t('export.title')}</DialogTitle>
+               <DialogDescription>{t('export.description')}</DialogDescription>
             </DialogHeader>
 
             <div className={scrollAreaClass}>
                <FieldGroup className="gap-4">
                   {/* Period */}
                   <Field>
-                     <FieldLabel>Report Period</FieldLabel>
+                     <FieldLabel>{t('export.reportPeriod')}</FieldLabel>
                      <Select
                         value={period}
                         onValueChange={(v) => setPeriod(v as ExportPeriod)}
@@ -220,13 +219,13 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                            className="data-[state=open]:slide-in-from-bottom-8 data-[state=open]:zoom-in-100 duration-400"
                         >
                            {(
-                              Object.entries(PERIOD_LABELS) as [
+                              Object.entries(PERIOD_KEYS) as [
                                  ExportPeriod,
-                                 string,
+                                 TranslationKey,
                               ][]
-                           ).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>
-                                 {label}
+                           ).map(([value, labelKey]) => (
+                              <SelectItem key={value} value={value}>
+                                 {t(labelKey)}
                               </SelectItem>
                            ))}
                         </SelectContent>
@@ -236,7 +235,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                   {/* Custom date range */}
                   {period === 'custom' && (
                      <Field>
-                        <FieldLabel>Custom Date Range</FieldLabel>
+                        <FieldLabel>{t('export.customRange')}</FieldLabel>
                         <Popover>
                            <PopoverTrigger asChild>
                               <Button
@@ -255,7 +254,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                                     )
                                  ) : (
                                     <span className="text-muted-foreground">
-                                       Select date range
+                                       {t('export.selectRange')}
                                     </span>
                                  )}
                               </Button>
@@ -275,18 +274,20 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
 
                   {/* Department */}
                   <Field>
-                     <FieldLabel>Department</FieldLabel>
+                     <FieldLabel>{t('common.department')}</FieldLabel>
                      <Select
                         value={departmentId}
                         onValueChange={setDepartmentId}
                      >
                         <SelectTrigger className="w-full">
-                           <SelectValue placeholder="Select department" />
+                           <SelectValue
+                              placeholder={t('export.selectDepartment')}
+                           />
                         </SelectTrigger>
                         <SelectContent>
                            <SelectGroup>
                               <SelectItem value="all">
-                                 All Departments
+                                 {t('export.allDepartments')}
                               </SelectItem>
                               {departments.map((dept) => (
                                  <SelectItem
@@ -303,7 +304,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
 
                   {/* Status */}
                   <Field>
-                     <FieldLabel>Status</FieldLabel>
+                     <FieldLabel>{t('common.status')}</FieldLabel>
                      <Select
                         value={status}
                         onValueChange={(v) =>
@@ -311,7 +312,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                         }
                      >
                         <SelectTrigger className="w-full [&>span]:flex [&>span]:items-center [&>span]:gap-2">
-                           <SelectValue placeholder="Select status" />
+                           <SelectValue placeholder={t('export.selectStatus')} />
                         </SelectTrigger>
                         <SelectContent
                            align="start"
@@ -328,7 +329,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                                           className={`size-2 ${item.color}`}
                                        />
                                        <span className="truncate">
-                                          {item.label}
+                                          {t(item.labelKey)}
                                        </span>
                                     </div>
                                  </SelectItem>
@@ -348,7 +349,7 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                   disabled={isPending}
                   onClick={() => setOpen(false)}
                >
-                  Cancel
+                  {t('common.cancel')}
                </Button>
                <Button
                   onClick={handleExport}
@@ -358,12 +359,12 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                   {isPending ? (
                      <>
                         <Loader2 className="size-4 animate-spin" />
-                        Exporting...
+                        {t('export.exporting')}
                      </>
                   ) : (
                      <>
                         <Download className="size-4" />
-                        Export CSV
+                        {t('export.exportCsv')}
                      </>
                   )}
                </Button>

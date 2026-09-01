@@ -22,6 +22,7 @@ import type { ManagedVisit } from '@/types/visit.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from '@/lib/i18n';
 
 interface VisitorInformationDialogProps {
    open: boolean;
@@ -70,6 +71,7 @@ export function VisitorInformationDialog({
    visit,
    onComplete,
 }: VisitorInformationDialogProps) {
+   const { t } = useTranslation();
    const form = useForm<
       HostInvitationFormInput,
       unknown,
@@ -121,7 +123,7 @@ export function VisitorInformationDialog({
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Complete Visitor Information</DialogTitle>
+               <DialogTitle>{t('visitorInfo.title')}</DialogTitle>
             </DialogHeader>
 
             <form
@@ -132,8 +134,8 @@ export function VisitorInformationDialog({
                <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   <InvitationVisitorsFields
                      form={form}
-                     heading="Visitor Information"
-                     description="Review the available visitor information and complete any missing details before check-in."
+                     heading={t('visitorInfo.heading')}
+                     description={t('visitorInfo.description')}
                   />
                </div>
 
@@ -144,11 +146,11 @@ export function VisitorInformationDialog({
                      className="cursor-pointer"
                      onClick={() => handleOpenChange(false)}
                   >
-                     Cancel
+                     {t('common.cancel')}
                   </Button>
 
                   <Button type="submit" className="cursor-pointer gap-2">
-                     Continue to Check In
+                     {t('visitorInfo.continue')}
                   </Button>
                </DialogFooter>
             </form>

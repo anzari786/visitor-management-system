@@ -18,6 +18,7 @@ import {
    type VisitUpdateDetailsValues,
 } from '@/lib/validations/visit-update-details.schema';
 import type { FloorOption } from '@/constants/visit-location';
+import { useTranslation } from '@/lib/i18n';
 
 export interface VisitUpdateDetailsValue {
    date?: Date;
@@ -100,6 +101,7 @@ export function VisitUpdateDetails({
    onCancel,
    onConfirm,
 }: VisitUpdateDetailsProps) {
+   const { t } = useTranslation();
    const form = useForm<
       VisitUpdateDetailsInput,
       unknown,
@@ -203,39 +205,42 @@ export function VisitUpdateDetails({
 
             <section className="space-y-3 rounded-xl border border-border bg-muted/25 p-4">
                <h3 className="text-sm font-semibold text-foreground">
-                  Current Schedule
+                  {t('host.update.currentSchedule')}
                </h3>
                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <CurrentDetail label="Date" value={currentDateLabel} />
                   <CurrentDetail
-                     label="Start Time"
+                     label={t('common.date')}
+                     value={currentDateLabel}
+                  />
+                  <CurrentDetail
+                     label={t('schedule.startTime')}
                      value={formatTimeLabel(defaultStartTime)}
                   />
                   <CurrentDetail
-                     label="End Time"
+                     label={t('schedule.endTime')}
                      value={formatTimeLabel(defaultEndTime)}
                   />
                   <CurrentDetail
-                     label="Floor"
-                     value={defaultFloor?.trim() || 'Not assigned'}
+                     label={t('location.floor')}
+                     value={defaultFloor?.trim() || t('host.update.notAssigned')}
                   />
                   <CurrentDetail
-                     label="Room"
-                     value={defaultRoom?.trim() || 'Not assigned'}
+                     label={t('location.room')}
+                     value={defaultRoom?.trim() || t('host.update.notAssigned')}
                   />
                </div>
             </section>
 
             <FieldGroup className="gap-4">
                <FieldLabel className="text-sm font-semibold text-foreground">
-                  New Schedule
+                  {t('host.update.newSchedule')}
                </FieldLabel>
                <VisitScheduleFields form={form} idPrefix="reschedule" />
             </FieldGroup>
 
             <FieldGroup className="gap-4">
                <FieldLabel className="text-sm font-semibold text-foreground">
-                  Visit Location
+                  {t('host.update.visitLocation')}
                </FieldLabel>
                <VisitLocationFields
                   key={`${defaultFloor ?? ''}-${defaultRoom}`}
@@ -254,7 +259,7 @@ export function VisitUpdateDetails({
                disabled={isSubmitting}
                onClick={onCancel}
             >
-               Cancel
+               {t('common.cancel')}
             </Button>
             <Button
                type="submit"
@@ -264,12 +269,12 @@ export function VisitUpdateDetails({
                {isSubmitting ? (
                   <>
                      <Loader2 className="size-4 animate-spin" />
-                     Rescheduling...
+                     {t('host.update.pending')}
                   </>
                ) : (
                   <>
                      <Clock className="size-4" />
-                     Reschedule
+                     {t('host.action.reschedule')}
                   </>
                )}
             </Button>

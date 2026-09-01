@@ -22,9 +22,12 @@ import { AppSidebarSkeleton } from './app-sidebar-skeleton';
 import { NavMain } from './nav-main';
 import ProfileDropdown from './profile-dropdown';
 import { getUserFullName } from '@/lib/user';
+import { useTranslation } from '@/lib/i18n';
 import type { User } from '@/types/user.types';
 
 function SidebarBrand() {
+   const { t } = useTranslation();
+
    return (
       <SidebarMenu>
          <SidebarMenuItem>
@@ -36,7 +39,7 @@ function SidebarBrand() {
                   <div className="flex aspect-square size-11 items-center justify-center rounded-xl border bg-card p-1 shrink-0">
                      <Image
                         src="/logo.png"
-                        alt="Ethiopian Agricultural Transformation Institute logo"
+                        alt={t('nav.logoAlt')}
                         width={44}
                         height={44}
                         priority
@@ -48,7 +51,7 @@ function SidebarBrand() {
                         ATI
                      </span>
                      <span className="mt-0.5 text-sm text-muted-foreground whitespace-nowrap leading-snug">
-                        Visitor Management System
+                        {t('nav.brandSubtitle')}
                      </span>
                   </div>
                </Link>

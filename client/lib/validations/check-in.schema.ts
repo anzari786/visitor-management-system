@@ -6,8 +6,8 @@ import { IdTypeValue } from '@/types/visit.types';
 export const visitorInfoSchema = z.object({
    fullName: z
       .string()
-      .min(1, 'Full name is required')
-      .max(100, 'Full name must be 100 characters or fewer'),
+      .min(1, 'validation.fullNameRequired')
+      .max(100, 'validation.fullNameMax'),
    phone: z
       .string()
       .optional()
@@ -17,28 +17,28 @@ export const visitorInfoSchema = z.object({
 
             return isValidEthiopianPhone(val);
          },
-         { message: 'Enter a valid Ethiopian phone number' },
+         { message: 'validation.phoneInvalid' },
       ),
    idType: z.enum(
       ID_TYPE_OPTIONS.map((o) => o.value) as [IdTypeValue, ...IdTypeValue[]],
-      { message: 'ID type is required' },
+      { message: 'validation.idTypeRequired' },
    ),
    idNumber: z
       .string()
-      .min(1, 'ID number is required')
-      .max(50, 'ID number must be 50 characters or fewer'),
+      .min(1, 'validation.idNumberRequired')
+      .max(50, 'validation.idNumberMax'),
    host: z
       .string()
-      .min(1, 'Host name is required')
-      .max(100, 'Host name must be 100 characters or fewer'),
-   departmentId: z.coerce.number().min(1, 'Department is required').optional(),
+      .min(1, 'validation.hostNameRequired')
+      .max(100, 'validation.hostNameMax'),
+   departmentId: z.coerce.number().min(1, 'validation.departmentRequired').optional(),
 });
 
 export const badgeAssignmentSchema = z.object({
    badgeNumber: z
       .string()
-      .length(3, 'Badge number must be exactly 3 digits')
-      .regex(/^\d{3}$/, 'Badge number must contain only digits'),
+      .length(3, 'validation.badgeExactly3')
+      .regex(/^\d{3}$/, 'validation.badgeDigitsOnly'),
 });
 
 // Full schema — merge of both steps

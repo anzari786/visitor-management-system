@@ -22,6 +22,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { canAccess } from '@/lib/access';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
 import { useSettingsDialogStore } from '@/store/settings-dialog-store';
@@ -40,32 +41,32 @@ import { toast } from 'sonner';
 const SETTINGS_TABS = [
    {
       id: 'general',
-      label: 'General',
-      description: 'Organization and display defaults',
+      labelKey: 'settings.general',
+      descriptionKey: 'settings.generalNavHint',
       icon: Settings2,
    },
    {
       id: 'notifications',
-      label: 'Notifications',
-      description: 'Alerts for staff and hosts',
+      labelKey: 'settings.notifications',
+      descriptionKey: 'settings.notificationsNavHint',
       icon: Bell,
    },
    {
       id: 'visits',
-      label: 'Visit Management',
-      description: 'Approvals, duration, and overdue rules',
+      labelKey: 'settings.visitManagement',
+      descriptionKey: 'settings.visitManagementNavHint',
       icon: ClipboardList,
    },
    {
       id: 'badges',
-      label: 'Badge Management',
-      description: 'Assignment and lost-badge handling',
+      labelKey: 'settings.badgeManagement',
+      descriptionKey: 'settings.badgeManagementNavHint',
       icon: IdCard,
    },
    {
       id: 'security',
-      label: 'Security',
-      description: 'Sessions, auth, and visit codes',
+      labelKey: 'settings.security',
+      descriptionKey: 'settings.securityNavHint',
       icon: Shield,
    },
 ] as const;
@@ -116,6 +117,7 @@ function PanelForTab({
 }
 
 export function SettingsDialog() {
+   const { t } = useTranslation();
    const open = useSettingsDialogStore((s) => s.open);
    const setOpen = useSettingsDialogStore((s) => s.setOpen);
    const user = useAuthStore((s) => s.user);
@@ -170,7 +172,7 @@ export function SettingsDialog() {
          setIsSaving(false);
          setSaveDialogOpen(false);
          setOpen(false);
-         toast.success('Settings saved successfully');
+         toast.success(t('settings.toast.saved'));
       }, 400);
    };
 
@@ -183,11 +185,10 @@ export function SettingsDialog() {
             >
                <DialogHeader className="shrink-0 border-b px-5 py-4 sm:px-6">
                   <DialogTitle className="text-base font-medium">
-                     System Settings
+                     {t('settings.dialogTitle')}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
-                     Configure organization, visit, badge, notification, and
-                     security settings.
+                     {t('settings.dialogDescription')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -219,7 +220,7 @@ export function SettingsDialog() {
                                  >
                                     <Icon className="relative z-10 size-4 shrink-0" />
                                     <span className="relative z-10 text-left">
-                                       {tab.label}
+                                       {t(tab.labelKey)}
                                     </span>
                                     {isActive && (
                                        <motion.div
@@ -275,9 +276,11 @@ export function SettingsDialog() {
 
                <div className="flex shrink-0 flex-col gap-3 border-t bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                   <p className="text-sm text-muted-foreground">
-                     {isDirty
-                        ? 'You have unsaved changes'
-                        : 'All changes are saved'}
+                     {t(
+                        isDirty
+                           ? 'settings.unsavedChanges'
+                           : 'settings.allSaved',
+                     )}
                   </p>
                   <div className="flex w-full gap-3 sm:w-auto">
                      <DialogClose asChild>
@@ -287,7 +290,7 @@ export function SettingsDialog() {
                            className="h-9 flex-1 rounded-lg shadow-xs sm:flex-none"
                            onClick={handleCancel}
                         >
-                           Cancel
+                           {t('common.cancel')}
                         </Button>
                      </DialogClose>
                      <Button
@@ -296,7 +299,9 @@ export function SettingsDialog() {
                         disabled={!isDirty || isSaving}
                         onClick={() => setSaveDialogOpen(true)}
                      >
-                        {isSaving ? 'Saving…' : 'Save Settings'}
+                        {isSaving
+                           ? t('settings.saving')
+                           : t('settings.saveSettings')}
                      </Button>
                   </div>
                </div>

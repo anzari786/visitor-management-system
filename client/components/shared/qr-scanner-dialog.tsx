@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { CameraOff, Loader2, ScanLine, ShieldAlert } from 'lucide-react';
 import { Html5Qrcode, type Html5QrcodeCameraScanConfig } from 'html5-qrcode';
 import * as React from 'react';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 type QrScannerDialogProps = {
    open: boolean;
@@ -35,6 +36,7 @@ export function QrScannerDialog({
    description = 'Position the QR code inside the frame to scan.',
    onScan,
 }: QrScannerDialogProps) {
+   const { t } = useTranslation();
    const scannerId = React.useId().replace(/:/g, '');
    const elementId = `qr-reader-${scannerId}`;
    const scannerRef = React.useRef<Html5Qrcode | null>(null);
@@ -124,7 +126,7 @@ export function QrScannerDialog({
                   setErrorMessage(
                      error instanceof Error
                         ? error.message
-                        : 'Invalid QR code. Try again.',
+                        : t('qr.invalidCode'),
                   );
                   // Restart camera after invalid scan.
                   try {
@@ -154,7 +156,7 @@ export function QrScannerDialog({
                // Fallback to any available camera (desktop webcams).
                const cameras = await Html5Qrcode.getCameras();
                if (!cameras.length) {
-                  throw new Error('No camera found on this device.');
+                  throw new Error(t('qr.noCamera'));
                }
                await scanner.start(
                   cameras[0]!.id,
@@ -170,7 +172,7 @@ export function QrScannerDialog({
             const message =
                error instanceof Error
                   ? error.message
-                  : 'Unable to start camera';
+                  : t('qr.cameraError');
             const denied =
                /NotAllowedError|Permission|denied|NotReadableError/i.test(
                   message,
@@ -245,7 +247,7 @@ export function QrScannerDialog({
                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/80 to-transparent px-4 py-3">
                         <p className="flex items-center justify-center gap-2 text-xs font-medium text-foreground">
                            <ScanLine className="size-3.5" />
-                           Align the QR code within the frame
+                           {t('qr.alignHint')}
                         </p>
                      </div>
                   )}
@@ -276,7 +278,7 @@ export function QrScannerDialog({
                               });
                            }}
                         >
-                           Try again
+                           {t('qr.tryAgain')}
                         </Button>
                      </div>
                   )}
@@ -296,12 +298,11 @@ export function QrScannerDialog({
                   className="h-9 w-full cursor-pointer"
                   onClick={closeDialog}
                >
-                  Cancel
+                  {t('common.cancel')}
                </Button>
 
                <p className="text-center text-xs text-muted-foreground">
-                  QR scanning is optional — you can always find a visit
-                  manually.
+                  {t('qr.optionalHint')}
                </p>
             </div>
          </DialogContent>

@@ -14,6 +14,7 @@ import {
    VISIT_TYPE_OPTIONS,
    type VisitTypeValue,
 } from '@/constants/visit-types';
+import { VISIT_TYPE_KEYS, useTranslation, type TranslationKey } from '@/lib/i18n';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ManagedVisitStatus } from '@/types/visit.types';
 import { Footprints, MailPlus, ScanLine, Search } from 'lucide-react';
@@ -31,24 +32,22 @@ type StatusFilterValue =
    | 'checked_in'
    | 'checked_out';
 
-const STATUS_FILTER_OPTIONS: { value: StatusFilterValue; label: string }[] = [
-   { value: 'all', label: 'All' },
-   { value: 'pending', label: 'Pending' },
-   { value: 'approved', label: 'Approved' },
-   { value: 'rejected', label: 'Rejected' },
-   { value: 'rescheduled', label: 'Rescheduled' },
-   { value: 'checked_in', label: 'Checked In' },
-   { value: 'checked_out', label: 'Checked Out' },
+const STATUS_FILTER_OPTIONS: {
+   value: StatusFilterValue;
+   labelKey: TranslationKey;
+}[] = [
+   { value: 'all', labelKey: 'common.all' },
+   { value: 'pending', labelKey: 'status.pending' },
+   { value: 'approved', labelKey: 'status.approved' },
+   { value: 'rejected', labelKey: 'status.rejected' },
+   { value: 'rescheduled', labelKey: 'status.rescheduled' },
+   { value: 'checked_in', labelKey: 'status.checkedIn' },
+   { value: 'checked_out', labelKey: 'status.checkedOut' },
 ];
-
-const VISIT_TYPE_TOGGLE_OPTIONS: {
-   value: VisitTypeValue | 'all';
-   label: string;
-}[] = [{ value: 'all', label: 'All' }, ...VISIT_TYPE_OPTIONS];
 
 const TOGGLE_OPTIONS = STATUS_FILTER_OPTIONS.map((opt) => ({
    key: `status:${opt.value}`,
-   label: opt.label,
+   labelKey: opt.labelKey,
    value: opt.value,
 }));
 
@@ -80,6 +79,7 @@ export function VisitsTableFilters({
    onScanBadge,
    onFindVisit,
 }: VisitsTableFiltersProps) {
+   const { t } = useTranslation();
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
@@ -153,7 +153,7 @@ export function VisitsTableFilters({
                <div className="relative w-full sm:max-w-xs p-1">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                     placeholder="Search visitor or visit code…"
+                     placeholder={t('visits.filters.searchPlaceholder')}
                      value={searchInput}
                      onChange={(e) => setSearchInput(e.target.value)}
                      className="h-9 bg-background pl-8"
@@ -176,18 +176,24 @@ export function VisitsTableFilters({
                                  ];
                               return Icon ? <Icon size={16} /> : null;
                            })()}
-                        <SelectValue placeholder="Visit type" />
+                        <SelectValue
+                           placeholder={t('visits.filters.visitType')}
+                        />
                      </div>
                   </SelectTrigger>
                   <SelectContent
                      align="start"
                      className="data-[state=open]:slide-in-from-bottom-8 data-[state=open]:zoom-in-100 duration-400"
                   >
-                     <SelectItem value="all">All visit types</SelectItem>
+                     <SelectItem value="all">
+                        {t('visits.filters.allVisitTypes')}
+                     </SelectItem>
                      {VISIT_TYPE_OPTIONS.map((type) => {
                         return (
                            <SelectItem key={type.value} value={type.value}>
-                              <span className="truncate">{type.label}</span>
+                              <span className="truncate">
+                                 {t(VISIT_TYPE_KEYS[type.value])}
+                              </span>
                            </SelectItem>
                         );
                      })}
@@ -214,7 +220,7 @@ export function VisitsTableFilters({
                               className="relative px-3.5 py-1.5 h-8.5 rounded-lg! border-0 text-sm font-medium transition-colors bg-muted/90 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer outline-none first:rounded-lg last:rounded-lg data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
                            >
                               <span className="relative z-10">
-                                 {option.label}
+                                 {t(option.labelKey)}
                               </span>
                               {isActive && (
                                  <motion.div
@@ -240,7 +246,7 @@ export function VisitsTableFilters({
                onClick={() => setScanOpen(true)}
             >
                <ScanLine className="size-4" />
-               Scan
+               {t('visits.filters.scan')}
             </Button>
          </div>
 

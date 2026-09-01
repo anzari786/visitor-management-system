@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { getMeetingTypeLabel } from '@/constants/meeting-types';
+import { MEETING_TYPE_KEYS, useTranslation } from '@/lib/i18n';
 import { canCheckIn, getCheckInEligibleVisitors } from '@/lib/visit-attendance';
 import { cn } from '@/lib/utils';
 import type { ManagedVisit } from '@/types/visit.types';
@@ -41,6 +41,7 @@ export function FindVisitCheckInDialog({
    visits,
    onSelectVisit,
 }: FindVisitCheckInDialogProps) {
+   const { t } = useTranslation();
    const [query, setQuery] = React.useState('');
 
    React.useEffect(() => {
@@ -76,10 +77,10 @@ export function FindVisitCheckInDialog({
          >
             <DialogHeader className="space-y-1.5 border-b px-6 py-5 text-left">
                <DialogTitle className="text-xl font-semibold tracking-tight">
-                  Find Visit for Check-In
+                  {t('findVisit.title')}
                </DialogTitle>
                <DialogDescription className="text-sm leading-relaxed">
-                  Search and select an approved visit to start check-in.
+                  {t('findVisit.description')}
                </DialogDescription>
             </DialogHeader>
 
@@ -89,7 +90,7 @@ export function FindVisitCheckInDialog({
                   <Input
                      value={query}
                      onChange={(event) => setQuery(event.target.value)}
-                     placeholder="Search by visitor, visit ID, host…"
+                     placeholder={t('findVisit.placeholder')}
                      className="h-10 pl-9"
                      autoFocus
                   />
@@ -100,14 +101,18 @@ export function FindVisitCheckInDialog({
                      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-12 text-center">
                         <SearchX className="size-8 text-muted-foreground/50" />
                         <p className="text-sm font-medium text-foreground">
-                           {eligibleVisits.length === 0
-                              ? 'No visits ready for check-in'
-                              : 'No matching visits'}
+                           {t(
+                              eligibleVisits.length === 0
+                                 ? 'findVisit.emptyReady'
+                                 : 'findVisit.emptyMatch',
+                           )}
                         </p>
                         <p className="max-w-xs text-xs text-muted-foreground">
-                           {eligibleVisits.length === 0
-                              ? 'Approved visits become available here during their scheduled attendance window.'
-                              : 'Try another name or visit ID.'}
+                           {t(
+                              eligibleVisits.length === 0
+                                 ? 'findVisit.emptyReadyHint'
+                                 : 'findVisit.emptyMatchHint',
+                           )}
                         </p>
                      </div>
                   ) : (
@@ -155,7 +160,7 @@ export function FindVisitCheckInDialog({
                                        variant="secondary"
                                        className="h-5 rounded-md px-1.5 font-medium"
                                     >
-                                       {getMeetingTypeLabel(visit.meetingType)}
+                                       {t(MEETING_TYPE_KEYS[visit.meetingType])}
                                     </Badge>
                                     <span className="inline-flex items-center gap-1">
                                        <CalendarDays className="size-3" />
@@ -165,20 +170,24 @@ export function FindVisitCheckInDialog({
                                     </span>
                                     <span className="inline-flex items-center gap-1">
                                        <Users className="size-3" />
-                                       {eligibleCount} ready
+                                       {t('findVisit.readyCount', {
+                                          count: eligibleCount,
+                                       })}
                                     </span>
                                  </div>
 
                                  <div className="flex items-center justify-between gap-2 pt-0.5">
                                     <p className="truncate text-xs text-muted-foreground">
-                                       Host {visit.host}
+                                       {t('findVisit.hostPrefix', {
+                                          name: visit.host,
+                                       })}
                                        {visit.organization
                                           ? ` · ${visit.organization}`
                                           : ''}
                                     </p>
                                     <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
                                        <LogIn className="size-3.5" />
-                                       Check In
+                                       {t('visitActions.checkIn')}
                                     </span>
                                  </div>
                               </button>
@@ -196,7 +205,7 @@ export function FindVisitCheckInDialog({
                   className="cursor-pointer"
                   onClick={() => onOpenChange(false)}
                >
-                  Cancel
+                  {t('common.cancel')}
                </Button>
             </div>
          </DialogContent>

@@ -15,16 +15,26 @@ import type { DepartmentTimeRange } from '@/types/dashboard.types';
 import { CalendarDays, MoreHorizontal, Settings2 } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Sector } from 'recharts';
 import { Skeleton } from '../ui/skeleton';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 type TimeRange = DepartmentTimeRange;
 
-const timeRangeLabels: Record<TimeRange, string> = {
-   '7days': 'Last 7 days',
-   '30days': 'Last 30 days',
-   '90days': 'Last 90 days',
+const TIME_RANGE_KEYS: Record<TimeRange, TranslationKey> = {
+   '7days': 'dashboard.meeting.last7days',
+   '30days': 'dashboard.meeting.last30days',
+   '90days': 'dashboard.meeting.last90days',
+};
+
+/** Slice labels come back from the API in English; map the known ones. */
+const MEETING_TYPE_KEYS: Record<string, TranslationKey> = {
+   Meeting: 'dashboard.meeting.type.meeting',
+   Interview: 'dashboard.meeting.type.interview',
+   Delivery: 'dashboard.meeting.type.delivery',
+   Training: 'dashboard.meeting.type.training',
 };
 
 export function MeetingTypeChart() {
+   const { t } = useTranslation();
    const [timeRange, setTimeRange] = useState<TimeRange>('30days');
    const [activeIndex, setActiveIndex] = useState<number | null>(null);
    const [showLabels, setShowLabels] = useState(true);
@@ -104,12 +114,12 @@ export function MeetingTypeChart() {
                      <CalendarDays className="size-4 sm:size-[18px] text-muted-foreground" />
                   </Button>
                   <span className="text-sm sm:text-base font-medium">
-                     Meeting Type
+                     {t('dashboard.meeting.title')}
                   </span>
                </div>
             </div>
             <div className="flex items-center justify-center h-[220px] text-sm text-destructive">
-               Failed to load meeting type data.
+               {t('dashboard.meeting.loadError')}
             </div>
          </div>
       );
@@ -128,7 +138,7 @@ export function MeetingTypeChart() {
                      <CalendarDays className="size-4 sm:size-[18px] text-muted-foreground" />
                   </Button>
                   <span className="text-sm sm:text-base font-medium">
-                     Meeting Type
+                     {t('dashboard.meeting.title')}
                   </span>
                </div>
                <DropdownMenu>
@@ -142,29 +152,29 @@ export function MeetingTypeChart() {
                      </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-[180px]">
-                     <DropdownMenuLabel>Time Range</DropdownMenuLabel>
-                     {(Object.keys(timeRangeLabels) as TimeRange[]).map((range) => (
+                     <DropdownMenuLabel>{t('dashboard.meeting.timeRange')}</DropdownMenuLabel>
+                     {(Object.keys(TIME_RANGE_KEYS) as TimeRange[]).map((range) => (
                         <DropdownMenuCheckboxItem
                            key={range}
                            checked={timeRange === range}
                            onCheckedChange={() => setTimeRange(range)}
                         >
-                           {timeRangeLabels[range]}
+                           {t(TIME_RANGE_KEYS[range])}
                         </DropdownMenuCheckboxItem>
                      ))}
                      <DropdownMenuSeparator />
-                     <DropdownMenuLabel>Display Options</DropdownMenuLabel>
+                     <DropdownMenuLabel>{t('dashboard.meeting.displayOptions')}</DropdownMenuLabel>
                      <DropdownMenuCheckboxItem
                         checked={showLabels}
                         onCheckedChange={setShowLabels}
                      >
-                        Show labels
+                        {t('dashboard.meeting.showLabels')}
                      </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                </DropdownMenu>
             </div>
             <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
-               No meeting type data available for this period.
+               {t('dashboard.meeting.empty')}
             </div>
          </div>
       );
@@ -182,7 +192,7 @@ export function MeetingTypeChart() {
                   <CalendarDays className="size-4 sm:size-[18px] text-muted-foreground" />
                </Button>
                <span className="text-sm sm:text-base font-medium">
-                  Meeting Type
+                  {t('dashboard.meeting.title')}
                </span>
             </div>
             <DropdownMenu>
@@ -196,23 +206,23 @@ export function MeetingTypeChart() {
                   </Button>
                </DropdownMenuTrigger>
                <DropdownMenuContent align="end" className="w-[180px]">
-                  <DropdownMenuLabel>Time Range</DropdownMenuLabel>
-                  {(Object.keys(timeRangeLabels) as TimeRange[]).map((range) => (
+                  <DropdownMenuLabel>{t('dashboard.meeting.timeRange')}</DropdownMenuLabel>
+                  {(Object.keys(TIME_RANGE_KEYS) as TimeRange[]).map((range) => (
                      <DropdownMenuCheckboxItem
                         key={range}
                         checked={timeRange === range}
                         onCheckedChange={() => setTimeRange(range)}
                      >
-                        {timeRangeLabels[range]}
+                        {t(TIME_RANGE_KEYS[range])}
                      </DropdownMenuCheckboxItem>
                   ))}
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Display Options</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t('dashboard.meeting.displayOptions')}</DropdownMenuLabel>
                   <DropdownMenuCheckboxItem
                      checked={showLabels}
                      onCheckedChange={setShowLabels}
                   >
-                     Show labels
+                     {t('dashboard.meeting.showLabels')}
                   </DropdownMenuCheckboxItem>
                </DropdownMenuContent>
             </DropdownMenu>
@@ -249,7 +259,7 @@ export function MeetingTypeChart() {
                      {totalVisits.toLocaleString()}
                   </span>
                   <span className="text-[10px] sm:text-xs text-muted-foreground">
-                     Total Visits
+                     {t('dashboard.meeting.totalVisits')}
                   </span>
                </div>
             </div>
@@ -272,7 +282,9 @@ export function MeetingTypeChart() {
                            style={{ backgroundColor: item.color }}
                         />
                         <span className="flex-1 text-xs sm:text-sm text-muted-foreground truncate">
-                           {item.name}
+                           {MEETING_TYPE_KEYS[item.name]
+                              ? t(MEETING_TYPE_KEYS[item.name])
+                              : item.name}
                         </span>
                         <span className="text-xs sm:text-sm font-semibold tabular-nums">
                            {Number(item.value).toLocaleString()}
@@ -285,7 +297,7 @@ export function MeetingTypeChart() {
 
          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Settings2 className="size-3" />
-            <span>{timeRangeLabels[timeRange]}</span>
+            <span>{t(TIME_RANGE_KEYS[timeRange])}</span>
          </div>
       </div>
    );

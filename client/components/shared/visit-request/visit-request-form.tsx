@@ -29,27 +29,28 @@ import { VisitorsStep } from './visitors-step';
 import { VisitDetailsStep } from './visit-details-step';
 import { ReviewSubmitStep } from './review-submit-step';
 import { toast } from 'sonner';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 interface Step {
-   title: string;
-   description: string;
+   titleKey: TranslationKey;
+   descriptionKey: TranslationKey;
    icon: LucideIcon;
 }
 
 const steps: Step[] = [
    {
-      title: 'Visitors',
-      description: 'Who is visiting',
+      titleKey: 'selfService.step.visitors',
+      descriptionKey: 'selfService.step.visitorsHint',
       icon: User,
    },
    {
-      title: 'Visit Details',
-      description: 'Host and schedule',
+      titleKey: 'selfService.step.details',
+      descriptionKey: 'selfService.step.detailsHint',
       icon: CalendarDays,
    },
    {
-      title: 'Review',
-      description: 'Check your request',
+      titleKey: 'selfService.step.reviewShort',
+      descriptionKey: 'selfService.step.reviewShortHint',
       icon: CheckCircle2,
    },
 ];
@@ -78,11 +79,12 @@ type VisitRequestFormProps = {
 export default function VisitRequestForm({
    submitAction,
    isSubmitting,
-   submitLabel = 'Submit Visit Request',
-   successTitle = 'Visit Request Submitted',
-   successDescription = "Your visit request has been submitted. We'll email you when your host responds.",
-   doneLabel = 'Done',
+   submitLabel,
+   successTitle,
+   successDescription,
+   doneLabel,
 }: VisitRequestFormProps) {
+   const { t } = useTranslation();
    const [activeStep, setActiveStep] = useState(0);
    const [successOpen, setSuccessOpen] = useState(false);
    const [submittedVisit, setSubmittedVisit] =
@@ -154,7 +156,7 @@ export default function VisitRequestForm({
          const message =
             error instanceof Error
                ? error.message
-               : 'Unable to submit this visit. Please try again.';
+               : t('selfService.submitError');
          toast.error(message);
       }
    });
@@ -183,7 +185,7 @@ export default function VisitRequestForm({
                   const isActive = idx === activeStep;
                   return (
                      <div
-                        key={step.title}
+                        key={step.titleKey}
                         className="group relative flex flex-1 flex-col items-center"
                      >
                         <motion.div
@@ -218,7 +220,7 @@ export default function VisitRequestForm({
                                     : 'text-muted-foreground',
                               )}
                            >
-                              {step.title}
+                              {t(step.titleKey)}
                            </p>
                            <p
                               className={cn(
@@ -228,7 +230,7 @@ export default function VisitRequestForm({
                                     : 'text-muted-foreground/50',
                               )}
                            >
-                              {step.description}
+                              {t(step.descriptionKey)}
                            </p>
                         </div>
                      </div>
@@ -271,7 +273,7 @@ export default function VisitRequestForm({
                   )}
                >
                   <ChevronLeft className="size-4" />
-                  Back
+                  {t('common.back')}
                </Button>
 
                <div className="flex items-center gap-2">
@@ -285,12 +287,12 @@ export default function VisitRequestForm({
                         {isSubmitting ? (
                            <>
                               <Loader2 className="size-4 animate-spin" />
-                              Submitting...
+                              {t('selfService.submitting')}
                            </>
                         ) : (
                            <>
                               <Send className="size-4" />
-                              {submitLabel}
+                              {submitLabel ?? t('selfService.submit')}
                            </>
                         )}
                      </Button>
@@ -300,7 +302,7 @@ export default function VisitRequestForm({
                         onClick={handleNext}
                         className="w-full cursor-pointer hover:bg-primary/90 sm:w-auto"
                      >
-                        Continue
+                        {t('common.continue')}
                      </Button>
                   )}
                </div>

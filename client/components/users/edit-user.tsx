@@ -36,6 +36,7 @@ import { AxiosError } from 'axios';
 import { KeyRound, ShieldCheck, Loader2, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 const editUserSchema = createUserSchema;
 type EditUserFormValues = z.infer<typeof editUserSchema>;
@@ -149,6 +150,7 @@ function SectionHeading({
 }
 
 export function EditUser({ open, onOpenChange, user }: EditUserProps) {
+   const { t } = useTranslation();
    const isSso = !!user.employee;
    const { mutateAsync: updateUser, isPending } = useUpdateUser();
    const { mutateAsync: changeRole, isPending: isChangingRole } =
@@ -211,14 +213,14 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
             });
          }
 
-         toast.success(`${getUserFullName(user)} updated`);
+         toast.success(t('users.toast.updated', { name: getUserFullName(user) }));
          onOpenChange(false);
       } catch (error) {
          const message =
             error instanceof AxiosError
                ? error.response?.data?.message
                : undefined;
-         toast.error(message ?? 'Failed to update user. Please try again.');
+         toast.error(message ?? t('users.toast.updateFailed'));
       }
    });
 
@@ -229,7 +231,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Edit User</DialogTitle>
+               <DialogTitle>{t('users.form.edit')}</DialogTitle>
             </DialogHeader>
 
             <form
@@ -241,16 +243,16 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                   <FieldGroup className="gap-6">
                      <div className="space-y-4">
                         <SectionHeading
-                           title={
+                           title={t(
                               isSso
-                                 ? 'Employee Information'
-                                 : 'User Information'
-                           }
-                           description={
+                                 ? 'users.form.employeeInformation'
+                                 : 'users.form.userInformation',
+                           )}
+                           description={t(
                               isSso
-                                 ? 'Details retrieved from organization directory.'
-                                 : 'Basic profile details for the user.'
-                           }
+                                 ? 'users.form.employeeInformationHint'
+                                 : 'users.form.userInformationHint',
+                           )}
                         />
 
                         {isSso && user.employee ? (
@@ -258,7 +260,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                               <div className="grid grid-cols-2 gap-y-3">
                                  <div className="space-y-0.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                       Full Name
+                                       {t('common.fullName')}
                                     </p>
                                     <p className="text-sm font-medium">
                                        {user.employee.firstName}{' '}
@@ -267,7 +269,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  </div>
                                  <div className="space-y-0.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                       Email
+                                       {t('common.email')}
                                     </p>
                                     <p className="text-sm font-medium">
                                        {user.employee.email}
@@ -275,7 +277,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  </div>
                                  <div className="space-y-0.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                       Department
+                                       {t('common.department')}
                                     </p>
                                     <p className="text-sm font-medium">
                                        {user.employee.departmentName}
@@ -283,7 +285,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  </div>
                                  <div className="space-y-0.5">
                                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                       Job Title
+                                       {t('users.form.jobTitle')}
                                     </p>
                                     <p className="text-sm font-medium">
                                        {user.employee.position || '—'}
@@ -309,7 +311,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                     />
                                     {errors.firstName && (
                                        <FieldError>
-                                          {errors.firstName.message}
+                                          {t(errors.firstName.message as TranslationKey)}
                                        </FieldError>
                                     )}
                                  </Field>
@@ -328,7 +330,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                     />
                                     {errors.lastName && (
                                        <FieldError>
-                                          {errors.lastName.message}
+                                          {t(errors.lastName.message as TranslationKey)}
                                        </FieldError>
                                     )}
                                  </Field>
@@ -348,7 +350,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  />
                                  {errors.email && (
                                     <FieldError>
-                                       {errors.email.message}
+                                       {t(errors.email.message as TranslationKey)}
                                     </FieldError>
                                  )}
                               </Field>
@@ -359,8 +361,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                     <span className="text-destructive">*</span>
                                  </FieldLabel>
                                  <FieldDescription>
-                                    Min. 3 characters, alphanumeric &amp;
-                                    underscores
+                                    {t('users.form.usernameHint')}
                                  </FieldDescription>
                                  <div className="relative">
                                     <Input
@@ -379,7 +380,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                  </div>
                                  {errors.username && (
                                     <FieldError>
-                                       {errors.username.message}
+                                       {t(errors.username.message as TranslationKey)}
                                     </FieldError>
                                  )}
                               </Field>
@@ -407,16 +408,16 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                     </SelectTrigger>
                                     <SelectContent>
                                        <SelectItem value="GUARD">
-                                          Guard
+                                          {t('role.guard')}
                                        </SelectItem>
                                        <SelectItem value="RECEPTION">
-                                          Reception
+                                          {t('role.reception')}
                                        </SelectItem>
                                        <SelectItem value="ADMIN">
-                                          Administrator
+                                          {t('role.admin')}
                                        </SelectItem>
                                        <SelectItem value="MANAGER">
-                                          Manager
+                                          {t('role.manager')}
                                        </SelectItem>
                                     </SelectContent>
                                  </Select>
@@ -430,8 +431,8 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
 
                      <div className="space-y-4">
                         <SectionHeading
-                           title="Authentication"
-                           description="How this user will sign in to the system."
+                           title={t('users.form.authentication')}
+                           description={t('users.form.authenticationHint')}
                         />
                         <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
                            <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
@@ -443,14 +444,18 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                            </div>
                            <div className="space-y-1">
                               <p className="text-sm font-medium leading-none">
-                                 {isSso
-                                    ? 'SSO Authentication'
-                                    : 'Local Account'}
+                                 {t(
+                                    isSso
+                                       ? 'users.form.sso'
+                                       : 'users.form.localAccount',
+                                 )}
                               </p>
                               <p className="text-xs text-muted-foreground leading-relaxed">
-                                 {isSso
-                                    ? "Uses your organization's identity provider (e.g., Azure AD, Okta). The user will sign in using their existing work credentials."
-                                    : 'Uses username and password authentication. The user will be prompted to set their password upon first login or via a reset link.'}
+                                 {t(
+                                    isSso
+                                       ? 'users.form.ssoHint'
+                                       : 'users.form.localAccountHint',
+                                 )}
                               </p>
                            </div>
                         </div>
@@ -466,7 +471,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                      disabled={isPending || isChangingRole}
                      onClick={() => onOpenChange(false)}
                   >
-                     Cancel
+                     {t('common.cancel')}
                   </Button>
                   <Button
                      type="submit"
@@ -476,10 +481,10 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                         {isPending || isChangingRole ? (
                         <>
                            <Loader2 className="size-4 animate-spin" />
-                           Saving…
+                           {t('common.saving')}
                         </>
                      ) : (
-                        'Save Changes'
+                        t('common.saveChanges')
                      )}
                   </Button>
                </DialogFooter>

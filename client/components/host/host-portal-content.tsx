@@ -21,6 +21,7 @@ import PendingApprovals from './pending-approvals';
 import { RescheduleConfirmedDialog } from './reschedule-confirmed-dialog';
 import { UpcomingVisits } from './upcoming-visits';
 import type { VisitUpdateDetailsValue } from './visit-update-details';
+import { useTranslation } from '@/lib/i18n';
 
 function SpinnerEllipsis() {
    return (
@@ -109,6 +110,7 @@ function toReschedulePayload(value: VisitUpdateDetailsValue) {
 }
 
 export function HostPortalContent() {
+   const { t } = useTranslation();
    const [createDialogOpen, setCreateDialogOpen] = useState(false);
    const [confirmedReschedule, setConfirmedReschedule] =
       useState<ConfirmedReschedule | null>(null);
@@ -224,7 +226,7 @@ export function HostPortalContent() {
             <div className="flex w-full items-center gap-4 py-1">
                <Separator className="flex-1" />
                <Badge className="h-6 shrink-0 rounded-full px-4 text-xs font-medium">
-                  Upcoming Visits
+                  {t('host.upcoming.title')}
                </Badge>
                <Separator className="flex-1" />
             </div>

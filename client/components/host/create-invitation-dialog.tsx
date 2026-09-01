@@ -46,6 +46,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslation } from '@/lib/i18n';
 
 type CreateInvitationDialogProps = {
    open: boolean;
@@ -74,6 +75,7 @@ export function CreateInvitationDialog({
    open,
    onOpenChange,
 }: CreateInvitationDialogProps) {
+   const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
@@ -175,7 +177,7 @@ export function CreateInvitationDialog({
          await hostService.createHostInvitation(apiPayload);
 
          setCreatedInvitation({ id: 'created', visitCode: 'created' });
-         toast.success('Invitation created successfully');
+         toast.success(t('host.invite.toast.createdSimple'));
          form.reset(hostInvitationDefaultValues);
       } catch (error) {
          const message =
@@ -196,7 +198,7 @@ export function CreateInvitationDialog({
                className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
             >
                <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>Invitation Created</DialogTitle>
+                  <DialogTitle>{t('host.invite.created')}</DialogTitle>
                </DialogHeader>
 
                <div className="space-y-4 px-6 py-5">
@@ -205,7 +207,7 @@ export function CreateInvitationDialog({
                         <Check className="size-5" />
                      </div>
                      <p className="text-sm font-medium text-foreground">
-                        Your invitation was created successfully.
+                        {t('host.invite.createdBody')}
                      </p>
                   </div>
                </div>
@@ -216,7 +218,7 @@ export function CreateInvitationDialog({
                      className="cursor-pointer"
                      onClick={() => handleOpenChange(false)}
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
                </DialogFooter>
             </DialogContent>
@@ -231,7 +233,7 @@ export function CreateInvitationDialog({
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Invite Visitors</DialogTitle>
+               <DialogTitle>{t('host.invite.title')}</DialogTitle>
             </DialogHeader>
 
             <form
@@ -242,7 +244,7 @@ export function CreateInvitationDialog({
                <div className={scrollAreaClass}>
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visitor Information"
+                        title={t('selfService.review.visitorInfo')}
                         description={
                            knowsVisitorInfo === 'yes'
                               ? 'Enter contact details for each invited visitor.'
@@ -252,7 +254,7 @@ export function CreateInvitationDialog({
 
                      <Field>
                         <FieldLabel>
-                           Do you know the visitor information?
+                           {t('host.invite.knowVisitors')}
                         </FieldLabel>
                         <Tabs
                            value={knowsVisitorInfo}
@@ -263,13 +265,13 @@ export function CreateInvitationDialog({
                                  value="yes"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 Yes, I know them
+                                 {t('host.invite.yesKnow')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="no"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 No, not yet
+                                 {t('host.invite.notYet')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -283,8 +285,8 @@ export function CreateInvitationDialog({
                      {knowsVisitorInfo === 'yes' ? (
                         <InvitationVisitorsFields
                            form={form}
-                           heading="Known Visitors"
-                           description="Add the details of each invited visitor."
+                           heading={t('host.invite.knownVisitors')}
+                           description={t('host.invite.knownVisitorsHint')}
                         />
                      ) : (
                         <>
@@ -323,12 +325,12 @@ export function CreateInvitationDialog({
 
                            <Field>
                               <FieldLabel htmlFor="visitorOrganization">
-                                 Organization
+                                 {t('visitDetails.organization')}
                               </FieldLabel>
                               <Input
                                  id="visitorOrganization"
                                  autoComplete="off"
-                                 placeholder="Visiting company or organization"
+                                 placeholder={t('host.invite.orgPlaceholder')}
                                  {...form.register('visitorOrganization')}
                               />
                            </Field>
@@ -338,8 +340,8 @@ export function CreateInvitationDialog({
 
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visit Details"
-                        description="Purpose, schedule, and where the visitor should go upon arrival."
+                        title={t('selfService.details.title')}
+                        description={t('host.invite.visitDetailsHint')}
                      />
 
                      <Controller
@@ -362,7 +364,7 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.purpose
                                     }
                                  >
-                                    <SelectValue placeholder="Select visit purpose" />
+                                    <SelectValue placeholder={t('host.invite.selectPurpose')} />
                                  </SelectTrigger>
                                  <SelectContent>
                                     {VISIT_PURPOSE_OPTIONS.map((opt) => (
@@ -383,7 +385,7 @@ export function CreateInvitationDialog({
                      />
 
                      <Field>
-                        <FieldLabel>Schedule Type</FieldLabel>
+                        <FieldLabel>{t('schedule.type')}</FieldLabel>
                         <Tabs
                            value={scheduleType}
                            onValueChange={(value) =>
@@ -398,13 +400,13 @@ export function CreateInvitationDialog({
                                  value="single_day"
                                  className="cursor-pointer"
                               >
-                                 Single Day
+                                 {t('schedule.singleDay')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="multi_day"
                                  className="cursor-pointer"
                               >
-                                 Multi-Day
+                                 {t('schedule.multiDay')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -417,10 +419,10 @@ export function CreateInvitationDialog({
                            render={({ field }) => (
                               <DatePickerField
                                  id="visitDate"
-                                 label="Visit Date"
+                                 label={t('schedule.visitDate')}
                                  value={field.value}
                                  onChange={field.onChange}
-                                 placeholder="Select visit date"
+                                 placeholder={t('schedule.selectVisitDate')}
                                  error={
                                     form.formState.errors.visitDate?.message
                                  }
@@ -438,7 +440,7 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="startDate"
-                                    label="Start Date"
+                                    label={t('schedule.startDate')}
                                     value={field.value}
                                     onChange={(date) => {
                                        field.onChange(date);
@@ -451,7 +453,7 @@ export function CreateInvitationDialog({
                                           }
                                        }
                                     }}
-                                    placeholder="Select start date"
+                                    placeholder={t('schedule.selectStartDate')}
                                     error={
                                        form.formState.errors.startDate?.message
                                     }
@@ -467,10 +469,10 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="endDate"
-                                    label="End Date"
+                                    label={t('schedule.endDate')}
                                     value={field.value}
                                     onChange={field.onChange}
-                                    placeholder="Select end date"
+                                    placeholder={t('schedule.selectEndDate')}
                                     error={
                                        form.formState.errors.endDate?.message
                                     }
@@ -548,8 +550,8 @@ export function CreateInvitationDialog({
 
                      <div className="space-y-4">
                         <SectionHeading
-                           title="Visit Location"
-                           description="Tell visitors exactly where to go when they arrive."
+                           title={t('host.invite.visitLocation')}
+                           description={t('host.invite.visitLocationHint')}
                         />
                         <VisitLocationFields
                            form={form}
@@ -568,7 +570,7 @@ export function CreateInvitationDialog({
                      disabled={isSubmitting}
                      onClick={() => handleOpenChange(false)}
                   >
-                     Cancel
+                     {t('common.cancel')}
                   </Button>
                   <Button
                      type="submit"
@@ -578,12 +580,12 @@ export function CreateInvitationDialog({
                      {isSubmitting ? (
                         <>
                            <Loader2 className="size-4 animate-spin" />
-                           Sending...
+                           {t('host.invite.sending')}
                         </>
                      ) : (
                         <>
                            <Send className="size-4" />
-                           Send Invitation
+                           {t('host.invite.send')}
                         </>
                      )}
                   </Button>

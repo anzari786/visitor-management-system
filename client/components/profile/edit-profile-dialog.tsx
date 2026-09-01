@@ -45,8 +45,10 @@ import SpinnerBars from '@/components/shared/spinner-bars';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 export function EditProfileDialog() {
+   const { t } = useTranslation();
    const open = useProfileDialogStore((s) => s.open);
    const setOpen = useProfileDialogStore((s) => s.setOpen);
    const storeUser = useAuthStore((s) => s.user);
@@ -128,7 +130,8 @@ export function EditProfileDialog() {
       themeMounted && (theme === 'dark' || resolvedTheme === 'dark');
 
    const previewName =
-      fullNameValue?.trim() || (user ? getUserFullName(user) : 'User');
+      fullNameValue?.trim() ||
+      (user ? getUserFullName(user) : t('header.userFallback'));
 
    if (isLoading && !user) {
       return (
@@ -195,11 +198,11 @@ export function EditProfileDialog() {
             setInitialAvatarId(selectedAvatarId);
          }
 
-         toast.success('Profile updated successfully');
+         toast.success(t('profile.toast.updated'));
          reset(values);
          setOpen(false);
       } catch {
-         toast.error('Failed to update profile. Please try again.');
+         toast.error(t('profile.toast.updateFailed'));
       }
    });
 
@@ -212,11 +215,10 @@ export function EditProfileDialog() {
             >
                <DialogHeader className="border-b px-5 py-4 sm:px-6">
                   <DialogTitle className="text-base font-medium">
-                     Edit your profile
+                     {t('profile.edit.title')}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
-                     Update your name, username, phone, and appearance
-                     preferences.
+                     {t('profile.edit.description')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -229,12 +231,12 @@ export function EditProfileDialog() {
                                  htmlFor="pf-full-name"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Full Name
+                                 {t('common.fullName')}
                               </FieldLabel>
                               <Input
                                  id="pf-full-name"
                                  className="h-9 text-sm font-normal shadow-xs dark:bg-background"
-                                 placeholder="First and last name"
+                                 placeholder={t('profile.fullNamePlaceholder')}
                                  aria-invalid={!!errors.fullName}
                                  {...register('fullName')}
                               />
@@ -250,7 +252,7 @@ export function EditProfileDialog() {
                                  htmlFor="pf-username"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Username
+                                 {t('users.col.username')}
                               </FieldLabel>
                               <div className="relative">
                                  <Input
@@ -283,7 +285,7 @@ export function EditProfileDialog() {
                               )}
                               {usernameTaken && !errors.username && (
                                  <FieldError>
-                                    This username is already taken
+                                    {t('profile.usernameTaken')}
                                  </FieldError>
                               )}
                            </Field>
@@ -293,12 +295,12 @@ export function EditProfileDialog() {
                                  htmlFor="pf-phone"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Phone
+                                 {t('common.phone')}
                               </FieldLabel>
                               <Input
                                  id="pf-phone"
                                  type="tel"
-                                 placeholder="+251 9XX XXX XXX"
+                                 placeholder={t('profile.phonePlaceholder')}
                                  className="h-9 text-sm font-normal shadow-xs dark:bg-background"
                                  aria-invalid={!!errors.phone}
                                  value={phoneValue ?? ''}
@@ -317,10 +319,10 @@ export function EditProfileDialog() {
                                     htmlFor="pf-dark-mode"
                                     className="text-sm font-medium text-primary"
                                  >
-                                    Dark mode
+                                    {t('profile.darkMode')}
                                  </Label>
                                  <p className="text-sm font-normal text-muted-foreground">
-                                    Use a darker interface on this device.
+                                    {t('profile.darkModeHint')}
                                  </p>
                               </div>
                               <Switch
@@ -340,7 +342,7 @@ export function EditProfileDialog() {
                               onClick={() => setPasswordOpen(true)}
                            >
                               <KeyRound className="size-4" />
-                              Change password
+                              {t('profile.changePassword')}
                            </Button>
                         </div>
                      </div>
@@ -357,8 +359,12 @@ export function EditProfileDialog() {
 
                   <div className="flex flex-col gap-4 border-t bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                      <p className="text-sm font-normal text-muted-foreground">
-                        Joined:{' '}
-                        {format(new Date(user.createdAt), 'd MMM, yyyy')}
+                        {t('profile.joined', {
+                           date: format(
+                              new Date(user.createdAt),
+                              'd MMM, yyyy',
+                           ),
+                        })}
                      </p>
                      <div className="flex w-full gap-3 sm:w-auto">
                         <DialogClose asChild>
@@ -367,7 +373,7 @@ export function EditProfileDialog() {
                               variant="outline"
                               className="h-9 flex-1 rounded-lg shadow-xs sm:flex-none"
                            >
-                              Cancel
+                              {t('common.cancel')}
                            </Button>
                         </DialogClose>
                         <Button
@@ -380,7 +386,9 @@ export function EditProfileDialog() {
                               usernameTaken
                            }
                         >
-                           {isSubmitting ? 'Saving…' : 'Save Changes'}
+                           {isSubmitting
+                              ? t('common.saving')
+                              : t('common.saveChanges')}
                         </Button>
                      </div>
                   </div>

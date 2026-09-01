@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/select';
 import { Field, FieldError, FieldLabel } from '@/components/ui/field';
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
-import { getMeetingTypeLabel } from '@/constants/meeting-types';
 import { cn } from '@/lib/utils';
 import type { IdType, ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { format, parseISO } from 'date-fns';
@@ -45,21 +44,32 @@ import { toast } from 'sonner';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import {
+   ID_TYPE_KEYS,
+   MEETING_TYPE_KEYS,
+   useTranslation,
+   type TranslationKey,
+} from '@/lib/i18n';
 
 const CHECK_IN_STEPS = [
    {
       id: 1,
       value: 'verify',
-      title: 'Verify Identity',
-      description: 'Confirm each guest',
+      titleKey: 'checkIn.step1.title',
+      descriptionKey: 'checkIn.step1.description',
    },
    {
       id: 2,
       value: 'review',
-      title: 'Review & Check In',
-      description: 'Confirm check-in',
+      titleKey: 'checkIn.step2.title',
+      descriptionKey: 'checkIn.step2.description',
    },
-] as const;
+] as const satisfies readonly {
+   id: number;
+   value: string;
+   titleKey: TranslationKey;
+   descriptionKey: TranslationKey;
+}[];
 
 export type CheckInConfirmPayload = {
    visitorIds: string[];
@@ -80,10 +90,13 @@ const verificationSchema = z.object({
          idType: z.custom<IdType>(
             (val) => typeof val === 'string' && val.length > 0,
             {
-               message: 'Select an ID type',
+               message: 'validation.selectIdType' satisfies TranslationKey,
             },
          ),
-         idNumber: z.string().trim().min(1, 'Enter the ID number'),
+         idNumber: z
+            .string()
+            .trim()
+            .min(1, 'validation.enterIdNumber' satisfies TranslationKey),
       }),
    ),
 });
@@ -98,14 +111,8 @@ function formatTimeLabel(time: string) {
    return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-function formatIdType(idType: IdType) {
-   return (
-      ID_TYPE_OPTIONS.find((option) => option.value === idType)?.label ??
-      idType
-         .split('_')
-         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-         .join(' ')
-   );
+function idTypeKey(idType: IdType): TranslationKey {
+   return ID_TYPE_KEYS[idType] ?? 'idType.other';
 }
 
 function InfoRow({
@@ -136,6 +143,7 @@ export function CheckInDialog({
    visitors: visitorsProp,
    onConfirm,
 }: CheckInDialogProps) {
+   const { t } = useTranslation();
    const [activeStepIdx, setActiveStepIdx] = React.useState(0);
    const [isSubmitting, setIsSubmitting] = React.useState(false);
    const [verifiedIds, setVerifiedIds] = React.useState<
@@ -214,7 +222,7 @@ export function CheckInDialog({
       : '';
    const locationLabel = visit
       ? visit.floor || visit.room
-         ? [visit.floor && `Floor ${visit.floor}`, visit.room]
+         ? [visit.floor && t('checkIn.floorPrefix', { floor: visit.floor }), visit.room]
               .filter(Boolean)
               .join(' · ')
          : null
@@ -222,13 +230,13 @@ export function CheckInDialog({
 
    const guestLabel =
       verifiedVisitors.length === 1
-         ? (verifiedVisitors[0]?.name ?? 'Visitor')
-         : `${verifiedVisitors.length} visitors`;
+         ? (verifiedVisitors[0]?.name ?? t('checkIn.visitorFallback'))
+         : t('visits.visitorsCount', { count: verifiedVisitors.length });
 
    const goToStep = (index: number) => {
       if (index === activeStepIdx) return;
       if (index > activeStepIdx && index >= 1 && !canEnterStep2) {
-         toast.error('Verify at least one visitor before continuing');
+         toast.error(t('checkIn.toast.verifyBeforeContinue'));
          return;
       }
       setActiveStepIdx(index);
@@ -236,7 +244,7 @@ export function CheckInDialog({
 
    const handleNext = () => {
       if (activeStepIdx === 0 && !canEnterStep2) {
-         toast.error('Verify at least one visitor before review');
+         toast.error(t('checkIn.toast.verifyBeforeReview'));
          return;
       }
       if (activeStepIdx < CHECK_IN_STEPS.length - 1) {
@@ -260,7 +268,7 @@ export function CheckInDialog({
       if (!valid) return;
 
       setVerifiedIds((prev) => ({ ...prev, [visitorId]: true }));
-      toast.success('Identity verified');
+      toast.success(t('checkIn.toast.identityVerified'));
    };
 
    const unverifyVisitor = (visitorId: string) => {
@@ -295,27 +303,18 @@ export function CheckInDialog({
          >
             <DialogHeader className="space-y-1.5 border-b px-6 py-5 text-left sm:px-8">
                <DialogTitle className="text-xl font-semibold tracking-tight">
-                  Check In Visitor
+                  {t('checkIn.title')}
                </DialogTitle>
                <DialogDescription className="text-sm leading-relaxed">
-                  Verify identity, then confirm check-in. A visitor badge will
-                  print automatically after check-in
-                  {visit ? (
-                     <>
-                        {' '}
-                        for{' '}
-                        <span className="font-mono text-foreground">
-                           {visit.id}
-                        </span>
-                     </>
-                  ) : null}
-                  .
+                  {visit
+                     ? t('checkIn.description', { id: visit.id })
+                     : t('checkIn.descriptionNoVisit')}
                </DialogDescription>
             </DialogHeader>
 
             {!visit || visitors.length === 0 ? (
                <div className="px-6 py-16 text-center text-sm text-muted-foreground sm:px-8">
-                  No visitors are ready for check-in.
+                  {t('checkIn.noVisitors')}
                </div>
             ) : (
                <Card className="rounded-none border-0 bg-background py-0! shadow-none">
@@ -362,10 +361,10 @@ export function CheckInDialog({
                                                 : 'text-muted-foreground',
                                           )}
                                        >
-                                          {step.title}
+                                          {t(step.titleKey)}
                                        </span>
                                        <span className="text-xs font-medium text-muted-foreground/60">
-                                          {step.description}
+                                          {t(step.descriptionKey)}
                                        </span>
                                     </div>
                                  </button>
@@ -395,23 +394,17 @@ export function CheckInDialog({
                                        <div className="flex items-center gap-2">
                                           <BadgeCheck className="size-4 text-primary" />
                                           <h3 className="text-lg font-semibold text-foreground">
-                                             Verify Identity
+                                             {t('checkIn.step1.title')}
                                           </h3>
                                        </div>
                                        <p className="text-sm leading-relaxed text-muted-foreground">
-                                          Confirm each visitor&apos;s identity
-                                          against their ID details before
-                                          check-in.
+                                          {t('checkIn.verifyIntro')}
                                        </p>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3.5 py-2.5 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
                                        <ShieldAlert className="size-4 shrink-0" />
-                                       <span>
-                                          Verify at least one visitor to
-                                          continue. A thermal badge prints after
-                                          check-in.
-                                       </span>
+                                       <span>{t('checkIn.verifyWarning')}</span>
                                     </div>
 
                                     <div className="space-y-3">
@@ -452,13 +445,15 @@ export function CheckInDialog({
                                                          ]
                                                             .filter(Boolean)
                                                             .join(' · ') ||
-                                                            'Individual visitor'}
+                                                            t(
+                                                               'checkIn.individualVisitor',
+                                                            )}
                                                       </p>
                                                    </div>
                                                    {verified ? (
                                                       <Badge className="h-6 gap-1 border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                                          <CheckCircle2 className="size-3.5" />
-                                                         Verified
+                                                         {t('checkIn.verified')}
                                                       </Badge>
                                                    ) : (
                                                       <Button
@@ -473,7 +468,7 @@ export function CheckInDialog({
                                                          }
                                                       >
                                                          <BadgeCheck className="size-4" />
-                                                         Verify Identity
+                                                         {t('checkIn.step1.title')}
                                                       </Button>
                                                    )}
                                                 </div>
@@ -481,8 +476,10 @@ export function CheckInDialog({
                                                 {verified ? (
                                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-background/80 px-3 py-2.5">
                                                       <p className="font-mono text-sm font-semibold text-foreground">
-                                                         {formatIdType(
-                                                            currentValues.idType,
+                                                         {t(
+                                                            idTypeKey(
+                                                               currentValues.idType,
+                                                            ),
                                                          )}{' '}
                                                          ·{' '}
                                                          {
@@ -500,7 +497,7 @@ export function CheckInDialog({
                                                          }
                                                       >
                                                          <Undo2 size={16} />
-                                                         Undo
+                                                         {t('checkIn.undo')}
                                                       </Button>
                                                    </div>
                                                 ) : (
@@ -510,7 +507,7 @@ export function CheckInDialog({
                                                             <FieldLabel
                                                                htmlFor={`verifications.${index}.idType`}
                                                             >
-                                                               ID Type{' '}
+                                                               {t('checkIn.idType')}{' '}
                                                                <span className="text-destructive">
                                                                   *
                                                                </span>
@@ -538,7 +535,11 @@ export function CheckInDialog({
                                                                            !!fieldErrors?.idType
                                                                         }
                                                                      >
-                                                                        <SelectValue placeholder="Select ID type" />
+                                                                        <SelectValue
+                                                                           placeholder={t(
+                                                                              'checkIn.selectIdType',
+                                                                           )}
+                                                                        />
                                                                      </SelectTrigger>
                                                                      <SelectContent>
                                                                         {ID_TYPE_OPTIONS.map(
@@ -553,9 +554,12 @@ export function CheckInDialog({
                                                                                     opt.value
                                                                                  }
                                                                               >
-                                                                                 {
-                                                                                    opt.label
-                                                                                 }
+                                                                                 {t(
+                                                                                    ID_TYPE_KEYS[
+                                                                                       opt
+                                                                                          .value
+                                                                                    ],
+                                                                                 )}
                                                                               </SelectItem>
                                                                            ),
                                                                         )}
@@ -564,11 +568,15 @@ export function CheckInDialog({
                                                                )}
                                                             />
                                                             <FieldError>
-                                                               {
-                                                                  fieldErrors
-                                                                     ?.idType
-                                                                     ?.message
-                                                               }
+                                                               {fieldErrors
+                                                                  ?.idType
+                                                                  ?.message
+                                                                  ? t(
+                                                                       fieldErrors
+                                                                          .idType
+                                                                          .message as TranslationKey,
+                                                                    )
+                                                                  : null}
                                                             </FieldError>
                                                          </Field>
 
@@ -576,7 +584,7 @@ export function CheckInDialog({
                                                             <FieldLabel
                                                                htmlFor={`verifications.${index}.idNumber`}
                                                             >
-                                                               ID Number{' '}
+                                                               {t('checkIn.idNumber')}{' '}
                                                                <span className="text-destructive">
                                                                   *
                                                                </span>
@@ -593,7 +601,9 @@ export function CheckInDialog({
                                                                      <Input
                                                                         {...controllerField}
                                                                         id={`verifications.${index}.idNumber`}
-                                                                        placeholder="Enter identification number"
+                                                                        placeholder={t(
+                                                                           'checkIn.enterIdNumber',
+                                                                        )}
                                                                         aria-invalid={
                                                                            !!fieldErrors?.idNumber
                                                                         }
@@ -631,8 +641,9 @@ export function CheckInDialog({
                                                                         >
                                                                            <CircleXIcon className="text-red-500" />
                                                                            <span className="sr-only">
-                                                                              Clear
-                                                                              input
+                                                                              {t(
+                                                                                 'checkIn.clearInput',
+                                                                              )}
                                                                            </span>
                                                                         </Button>
                                                                      )}
@@ -640,11 +651,15 @@ export function CheckInDialog({
                                                                )}
                                                             />
                                                             <FieldError>
-                                                               {
-                                                                  fieldErrors
-                                                                     ?.idNumber
-                                                                     ?.message
-                                                               }
+                                                               {fieldErrors
+                                                                  ?.idNumber
+                                                                  ?.message
+                                                                  ? t(
+                                                                       fieldErrors
+                                                                          .idNumber
+                                                                          .message as TranslationKey,
+                                                                    )
+                                                                  : null}
                                                             </FieldError>
                                                          </Field>
                                                       </div>
@@ -663,22 +678,20 @@ export function CheckInDialog({
                                        <div className="flex items-center gap-2">
                                           <LogIn className="size-4 text-primary" />
                                           <h3 className="text-lg font-semibold text-foreground">
-                                             Review & Check In
+                                             {t('checkIn.step2.title')}
                                           </h3>
                                        </div>
                                        <p className="text-sm leading-relaxed text-muted-foreground">
-                                          Confirm the visit details. Thermal
-                                          badges print automatically for each
-                                          checked-in visitor.
+                                          {t('checkIn.reviewIntro')}
                                        </p>
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-200/80 bg-sky-50/70 px-3.5 py-2.5 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">
                                        <Printer className="size-4 shrink-0" />
                                        <span>
-                                          After check-in, the desk printer will
-                                          issue a one-time visitor badge for{' '}
-                                          {guestLabel}.
+                                          {t('checkIn.printNotice', {
+                                             guest: guestLabel,
+                                          })}
                                        </span>
                                     </div>
 
@@ -688,15 +701,17 @@ export function CheckInDialog({
                                              {visit.id}
                                           </p>
                                           <Badge variant="secondary">
-                                             {getMeetingTypeLabel(
-                                                visit.meetingType,
+                                             {t(
+                                                MEETING_TYPE_KEYS[
+                                                   visit.meetingType
+                                                ],
                                              )}
                                           </Badge>
                                        </div>
                                        <div className="grid gap-3 sm:grid-cols-2">
                                           <div className="rounded-lg bg-muted/40 px-3 py-2.5">
                                              <p className="text-xs text-muted-foreground">
-                                                Schedule
+                                                {t('checkIn.schedule')}
                                              </p>
                                              <p className="mt-0.5 font-medium">
                                                 {dateLabel}
@@ -707,7 +722,7 @@ export function CheckInDialog({
                                           </div>
                                           <div className="rounded-lg bg-muted/40 px-3 py-2.5">
                                              <p className="text-xs text-muted-foreground">
-                                                Host & department
+                                                {t('checkIn.hostDepartment')}
                                              </p>
                                              <p className="mt-0.5 font-medium">
                                                 {visit.host}
@@ -719,7 +734,7 @@ export function CheckInDialog({
                                           {locationLabel && (
                                              <div className="rounded-lg bg-muted/40 px-3 py-2.5 sm:col-span-2">
                                                 <p className="text-xs text-muted-foreground">
-                                                   Location
+                                                   {t('checkIn.location')}
                                                 </p>
                                                 <p className="mt-0.5 font-medium">
                                                    {locationLabel}
@@ -732,8 +747,9 @@ export function CheckInDialog({
                                     <div className="space-y-3">
                                        <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                           <Users className="size-3.5" />
-                                          Verified visitors (
-                                          {verifiedVisitors.length})
+                                          {t('checkIn.verifiedVisitors', {
+                                             count: verifiedVisitors.length,
+                                          })}
                                        </div>
                                        {verifiedVisitors.map((visitor) => (
                                           <div
@@ -747,35 +763,39 @@ export function CheckInDialog({
                                                    </p>
                                                    <p className="text-xs text-muted-foreground">
                                                       {visitor.organization ||
-                                                         'Individual visitor'}
+                                                         t(
+                                                            'checkIn.individualVisitor',
+                                                         )}
                                                    </p>
                                                 </div>
                                                 <Badge className="h-6 gap-1 border-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                                                    <CheckCircle2 className="size-3.5" />
-                                                   Verified
+                                                   {t('checkIn.verified')}
                                                 </Badge>
                                              </div>
                                              <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                                 <InfoRow
                                                    icon={Phone}
-                                                   label="Phone"
+                                                   label={t('common.phone')}
                                                    value={visitor.phone}
                                                 />
                                                 <InfoRow
                                                    icon={Mail}
-                                                   label="Email"
+                                                   label={t('common.email')}
                                                    value={visitor.email}
                                                 />
                                                 <InfoRow
                                                    icon={IdCard}
-                                                   label="ID"
+                                                   label={t('checkIn.idLabel')}
                                                    value={
                                                       visitor.idType ||
                                                       visitor.idNumber
                                                          ? [
                                                               visitor.idType
-                                                                 ? formatIdType(
-                                                                      visitor.idType,
+                                                                 ? t(
+                                                                      idTypeKey(
+                                                                         visitor.idType,
+                                                                      ),
                                                                    )
                                                                  : null,
                                                               visitor.idNumber,
@@ -807,7 +827,9 @@ export function CheckInDialog({
                            }
                            disabled={isSubmitting}
                         >
-                           {activeStepIdx === 0 ? 'Cancel' : 'Back'}
+                           {activeStepIdx === 0
+                              ? t('common.cancel')
+                              : t('common.back')}
                         </Button>
                         <div className="flex items-center gap-2">
                            {!isLastStep ? (
@@ -817,7 +839,7 @@ export function CheckInDialog({
                                  onClick={handleNext}
                                  disabled={!canEnterStep2}
                               >
-                                 Continue
+                                 {t('common.continue')}
                                  <ChevronRight className="size-4" />
                               </Button>
                            ) : (
@@ -829,8 +851,10 @@ export function CheckInDialog({
                               >
                                  <LogIn className="size-4" />
                                  {isSubmitting
-                                    ? 'Checking in…'
-                                    : `Check In ${guestLabel}`}
+                                    ? t('checkIn.submitting')
+                                    : t('checkIn.submit', {
+                                         guest: guestLabel,
+                                      })}
                               </Button>
                            )}
                         </div>

@@ -37,6 +37,7 @@ import {
 } from '@/hooks/use-notifications';
 import type { Notification as NotificationItem } from '@/types/notification.types';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 type Props = {
    trigger: ReactElement;
@@ -204,6 +205,7 @@ export default function NotificationDropdown({
    defaultOpen,
    align = 'end',
 }: Props) {
+   const { t } = useTranslation();
    const [open, setOpen] = useState(Boolean(defaultOpen));
    const [expanded, setExpanded] = useState(false);
    const [listHeight, setListHeight] = useState<number>();
@@ -272,7 +274,7 @@ export default function NotificationDropdown({
             >
                <DropdownMenuLabel className="flex items-center justify-between gap-3 p-4 font-normal">
                   <p className="text-base font-medium text-popover-foreground">
-                     Notifications
+                     {t('header.notifications')}
                   </p>
                   {unreadCount > 0 ? (
                      <Badge className="h-5 font-normal">
@@ -280,7 +282,7 @@ export default function NotificationDropdown({
                      </Badge>
                   ) : (
                      <Badge variant="secondary" className="h-5 font-normal">
-                        All caught up
+                        {t('header.allCaughtUp')}
                      </Badge>
                   )}
                </DropdownMenuLabel>
@@ -304,7 +306,7 @@ export default function NotificationDropdown({
                ) : isError ? (
                   <div className="px-4 pb-4 pt-1">
                      <p className="text-sm text-destructive">
-                        Failed to load notifications. Please refresh the page.
+                        {t('header.notificationsLoadError')}
                      </p>
                   </div>
                ) : notifications.length === 0 ? (
@@ -314,7 +316,7 @@ export default function NotificationDropdown({
                            <Bell className="size-5" />
                         </div>
                         <p className="text-sm font-medium text-foreground">
-                           No notifications yet
+                           {t('header.noNotifications')}
                         </p>
                      </div>
                   </div>
@@ -365,7 +367,7 @@ export default function NotificationDropdown({
                               setExpanded(true);
                            }}
                         >
-                           See All Notifications
+                           {t('header.seeAllNotifications')}
                         </Button>
                      ) : showMarkAllAsReadButton ? (
                         <Button

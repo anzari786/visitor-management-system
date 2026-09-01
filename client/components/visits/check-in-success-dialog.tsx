@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 const POLL_MS = 2000;
 const POLL_TIMEOUT_MS = 60_000;
@@ -68,12 +69,14 @@ function StatusRow({
    onRetry?: () => void;
    retrying?: boolean;
 }) {
+   const { t } = useTranslation();
+
    if (status === 'PRINTED') {
       return (
          <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
             <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
-               <p className="font-medium">Badge printed</p>
+               <p className="font-medium">{t('print.badgePrinted')}</p>
                {label ? (
                   <p className="text-xs opacity-80">{label}</p>
                ) : null}
@@ -88,7 +91,7 @@ function StatusRow({
             <div className="flex items-start gap-2">
                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                <div className="min-w-0 flex-1">
-                  <p className="font-medium">Badge printing failed</p>
+                  <p className="font-medium">{t('print.badgeFailed')}</p>
                   {label ? (
                      <p className="text-xs opacity-80">{label}</p>
                   ) : null}
@@ -109,10 +112,10 @@ function StatusRow({
                   {retrying ? (
                      <>
                         <Loader2 className="size-3.5 animate-spin" />
-                        Retrying…
+                        {t('print.retrying')}
                      </>
                   ) : (
-                     'Retry Print'
+                     t('print.retry')
                   )}
                </Button>
             ) : null}
@@ -125,7 +128,7 @@ function StatusRow({
          <Printer className="mt-0.5 size-4 shrink-0" />
          <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 font-medium">
-               Printing visitor badge…
+               {t('print.printing')}
                <Loader2 className="size-3.5 animate-spin" />
             </p>
             {label ? <p className="text-xs opacity-80">{label}</p> : null}
@@ -142,6 +145,7 @@ export function CheckInSuccessDialog({
    printTargets = [],
    onRetryPrint,
 }: CheckInSuccessDialogProps) {
+   const { t } = useTranslation();
    const [targets, setTargets] = React.useState<TargetState[]>([]);
    const [retryingId, setRetryingId] = React.useState<string | null>(null);
    const startedAtRef = React.useRef<number>(0);
@@ -175,7 +179,7 @@ export function CheckInSuccessDialog({
 
       const id = window.setInterval(async () => {
          const current = targetsRef.current;
-         if (current.every((t) => TERMINAL.includes(t.status))) return;
+         if (current.every((item) => TERMINAL.includes(item.status))) return;
 
          const timedOut = Date.now() - startedAtRef.current > POLL_TIMEOUT_MS;
 
@@ -187,7 +191,7 @@ export function CheckInSuccessDialog({
                   return {
                      ...target,
                      status: 'FAILED' as const,
-                     errorMessage: 'Print timed out — try again',
+                     errorMessage: t('print.timedOut'),
                   };
                }
 
@@ -223,7 +227,7 @@ export function CheckInSuccessDialog({
       }, POLL_MS);
 
       return () => window.clearInterval(id);
-   }, [open, printTargets]);
+   }, [open, printTargets, t]);
 
    const handleRetry = async (attendanceId: string) => {
       setRetryingId(attendanceId);
@@ -256,12 +260,10 @@ export function CheckInSuccessDialog({
             ),
          );
          startedAtRef.current = Date.now();
-         toast.success('Badge print queued');
+         toast.success(t('print.queued'));
       } catch (error) {
          toast.error(
-            error instanceof Error
-               ? error.message
-               : 'Unable to retry badge print',
+            error instanceof Error ? error.message : t('print.retryFailed'),
          );
       } finally {
          setRetryingId(null);
@@ -282,21 +284,22 @@ export function CheckInSuccessDialog({
                </div>
                <DialogHeader className="items-center space-y-2">
                   <DialogTitle className="text-lg">
-                     Check-In Successful
+                     {t('checkInSuccess.title')}
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     {visitorLabel} has been successfully checked in for visit{' '}
-                     <span className="font-mono text-foreground">
-                        {visitId}
-                     </span>
-                     .
+                     {t('checkInSuccess.description', {
+                        name: visitorLabel,
+                        id: visitId,
+                     })}
                   </DialogDescription>
                </DialogHeader>
 
                <div className="w-full space-y-2 text-left">
                   <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
                      <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-                     <p className="font-medium">Visitor checked in</p>
+                     <p className="font-medium">
+                        {t('checkInSuccess.visitorCheckedIn')}
+                     </p>
                   </div>
 
                   {showPrintRows
@@ -328,7 +331,7 @@ export function CheckInSuccessDialog({
                      type="button"
                      className="w-full cursor-pointer hover:bg-primary/90"
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
                </DialogClose>
             </div>

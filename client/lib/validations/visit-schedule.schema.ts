@@ -7,8 +7,8 @@ export const visitScheduleSchema = z
       visitDate: z.date().optional(),
       startDate: z.date().optional(),
       endDate: z.date().optional(),
-      startTime: z.string().min(1, 'Start time is required'),
-      endTime: z.string().min(1, 'End time is required'),
+      startTime: z.string().min(1, 'validation.startTimeRequired'),
+      endTime: z.string().min(1, 'validation.endTimeRequired'),
    })
    .superRefine((data, ctx) => {
       if (data.scheduleType === 'single_day') {
@@ -16,7 +16,7 @@ export const visitScheduleSchema = z
             ctx.addIssue({
                code: 'custom',
                path: ['visitDate'],
-               message: 'Visit date is required',
+               message: 'validation.visitDateRequired',
             });
          }
       }
@@ -26,14 +26,14 @@ export const visitScheduleSchema = z
             ctx.addIssue({
                code: 'custom',
                path: ['startDate'],
-               message: 'Start date is required',
+               message: 'validation.startDateRequired',
             });
          }
          if (!data.endDate) {
             ctx.addIssue({
                code: 'custom',
                path: ['endDate'],
-               message: 'End date is required',
+               message: 'validation.endDateRequired',
             });
          }
          if (
@@ -44,7 +44,7 @@ export const visitScheduleSchema = z
             ctx.addIssue({
                code: 'custom',
                path: ['endDate'],
-               message: 'End date cannot be before start date',
+               message: 'validation.endDateBeforeStart',
             });
          }
       }
@@ -53,12 +53,12 @@ export const visitScheduleSchema = z
          ctx.addIssue({
             code: 'custom',
             path: ['endTime'],
-            message: 'End time cannot be before start time',
+            message: 'validation.endTimeBeforeStart',
          });
          ctx.addIssue({
             code: 'custom',
             path: ['startTime'],
-            message: 'Start time must be before end time',
+            message: 'validation.startBeforeEnd',
          });
       }
    });

@@ -47,6 +47,7 @@ import {
    DialogTitle,
 } from '../ui/dialog';
 import { Button } from '../ui/button';
+import { useTranslation } from '@/lib/i18n';
 
 interface VisitActionsMenuProps {
    visit: ManagedVisit;
@@ -72,6 +73,7 @@ export function VisitActionsMenu({
    onCancel,
    onOpenAttendance,
 }: VisitActionsMenuProps) {
+   const { t } = useTranslation();
    const [checkOutOpen, setCheckOutOpen] = React.useState(false);
    const [successOpen, setSuccessOpen] = React.useState(false);
    const [cancelOpen, setCancelOpen] = React.useState(false);
@@ -102,7 +104,7 @@ export function VisitActionsMenu({
 
    const handleCancel = () => {
       onCancel?.(visit);
-      toast.success(`Visit ${visit.id} cancelled`);
+      toast.success(t('visitActions.toast.cancelled', { id: visit.id }));
       setCancelOpen(false);
    };
 
@@ -114,12 +116,14 @@ export function VisitActionsMenu({
             visitorName: visit.visitorName,
             visitSummary: `${visit.id} · ${visit.meetingType}`,
          });
-         toast.success('Approval email resent', {
-            description: `Reminder sent for ${visit.visitorName}'s visit request.`,
+         toast.success(t('visitActions.toast.emailResent'), {
+            description: t('visitActions.toast.emailResentBody', {
+               name: visit.visitorName,
+            }),
          });
       } catch {
-         toast.error('Could not resend email', {
-            description: 'Please try again in a moment.',
+         toast.error(t('visitActions.toast.emailFailed'), {
+            description: t('visitActions.toast.tryAgain'),
          });
       } finally {
          setIsResending(false);
@@ -135,18 +139,18 @@ export function VisitActionsMenu({
          <DropdownMenu>
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
             <DropdownMenuContent align={align} className="w-52">
-               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+               <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                <DropdownMenuSeparator />
 
                <DropdownMenuItem onClick={() => onView?.(visit)}>
                   <Eye className="size-4" />
-                  View
+                  {t('visitActions.view')}
                </DropdownMenuItem>
 
                {showCheckIn && (
                   <DropdownMenuItem onClick={requestCheckIn}>
                      <LogIn className="size-4" />
-                     Check In
+                     {t('visitActions.checkIn')}
                   </DropdownMenuItem>
                )}
 
@@ -163,14 +167,16 @@ export function VisitActionsMenu({
                      ) : (
                         <Mail className="size-4" />
                      )}
-                     {isResending ? 'Sending…' : 'Resend Approval Email'}
+                     {isResending
+                        ? t('visitActions.sending')
+                        : t('visitActions.resendEmail')}
                   </DropdownMenuItem>
                )}
 
                {showCheckOut && (
                   <DropdownMenuItem onClick={requestCheckOut}>
                      <LogOut className="size-4" />
-                     Check Out
+                     {t('visitActions.checkOut')}
                   </DropdownMenuItem>
                )}
 
@@ -182,7 +188,7 @@ export function VisitActionsMenu({
                         onClick={() => setCancelOpen(true)}
                      >
                         <XCircle className="size-4" />
-                        Cancel
+                        {t('common.cancel')}
                      </DropdownMenuItem>
                   </>
                )}
@@ -219,17 +225,12 @@ export function VisitActionsMenu({
                   </div>
 
                   <DialogHeader className="items-center">
-                     <DialogTitle>Cancel visit</DialogTitle>
+                     <DialogTitle>{t('visitActions.cancelVisit')}</DialogTitle>
                      <p className="text-sm text-muted-foreground">
-                        Cancel visit{' '}
-                        <span className="font-mono text-foreground">
-                           {visit.id}
-                        </span>{' '}
-                        for{' '}
-                        <span className="font-medium text-foreground">
-                           {visit.visitorName}
-                        </span>
-                        ? This cannot be undone.
+                        {t('visitActions.cancelConfirm', {
+                           id: visit.id,
+                           name: visit.visitorName,
+                        })}
                      </p>
                   </DialogHeader>
 
@@ -240,7 +241,7 @@ export function VisitActionsMenu({
                            size="sm"
                            className="flex-1 cursor-pointer"
                         >
-                           Go back
+                           {t('visitActions.goBack')}
                         </Button>
                      </DialogClose>
 
@@ -251,7 +252,7 @@ export function VisitActionsMenu({
                            className="flex-1 cursor-pointer"
                            onClick={handleCancel}
                         >
-                           Cancel visit
+                           {t('visitActions.cancelVisit')}
                         </Button>
                      </DialogClose>
                   </div>

@@ -48,6 +48,7 @@ import {
    AutocompleteSeparator,
    AutocompleteStatus,
 } from '@/components/ui/autocomplete';
+import { useTranslation } from '@/lib/i18n';
 
 type FormType = UseFormReturn<
    VisitRequestFormInput,
@@ -60,6 +61,7 @@ type Employee = NonNullable<
 >[number];
 
 function HostEmployeeField({ form }: { form: FormType }) {
+   const { t } = useTranslation();
    const [open, setOpen] = useState(false);
    const [inputValue, setInputValue] = useState('');
    const search = useEmployeeSearch(
@@ -81,15 +83,20 @@ function HostEmployeeField({ form }: { form: FormType }) {
       status = (
          <div className="flex items-center gap-2">
             <LoaderCircleIcon className="size-4 animate-spin" />
-            Searching employees...
+            {t('users.form.searchingEmployees')}
          </div>
       );
    else if (search.isError)
-      status = 'Unable to search hosts. Please try again.';
+      status = t('selfService.details.hostSearchFailed');
    else if (inputValue && results.length === 0)
-      status = `No employees found for "${inputValue}"`;
+      status = t('selfService.details.noHostsFor', { query: inputValue });
    else if (results.length > 0)
-      status = `${results.length} employee${results.length === 1 ? '' : 's'} found`;
+      status = t(
+         results.length === 1
+            ? 'selfService.details.hostFound'
+            : 'selfService.details.hostsFound',
+         { count: results.length },
+      );
 
    return (
       <Controller
@@ -128,7 +135,7 @@ function HostEmployeeField({ form }: { form: FormType }) {
                >
                   <AutocompleteInput
                      id="hostId"
-                     placeholder="Search by name or department"
+                     placeholder={t('users.form.employeeSearch')}
                      autoComplete="off"
                      showTrigger
                      showClear
@@ -142,7 +149,7 @@ function HostEmployeeField({ form }: { form: FormType }) {
                      <AutocompleteList>
                         {!search.isLoading && grouped.length === 0 ? (
                            <AutocompleteEmpty>
-                              No matching employees found.
+                              {t('users.form.noEmployees')}
                            </AutocompleteEmpty>
                         ) : (
                            grouped.map(
@@ -180,7 +187,7 @@ function HostEmployeeField({ form }: { form: FormType }) {
                   </AutocompleteContent>
                </Autocomplete>
                <FieldDescription>
-                  Select the employee you’ll be visiting.
+                  {t('selfService.details.hostHint')}
                </FieldDescription>
                <FieldError>{form.formState.errors.hostId?.message}</FieldError>
             </Field>
@@ -264,6 +271,7 @@ function DateField({
 }
 
 export function VisitDetailsStep({ form }: { form: FormType }) {
+   const { t } = useTranslation();
    const startDate = form.watch('startDate');
    const [scheduleType, setScheduleType] = useState<'single_day' | 'multi_day'>(
       'single_day',
@@ -271,9 +279,9 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
    return (
       <div className="space-y-8">
          <FieldSet className="w-full">
-            <FieldLegend>Visit Details</FieldLegend>
+            <FieldLegend>{t('selfService.details.title')}</FieldLegend>
             <FieldDescription>
-               Provide your host, visit purpose, and preferred schedule.
+               {t('selfService.details.description')}
             </FieldDescription>
             <FieldGroup>
                <HostEmployeeField form={form} />
@@ -294,7 +302,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                                  !!form.formState.errors.departmentId
                               }
                            >
-                              <SelectValue placeholder="Select department" />
+                              <SelectValue placeholder={t('export.selectDepartment')} />
                            </SelectTrigger>
                            <SelectContent>
                               {field.value && (
@@ -305,7 +313,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                            </SelectContent>
                         </Select>
                         <FieldDescription>
-                           Automatically filled from the selected host.
+                           {t('selfService.details.departmentHint')}
                         </FieldDescription>
                         <FieldError>
                            {form.formState.errors.departmentId?.message}
@@ -331,7 +339,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               className="w-full"
                               aria-invalid={!!form.formState.errors.purpose}
                            >
-                              <SelectValue placeholder="Select the purpose of your visit" />
+                              <SelectValue placeholder={t('selfService.details.purposePlaceholder')} />
                            </SelectTrigger>
                            <SelectContent>
                               {VISIT_PURPOSE_OPTIONS.map((option) => (
@@ -353,7 +361,7 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
             </FieldGroup>
             <FieldGroup>
                <Field>
-                  <FieldLabel>Schedule Type</FieldLabel>
+                  <FieldLabel>{t('schedule.type')}</FieldLabel>
                   <Tabs
                      value={scheduleType}
                      onValueChange={(value) => {
@@ -369,13 +377,13 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                            value="single_day"
                            className="cursor-pointer"
                         >
-                           Single Day
+                           {t('schedule.singleDay')}
                         </TabsTrigger>
                         <TabsTrigger
                            value="multi_day"
                            className="cursor-pointer"
                         >
-                           Multi-Day
+                           {t('schedule.multiDay')}
                         </TabsTrigger>
                      </TabsList>
                   </Tabs>
@@ -384,22 +392,22 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                   <DateField
                      form={form}
                      name="startDate"
-                     label="Visit Date"
-                     placeholder="Select visit date"
+                     label={t('schedule.visitDate')}
+                     placeholder={t('schedule.selectVisitDate')}
                   />
                ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                      <DateField
                         form={form}
                         name="startDate"
-                        label="Start Date"
-                        placeholder="Select start date"
+                        label={t('schedule.startDate')}
+                        placeholder={t('schedule.selectStartDate')}
                      />
                      <DateField
                         form={form}
                         name="endDate"
-                        label="End Date"
-                        placeholder="Select end date"
+                        label={t('schedule.endDate')}
+                        placeholder={t('schedule.selectEndDate')}
                      />
                   </div>
                )}

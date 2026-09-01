@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
    Dialog,
@@ -8,6 +10,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { KeyRound, Loader2 } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 type ResetPasswordDialogProps = {
    open: boolean;
@@ -22,6 +25,8 @@ export function ResetPasswordDialog({
    onConfirm,
    isPending,
 }: ResetPasswordDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -33,11 +38,9 @@ export function ResetPasswordDialog({
                   <KeyRound size={20} />
                </div>
                <DialogHeader className="items-center">
-                  <DialogTitle>Reset Password?</DialogTitle>
+                  <DialogTitle>{t('users.reset.title')}</DialogTitle>
                   <DialogDescription>
-                     An email will be sent to the user with instructions to
-                     create a new password. Their current password will no
-                     longer work.
+                     {t('users.reset.description')}
                   </DialogDescription>
                </DialogHeader>
                <div className="flex w-full gap-2">
@@ -47,7 +50,7 @@ export function ResetPasswordDialog({
                         className="flex-1 cursor-pointer"
                         disabled={isPending}
                      >
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
                   <Button
@@ -58,10 +61,10 @@ export function ResetPasswordDialog({
                      {isPending ? (
                         <>
                            <Loader2 className="mr-2 size-4 animate-spin" />
-                           Resetting…
+                           {t('users.reset.pending')}
                         </>
                      ) : (
-                        'Reset Password'
+                        t('users.actions.resetPassword')
                      )}
                   </Button>
                </div>

@@ -19,6 +19,7 @@ import {
    VisitUpdateDetails,
    type VisitUpdateDetailsValue,
 } from './visit-update-details';
+import { MEETING_TYPE_KEYS, useTranslation } from '@/lib/i18n';
 
 type UpcomingVisitsProps = {
    visits: HostVisitCardData[];
@@ -34,6 +35,7 @@ export function UpcomingVisits({
    onReschedule,
    onCancel,
 }: UpcomingVisitsProps) {
+   const { t } = useTranslation();
    const [searchQuery, setSearchQuery] = useState('');
    const [rescheduleVisit, setRescheduleVisit] =
       useState<HostVisitCardData | null>(null);
@@ -61,7 +63,7 @@ export function UpcomingVisits({
                <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2.5">
                      <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                        Upcoming Visits
+                        {t('host.upcoming.title')}
                      </h2>
                      <Badge className="bg-sky-200 text-sky-900 dark:bg-sky-950 dark:text-sky-200">
                         <CalendarDays className="size-3" />
@@ -69,14 +71,14 @@ export function UpcomingVisits({
                      </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     Approved visits scheduled with confirmed locations
+                     {t('host.upcoming.description')}
                   </p>
                </div>
 
                <div className="relative w-full sm:w-56">
                   <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                     placeholder="Search visits..."
+                     placeholder={t('host.upcoming.searchPlaceholder')}
                      value={searchQuery}
                      onChange={(e) => setSearchQuery(e.target.value)}
                      className="h-9 w-full bg-background pl-8 text-sm"
@@ -89,20 +91,20 @@ export function UpcomingVisits({
                   <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
                      <CalendarDays className="size-8 text-muted-foreground/50" />
                      <p className="text-sm font-medium text-foreground">
-                        No upcoming visits
+                        {t('host.upcoming.emptyTitle')}
                      </p>
                      <p className="text-xs text-muted-foreground">
-                        Approved visits will appear here with their locations.
+                        {t('host.upcoming.emptyHint')}
                      </p>
                   </div>
                ) : filteredVisits.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
                      <SearchX className="size-8 text-muted-foreground/50" />
                      <p className="text-sm font-medium text-foreground">
-                        No visits found
+                        {t('host.upcoming.noResults')}
                      </p>
                      <p className="text-xs text-muted-foreground">
-                        Try adjusting your search.
+                        {t('host.upcoming.noResultsHint')}
                      </p>
                   </div>
                ) : (
@@ -110,7 +112,7 @@ export function UpcomingVisits({
                      <HostVisitCard
                         key={visit.id}
                         visit={visit}
-                        statusLabel="Upcoming"
+                        statusLabel={t('host.status.upcoming')}
                         statusClassName="bg-sky-200 text-sky-900 dark:bg-sky-950 dark:text-sky-200"
                         actions={
                            <>
@@ -121,7 +123,7 @@ export function UpcomingVisits({
                                  onClick={() => setRescheduleVisit(visit)}
                               >
                                  <Clock className="size-3.5" />
-                                 Reschedule
+                                 {t('host.action.reschedule')}
                               </Button>
                               <Button
                                  variant="outline"
@@ -134,7 +136,7 @@ export function UpcomingVisits({
                                  onClick={() => setCancelVisit(visit)}
                               >
                                  <Ban className="size-3.5" />
-                                 Cancel
+                                 {t('common.cancel')}
                               </Button>
                            </>
                         }
@@ -153,7 +155,7 @@ export function UpcomingVisits({
                className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 duration-300 data-open:slide-in-from-left-8 data-closed:slide-out-to-left-8 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-lg [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
             >
                <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>Reschedule Visit</DialogTitle>
+                  <DialogTitle>{t('host.rescheduleDialogTitle')}</DialogTitle>
                </DialogHeader>
                {rescheduleVisit && (
                   <VisitUpdateDetails

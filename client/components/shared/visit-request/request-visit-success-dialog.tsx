@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { SubmitVisitRequestResponse } from '@/types/self-service.types';
+import { useTranslation } from '@/lib/i18n';
 
 type VisitRequestSuccessDialogProps = {
    open: boolean;
@@ -27,10 +28,12 @@ export function RequestVisitSuccessDialog({
    onOpenChange,
    onDone,
    visit,
-   title = 'Visit Request Submitted',
-   description = "Your visit request has been submitted. We'll email you when your host responds.",
-   doneLabel = 'Done',
+   title,
+   description,
+   doneLabel,
 }: VisitRequestSuccessDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -42,16 +45,18 @@ export function RequestVisitSuccessDialog({
                   <CheckCircle2Icon size={32} strokeWidth={1.5} />
                </div>
                <DialogHeader className="items-center space-y-2">
-                  <DialogTitle className="text-lg">{title}</DialogTitle>
+                  <DialogTitle className="text-lg">
+                     {title ?? t('selfService.success.title')}
+                  </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     {description}
+                     {description ?? t('selfService.success.description')}
                   </DialogDescription>
                </DialogHeader>
                {visit && (
                   <div className="w-full rounded-lg bg-muted/50 px-4 py-3 text-sm">
                      <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">
-                           Visit code
+                           {t('selfService.success.visitCode')}
                         </span>
                         <span className="font-semibold">{visit.visitCode}</span>
                      </div>
@@ -63,7 +68,7 @@ export function RequestVisitSuccessDialog({
                      className="w-full cursor-pointer hover:bg-primary/90"
                      onClick={onDone}
                   >
-                     {doneLabel}
+                     {doneLabel ?? t('common.done')}
                   </Button>
                </DialogClose>
             </div>

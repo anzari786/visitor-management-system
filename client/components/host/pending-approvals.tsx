@@ -39,6 +39,7 @@ import {
    type VisitUpdateDetailsValue,
 } from './visit-update-details';
 import { HostVisitCard, type HostVisitCardData } from './host-visit-card';
+import { MEETING_TYPE_KEYS, useTranslation } from '@/lib/i18n';
 
 type PendingApprovalsProps = {
    visits: HostVisitCardData[];
@@ -60,6 +61,7 @@ const PendingApprovals = ({
    onReject,
    onApprove,
 }: PendingApprovalsProps) => {
+   const { t } = useTranslation();
    const [searchQuery, setSearchQuery] = useState('');
    const [typeFilter, setTypeFilter] = useState<VisitPurposeValue[]>([]);
    const [updateRequest, setUpdateRequest] = useState<HostVisitCardData | null>(
@@ -106,7 +108,7 @@ const PendingApprovals = ({
                <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2.5">
                      <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                        Pending Approvals
+                        {t('host.pending.title')}
                      </h2>
                      <Badge className="bg-orange-200 text-orange-900 dark:bg-orange-950 dark:text-orange-200">
                         <Clock className="size-3" />
@@ -114,7 +116,7 @@ const PendingApprovals = ({
                      </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                     Review visit requests waiting for your decision
+                     {t('host.pending.description')}
                   </p>
                </div>
 
@@ -122,7 +124,7 @@ const PendingApprovals = ({
                   <div className="relative flex-1 sm:flex-none">
                      <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                      <Input
-                        placeholder="Search visitors..."
+                        placeholder={t('host.pending.searchPlaceholder')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="h-9 w-full bg-background pl-8 text-sm sm:w-56"
@@ -136,7 +138,7 @@ const PendingApprovals = ({
                            className="h-9 cursor-pointer gap-1.5"
                         >
                            <ListFilter className="size-4" />
-                           Meeting Type
+                           {t('host.pending.meetingType')}
                            {hasFilters && (
                               <span className="size-1.5 rounded-full bg-primary" />
                            )}
@@ -147,7 +149,7 @@ const PendingApprovals = ({
                            checked={typeFilter.length === 0}
                            onCheckedChange={() => setTypeFilter([])}
                         >
-                           All meeting types
+                           {t('host.pending.allTypes')}
                         </DropdownMenuCheckboxItem>
                         <DropdownMenuSeparator />
                         {VISIT_PURPOSE_OPTIONS.map((type) => (
@@ -158,7 +160,7 @@ const PendingApprovals = ({
                                  toggleTypeFilter(type.value)
                               }
                            >
-                              {type.label}
+                              {t(MEETING_TYPE_KEYS[type.value])}
                            </DropdownMenuCheckboxItem>
                         ))}
                         {hasFilters && (
@@ -167,7 +169,7 @@ const PendingApprovals = ({
                               <DropdownMenuItem
                                  onClick={() => setTypeFilter([])}
                               >
-                                 Clear filter
+                                 {t('host.pending.clearFilter')}
                               </DropdownMenuItem>
                            </>
                         )}
@@ -181,20 +183,20 @@ const PendingApprovals = ({
                   <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
                      <ClipboardCheck className="size-8 text-muted-foreground/50" />
                      <p className="text-sm font-medium text-foreground">
-                        No pending approvals
+                        {t('host.pending.emptyTitle')}
                      </p>
                      <p className="text-xs text-muted-foreground">
-                        New visit requests will show up here once submitted.
+                        {t('host.pending.emptyHint')}
                      </p>
                   </div>
                ) : filteredRequests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
                      <SearchX className="size-8 text-muted-foreground/50" />
                      <p className="text-sm font-medium text-foreground">
-                        No visit requests found
+                        {t('host.pending.noResults')}
                      </p>
                      <p className="text-xs text-muted-foreground">
-                        Try adjusting your search or filter.
+                        {t('host.pending.noResultsHint')}
                      </p>
                   </div>
                ) : (
@@ -202,7 +204,7 @@ const PendingApprovals = ({
                      <HostVisitCard
                         key={request.id}
                         visit={request}
-                        statusLabel="Pending"
+                        statusLabel={t('host.status.pending')}
                         statusClassName="bg-orange-200 text-orange-900 dark:bg-orange-950 dark:text-orange-200"
                         actions={
                            <>
@@ -213,7 +215,7 @@ const PendingApprovals = ({
                                  onClick={() => setUpdateRequest(request)}
                               >
                                  <Clock className="size-3.5" />
-                                 Reschedule
+                                 {t('host.action.reschedule')}
                               </Button>
                               <Button
                                  variant="outline"
@@ -225,14 +227,14 @@ const PendingApprovals = ({
                                  )}
                                  onClick={() => setRejectRequest(request)}
                               >
-                                 Reject
+                                 {t('host.action.reject')}
                               </Button>
                               <Button
                                  size="sm"
                                  className="h-8 cursor-pointer gap-1 px-2.5 text-xs hover:bg-primary/90"
                                  onClick={() => setApproveRequest(request)}
                               >
-                                 Approve
+                                 {t('host.action.approve')}
                               </Button>
                            </>
                         }
@@ -251,7 +253,7 @@ const PendingApprovals = ({
                className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 duration-300 data-open:slide-in-from-left-8 data-closed:slide-out-to-left-8 data-open:zoom-in-100 data-closed:zoom-out-100 sm:max-w-lg [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
             >
                <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>Reschedule Visit</DialogTitle>
+                  <DialogTitle>{t('host.rescheduleDialogTitle')}</DialogTitle>
                </DialogHeader>
                {updateRequest && (
                   <VisitUpdateDetails
@@ -314,14 +316,12 @@ const PendingApprovals = ({
                      </div>
 
                      <DialogHeader className="items-center">
-                        <DialogTitle>Reject visit request?</DialogTitle>
+                        <DialogTitle>{t('host.reject.title')}</DialogTitle>
                         <p className="text-sm text-muted-foreground">
-                           Reject{' '}
-                           <span className="font-medium text-foreground">
-                              {rejectRequest.visitorName}
-                           </span>
-                           &apos;s {rejectRequest.meetingType.toLowerCase()}{' '}
-                           request? The visitor will be notified.
+                           {t('host.reject.body', {
+                              name: rejectRequest.visitorName,
+                              type: rejectRequest.meetingType.toLowerCase(),
+                           })}
                         </p>
                      </DialogHeader>
 
@@ -332,7 +332,7 @@ const PendingApprovals = ({
                               size="sm"
                               className="flex-1 cursor-pointer"
                            >
-                              Cancel
+                              {t('common.cancel')}
                            </Button>
                         </DialogClose>
 
@@ -346,7 +346,7 @@ const PendingApprovals = ({
                                  setRejectRequest(null);
                               }}
                            >
-                              Reject
+                              {t('host.action.reject')}
                            </Button>
                         </DialogClose>
                      </div>

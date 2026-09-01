@@ -9,26 +9,23 @@ import {
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
-import { USER_ROLE_CONFIG } from '@/constants/user';
+import { USER_ROLE_KEYS, useTranslation } from '@/lib/i18n';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { UserRole, UserStatusFilter } from '@/types/user.types';
+import type { TranslationKey } from '@/lib/i18n';
 import { Search, X } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 
-export const statusFilterLabels: Record<UserStatusFilter, string> = {
-   active: 'Active',
-   inactive: 'Inactive',
-};
+export const statusFilterKeys = {
+   active: 'status.active',
+   inactive: 'status.inactive',
+} as const satisfies Record<UserStatusFilter, TranslationKey>;
 
-export const roleFilterLabels: Record<UserRole, string> = {
-   GUARD: USER_ROLE_CONFIG.GUARD.label,
-   RECEPTION: USER_ROLE_CONFIG.RECEPTION.label,
-   ADMIN: USER_ROLE_CONFIG.ADMIN.label,
-   MANAGER: USER_ROLE_CONFIG.MANAGER.label,
-};
+export const roleFilterKeys = USER_ROLE_KEYS;
 
 export function UsersTableFilters() {
+   const { t } = useTranslation();
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
@@ -97,7 +94,7 @@ export function UsersTableFilters() {
             <div className="relative w-full sm:max-w-xs">
                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                <Input
-                  placeholder="Search name or username…"
+                  placeholder={t('users.filters.searchPlaceholder')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   className="h-9 bg-background pl-8"
@@ -111,13 +108,15 @@ export function UsersTableFilters() {
                }
             >
                <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
-                  <SelectValue placeholder="Role" />
+                  <SelectValue placeholder={t('users.col.role')} />
                </SelectTrigger>
                <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
-                  {(Object.keys(roleFilterLabels) as UserRole[]).map((role) => (
+                  <SelectItem value="all">
+                     {t('users.filters.allRoles')}
+                  </SelectItem>
+                  {(Object.keys(roleFilterKeys) as UserRole[]).map((role) => (
                      <SelectItem key={role} value={role}>
-                        {roleFilterLabels[role]}
+                        {t(roleFilterKeys[role])}
                      </SelectItem>
                   ))}
                </SelectContent>
@@ -130,14 +129,16 @@ export function UsersTableFilters() {
                }
             >
                <SelectTrigger className="h-9 w-full bg-background sm:w-[150px]">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('common.status')} />
                </SelectTrigger>
                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {(Object.keys(statusFilterLabels) as UserStatusFilter[]).map(
+                  <SelectItem value="all">
+                     {t('users.filters.allStatuses')}
+                  </SelectItem>
+                  {(Object.keys(statusFilterKeys) as UserStatusFilter[]).map(
                      (status) => (
                         <SelectItem key={status} value={status}>
-                           {statusFilterLabels[status]}
+                           {t(statusFilterKeys[status])}
                         </SelectItem>
                      ),
                   )}
@@ -152,7 +153,7 @@ export function UsersTableFilters() {
                   onClick={clearAllFilters}
                >
                   <X className="size-3.5" />
-                  Clear
+                  {t('common.clear')}
                </Button>
             )}
          </div>

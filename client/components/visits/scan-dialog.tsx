@@ -8,7 +8,8 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { IdCard, QrCode, ScanLine, Search } from 'lucide-react';
+import { QrCode, ScanLine, Search } from 'lucide-react';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 type ScanDialogProps = {
    open: boolean;
@@ -21,9 +22,9 @@ type ScanDialogProps = {
 
 type ScanOption = {
    id: 'find-visit' | 'badge';
-   title: string;
-   description: string;
-   badge?: string;
+   titleKey: TranslationKey;
+   descriptionKey: TranslationKey;
+   badgeKey?: TranslationKey;
    icon: typeof QrCode;
    accent: string;
    iconWrap: string;
@@ -32,10 +33,9 @@ type ScanOption = {
 const SCAN_OPTIONS: ScanOption[] = [
    {
       id: 'find-visit',
-      title: 'Find / Search Visit',
-      description:
-         'Search the visit list and select an approved visit to start check-in manually.',
-      badge: 'Manual',
+      titleKey: 'scan.findVisit.title',
+      descriptionKey: 'scan.findVisit.description',
+      badgeKey: 'scan.findVisit.badge',
       icon: Search,
       accent:
          'hover:border-sky-300 hover:bg-sky-50/60 dark:hover:border-sky-700 dark:hover:bg-sky-950/30',
@@ -43,9 +43,8 @@ const SCAN_OPTIONS: ScanOption[] = [
    },
    {
       id: 'badge',
-      title: 'Scan Badge',
-      description:
-         "Scan the visitor's physical badge to find their active visit and complete check-out.",
+      titleKey: 'scan.badge.title',
+      descriptionKey: 'scan.badge.description',
       icon: QrCode,
       accent:
          'hover:border-emerald-300 hover:bg-emerald-50/60 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30',
@@ -60,6 +59,8 @@ export function ScanDialog({
    onFindVisit,
    onScanBadge,
 }: ScanDialogProps) {
+   const { t } = useTranslation();
+
    const handleSelect = (option: ScanOption) => {
       onOpenChange(false);
 
@@ -88,17 +89,16 @@ export function ScanDialog({
                   <ScanLine size={18} />
                </div>
                <div className="space-y-1.5">
-                  <DialogTitle className="text-lg">Process visitor</DialogTitle>
-                  <DialogDescription>
-                     Check guests in by finding their visit. Use badge scan for
-                     check-out.
-                  </DialogDescription>
+                  <DialogTitle className="text-lg">
+                     {t('scan.title')}
+                  </DialogTitle>
+                  <DialogDescription>{t('scan.description')}</DialogDescription>
                </div>
             </DialogHeader>
 
             <div className="space-y-2">
                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                  Check-in
+                  {t('scan.checkInSection')}
                </p>
                <div className="grid gap-3">
                   {SCAN_OPTIONS.filter((option) => option.id !== 'badge').map(
@@ -125,16 +125,16 @@ export function ScanDialog({
                               <div className="min-w-0 flex-1 space-y-1">
                                  <div className="flex flex-wrap items-center gap-2">
                                     <p className="text-sm font-semibold text-foreground">
-                                       {option.title}
+                                       {t(option.titleKey)}
                                     </p>
-                                    {option.badge && (
+                                    {option.badgeKey && (
                                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                                          {option.badge}
+                                          {t(option.badgeKey)}
                                        </span>
                                     )}
                                  </div>
                                  <p className="text-xs leading-relaxed text-muted-foreground">
-                                    {option.description}
+                                    {t(option.descriptionKey)}
                                  </p>
                               </div>
                            </button>
@@ -146,7 +146,7 @@ export function ScanDialog({
 
             <div className="space-y-2">
                <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                  Check-out
+                  {t('scan.checkOutSection')}
                </p>
                <div className="grid gap-3">
                   {SCAN_OPTIONS.filter((option) => option.id === 'badge').map(
@@ -172,10 +172,10 @@ export function ScanDialog({
                               </div>
                               <div className="min-w-0 space-y-1">
                                  <p className="text-sm font-semibold text-foreground">
-                                    {option.title}
+                                    {t(option.titleKey)}
                                  </p>
                                  <p className="text-xs leading-relaxed text-muted-foreground">
-                                    {option.description}
+                                    {t(option.descriptionKey)}
                                  </p>
                               </div>
                            </button>

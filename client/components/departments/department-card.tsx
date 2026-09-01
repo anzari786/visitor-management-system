@@ -1,6 +1,7 @@
 'use client';
 
 import { StatusBadge } from '@/components/shared/status-badge';
+import { useTranslation } from '@/lib/i18n';
 import type { Department } from '@/types/department.types';
 import { Briefcase, Users } from 'lucide-react';
 import { DepartmentCardMenu } from './department-card-menu';
@@ -10,6 +11,8 @@ type DepartmentCardProps = {
 };
 
 export function DepartmentCard({ department }: DepartmentCardProps) {
+   const { t } = useTranslation();
+
    return (
       <div className="relative overflow-hidden rounded-xl border bg-card p-4 flex flex-col gap-4 hover:shadow-sm transition-shadow">
          {/* Color accent bar */}
@@ -39,7 +42,11 @@ export function DepartmentCard({ department }: DepartmentCardProps) {
          <div className="flex items-center justify-between pt-1 border-t">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                <Users className="size-4" />
-               <span>{department.totalVisits} visits</span>
+               <span>
+                  {t('departments.visitsCount', {
+                     count: department.totalVisits,
+                  })}
+               </span>
             </div>
             <StatusBadge status={department.isActive ? 'active' : 'inactive'} />
          </div>

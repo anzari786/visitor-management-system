@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { Clock3, LogOut, ScanLine, Search } from 'lucide-react';
 import * as React from 'react';
 import { VisitorAttendanceBadge } from './managed-visit-status-badge';
+import { useTranslation } from '@/lib/i18n';
 
 type CheckOutConfirmDialogProps = {
    open: boolean;
@@ -77,6 +78,7 @@ export function CheckOutConfirmDialog({
    onLookupBadge,
    onScanBadgeRequest,
 }: CheckOutConfirmDialogProps) {
+   const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = React.useState(false);
    const [badgeInput, setBadgeInput] = React.useState('');
    const [resolvedVisit, setResolvedVisit] =
@@ -115,8 +117,8 @@ export function CheckOutConfirmDialog({
    const duration = checkInAt ? formatVisitDuration(checkInAt) : '—';
    const confirmLabel =
       selectedVisitors.length === 1
-         ? (selectedVisitors[0]?.name ?? 'Visitor')
-         : `${selectedVisitors.length} visitors`;
+         ? (selectedVisitors[0]?.name ?? t('checkOut.visitorFallback'))
+         : t('visits.visitorsCount', { count: selectedVisitors.length });
 
    const handleFind = () => {
       const found = onLookupBadge?.(badgeInput.trim());
@@ -160,11 +162,10 @@ export function CheckOutConfirmDialog({
          >
             <DialogHeader className="gap-1.5 space-y-0 text-left">
                <DialogTitle className="text-xl font-semibold tracking-tight">
-                  Check Out Visitor
+                  {t('checkOut.title')}
                </DialogTitle>
                <DialogDescription className="text-sm leading-relaxed">
-                  Scan or enter the printed badge QR token to find the visitor
-                  and record departure.
+                  {t('checkOut.description')}
                </DialogDescription>
             </DialogHeader>
 
@@ -173,7 +174,7 @@ export function CheckOutConfirmDialog({
                   <Input
                      value={badgeInput}
                      onChange={(e) => setBadgeInput(e.target.value)}
-                     placeholder="Badge token from QR"
+                     placeholder={t('checkOut.badgePlaceholder')}
                      className="h-10"
                      onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -190,7 +191,7 @@ export function CheckOutConfirmDialog({
                         onClick={handleFind}
                      >
                         <Search size={16} />
-                        Find
+                        {t('checkOut.find')}
                      </Button>
                   </div>
                </div>
@@ -198,7 +199,7 @@ export function CheckOutConfirmDialog({
                <div className="relative flex items-center justify-center">
                   <div className="absolute inset-x-0 h-px bg-border" />
                   <span className="relative bg-background px-3 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                     Or
+                     {t('checkOut.or')}
                   </span>
                </div>
 
@@ -209,7 +210,7 @@ export function CheckOutConfirmDialog({
                   onClick={handleScanBadge}
                >
                   <ScanLine className="size-4" />
-                  Scan Badge QR Code
+                  {t('checkOut.scanQr')}
                </Button>
             </div>
 
@@ -218,10 +219,11 @@ export function CheckOutConfirmDialog({
                   <div className="overflow-hidden rounded-xl border bg-card">
                      <div className="flex items-center justify-between gap-3 border-b px-3.5 py-2.5">
                         <p className="truncate text-xs text-muted-foreground">
-                           {visit.id} · Host {visit.host}
+                           {visit.id} ·{' '}
+                           {t('findVisit.hostPrefix', { name: visit.host })}
                         </p>
                         <Badge className="shrink-0 border-0 bg-emerald-400/15 text-emerald-700 dark:text-emerald-300">
-                           Badge token
+                           {t('checkOut.badgeToken')}
                         </Badge>
                      </div>
                      <ul className="divide-y">
@@ -251,11 +253,17 @@ export function CheckOutConfirmDialog({
                                           visitor.organization,
                                           visitor.phone,
                                           visitorCheckIn
-                                             ? `In ${format(new Date(visitorCheckIn), 'HH:mm')}`
+                                             ? t('checkOut.inAt', {
+                                                  time: format(
+                                                     new Date(visitorCheckIn),
+                                                     'HH:mm',
+                                                  ),
+                                               })
                                              : null,
                                        ]
                                           .filter(Boolean)
-                                          .join(' · ') || 'Visitor'}
+                                          .join(' · ') ||
+                                          t('checkOut.visitorFallback')}
                                     </p>
                                  </div>
                                  <VisitorAttendanceBadge
@@ -271,7 +279,7 @@ export function CheckOutConfirmDialog({
                   <div className="grid grid-cols-2 gap-3">
                      <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
                         <p className="text-xs text-muted-foreground">
-                           Checked in
+                           {t('checkOut.checkedInAt')}
                         </p>
                         <p className="mt-1 text-lg font-semibold tabular-nums tracking-tight">
                            {checkInAt ? format(checkInAt, 'HH:mm') : '—'}
@@ -279,7 +287,7 @@ export function CheckOutConfirmDialog({
                      </div>
                      <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
                         <p className="text-xs text-muted-foreground">
-                           Duration
+                           {t('checkOut.duration')}
                         </p>
                         <p className="mt-1 flex items-center gap-1.5 text-lg font-semibold tabular-nums tracking-tight">
                            <Clock3 className="size-4 text-muted-foreground" />
@@ -289,11 +297,7 @@ export function CheckOutConfirmDialog({
                   </div>
 
                   <div className="rounded-xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
-                     Are you sure you want to check out{' '}
-                     <span className="font-medium text-foreground">
-                        {confirmLabel}
-                     </span>
-                     ?
+                     {t('checkOut.confirmQuestion', { name: confirmLabel })}
                   </div>
                </div>
             ) : (
@@ -303,8 +307,7 @@ export function CheckOutConfirmDialog({
                      scanMode && 'bg-muted/20',
                   )}
                >
-                  Enter a badge token or scan a printed badge QR to find the
-                  visitor.
+                  {t('checkOut.emptyState')}
                </div>
             )}
 
@@ -316,7 +319,7 @@ export function CheckOutConfirmDialog({
                   onClick={() => onOpenChange(false)}
                   disabled={isSubmitting}
                >
-                  Cancel
+                  {t('common.cancel')}
                </Button>
                <Button
                   type="button"
@@ -325,7 +328,9 @@ export function CheckOutConfirmDialog({
                   disabled={isSubmitting || !visit}
                >
                   <LogOut className="size-4" />
-                  {isSubmitting ? 'Checking out…' : 'Confirm Check-Out'}
+                  {isSubmitting
+                     ? t('checkOut.submitting')
+                     : t('checkOut.submit')}
                </Button>
             </div>
          </DialogContent>

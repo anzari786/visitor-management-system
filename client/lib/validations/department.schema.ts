@@ -3,21 +3,21 @@ import { z } from 'zod';
 export const createDepartmentSchema = z.object({
    name: z
       .string()
-      .min(2, 'Department name is required')
-      .max(100, 'Department name must be 100 characters or fewer'),
+      .min(2, 'validation.departmentNameRequired')
+      .max(100, 'validation.departmentNameMax'),
    shortName: z
       .string()
       .trim()
-      .max(10, 'Short name must be 10 characters or fewer')
+      .max(10, 'validation.shortNameMax')
       .regex(
          /^[A-Za-z0-9&/().,\- ]*$/,
-         'Short name may only contain letters, numbers, spaces, &, /, ., (, ), comma, and -',
+         'validation.shortNameChars',
       )
       .optional(),
    color: z
       .string()
       .trim()
-      .regex(/^#[0-9A-Fa-f]{6}$/, 'Must be a valid hex color'),
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'validation.hexColor'),
 });
 
 export type CreateDepartmentFormValues = z.infer<typeof createDepartmentSchema>;

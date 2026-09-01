@@ -19,6 +19,7 @@ import {
    FieldSet,
 } from '@/components/ui/field';
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 type FormType = UseFormReturn<
    VisitRequestFormInput,
@@ -27,6 +28,7 @@ type FormType = UseFormReturn<
 >;
 
 function VisitorFields({ form, index }: { form: FormType; index: number }) {
+   const { t } = useTranslation();
    const errors = form.formState.errors.visitors?.[index];
 
    return (
@@ -34,12 +36,13 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
                <FieldLabel htmlFor={`visitors.${index}.firstName`}>
-                  First Name <span className="text-destructive">*</span>
+                  {t('common.firstName')}{' '}
+                  <span className="text-destructive">*</span>
                </FieldLabel>
                <Input
                   id={`visitors.${index}.firstName`}
                   autoComplete={index === 0 ? 'given-name' : 'off'}
-                  placeholder="Enter first name"
+                  placeholder={t('visitorForm.firstNamePlaceholder')}
                   aria-invalid={!!errors?.firstName}
                   {...form.register(`visitors.${index}.firstName`)}
                />
@@ -48,12 +51,13 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 
             <Field>
                <FieldLabel htmlFor={`visitors.${index}.lastName`}>
-                  Last Name <span className="text-destructive">*</span>
+                  {t('common.lastName')}{' '}
+                  <span className="text-destructive">*</span>
                </FieldLabel>
                <Input
                   id={`visitors.${index}.lastName`}
                   autoComplete={index === 0 ? 'family-name' : 'off'}
-                  placeholder="Enter last name"
+                  placeholder={t('visitorForm.lastNamePlaceholder')}
                   aria-invalid={!!errors?.lastName}
                   {...form.register(`visitors.${index}.lastName`)}
                />
@@ -63,19 +67,19 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.email`}>
-               Email <span className="text-destructive">*</span>
+               {t('common.email')} <span className="text-destructive">*</span>
             </FieldLabel>
             <Input
                id={`visitors.${index}.email`}
                type="email"
                autoComplete={index === 0 ? 'email' : 'off'}
-               placeholder="Enter email address"
+               placeholder={t('selfService.emailPlaceholder')}
                aria-invalid={!!errors?.email}
                {...form.register(`visitors.${index}.email`)}
             />
             {index === 0 && (
                <FieldDescription>
-                  Used to send visit request updates and approval notifications
+                  {t('selfService.emailHint')}
                </FieldDescription>
             )}
             <FieldError>{errors?.email?.message}</FieldError>
@@ -83,7 +87,8 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.phone`}>
-               Phone Number <span className="text-destructive">*</span>
+               {t('common.phoneNumber')}{' '}
+               <span className="text-destructive">*</span>
             </FieldLabel>
             <Controller
                name={`visitors.${index}.phone`}
@@ -93,7 +98,7 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
                      id={`visitors.${index}.phone`}
                      type="tel"
                      autoComplete={index === 0 ? 'tel' : 'off'}
-                     placeholder="Enter phone number"
+                     placeholder={t('selfService.phonePlaceholder')}
                      aria-invalid={!!errors?.phone}
                      value={field.value ?? ''}
                      onChange={(e) =>
@@ -108,17 +113,16 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.organization`}>
-               Organization
+               {t('visitDetails.organization')}
             </FieldLabel>
             <Input
                id={`visitors.${index}.organization`}
                autoComplete="organization"
-               placeholder="Enter your organization (optional)"
+               placeholder={t('selfService.orgPlaceholder')}
                {...form.register(`visitors.${index}.organization`)}
             />
             <FieldDescription>
-               If you are visiting on behalf of a company or organization, enter
-               its name.
+               {t('selfService.orgHint')}
             </FieldDescription>
             <FieldError>{errors?.organization?.message}</FieldError>
          </Field>
@@ -127,6 +131,7 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 }
 
 export function VisitorsStep({ form }: { form: FormType }) {
+   const { t } = useTranslation();
    const { fields, append, remove } = useFieldArray({
       control: form.control,
       name: 'visitors',
@@ -135,8 +140,10 @@ export function VisitorsStep({ form }: { form: FormType }) {
    return (
       <div className="space-y-8">
          <FieldSet className="w-full">
-            <FieldLegend>Primary Visitor Information</FieldLegend>
-            <FieldDescription>Provide your contact details.</FieldDescription>
+            <FieldLegend>{t('selfService.primaryVisitor')}</FieldLegend>
+            <FieldDescription>
+               {t('selfService.primaryVisitorHint')}
+            </FieldDescription>
             {fields[0] && <VisitorFields form={form} index={0} />}
          </FieldSet>
 
@@ -144,11 +151,10 @@ export function VisitorsStep({ form }: { form: FormType }) {
             <div className="flex items-start justify-between gap-3">
                <div className="space-y-1">
                   <h3 className="text-base font-medium text-foreground">
-                     Additional Visitors
+                     {t('selfService.additionalVisitors')}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                     Add any companions joining you and provide their contact
-                     details.
+                     {t('selfService.additionalVisitorsHint')}
                   </p>
                </div>
                <Button
@@ -159,14 +165,13 @@ export function VisitorsStep({ form }: { form: FormType }) {
                   onClick={() => append({ ...emptyVisitorValues })}
                >
                   <Plus className="size-4" />
-                  Add Visitor
+                  {t('visitorForm.addVisitor')}
                </Button>
             </div>
 
             {fields.length === 1 && (
                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                  No additional visitors added. Add visitors if others will be
-                  joining you.
+                  {t('selfService.noAdditional')}
                </p>
             )}
 
@@ -179,7 +184,9 @@ export function VisitorsStep({ form }: { form: FormType }) {
                   >
                      <div className="mb-4 flex items-center justify-between gap-3">
                         <FieldLegend className="mb-0">
-                           Visitor {index + 1}
+                           {t('visitorForm.visitorNumber', {
+                              number: index + 1,
+                           })}
                         </FieldLegend>
                         <Button
                            type="button"
@@ -189,7 +196,7 @@ export function VisitorsStep({ form }: { form: FormType }) {
                            onClick={() => remove(index)}
                         >
                            <Trash2 className="size-4" />
-                           Remove
+                           {t('visitorForm.remove')}
                         </Button>
                      </div>
                      <VisitorFields form={form} index={index} />

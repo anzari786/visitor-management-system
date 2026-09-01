@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { EditUser } from './edit-user';
 import { ResetPasswordDialog } from './reset-password-dialog';
 import { ToggleStatusDialog } from './toggle-status-dialog';
+import { useTranslation } from '@/lib/i18n';
 
 interface UserActionsMenuProps {
    user: User;
@@ -44,6 +45,7 @@ export function UserActionsMenu({
    align = 'end',
    onViewDetails,
 }: UserActionsMenuProps) {
+   const { t } = useTranslation();
    const [role, setRole] = useSyncedRole(user);
 
    const [editOpen, setEditOpen] = React.useState(false);
@@ -59,7 +61,7 @@ export function UserActionsMenu({
       resetPassword(user.id, {
          onSuccess: () => {
             toast.success(
-               `Password reset email sent to ${getUserFullName(user)}`,
+               t('users.toast.resetSent', { name: getUserFullName(user) }),
             );
             setResetDialogOpen(false);
          },
@@ -68,9 +70,7 @@ export function UserActionsMenu({
                error instanceof AxiosError
                   ? error.response?.data?.message
                   : undefined;
-            toast.error(
-               message ?? 'Failed to send reset email. Please try again.',
-            );
+            toast.error(message ?? t('users.toast.resetFailed'));
             setResetDialogOpen(false);
          },
          });
@@ -82,15 +82,17 @@ export function UserActionsMenu({
          { id: user.id, currentRole: user.role, role: nextRole },
          {
             onSuccess: () =>
-               toast.success(`${getUserFullName(user)}'s role updated`),
+               toast.success(
+                  t('users.toast.roleUpdated', {
+                     name: getUserFullName(user),
+                  }),
+               ),
             onError: (error) => {
                const message =
                   error instanceof AxiosError
                      ? error.response?.data?.message
                      : undefined;
-               toast.error(
-                  message ?? 'Failed to update role. Please try again.',
-               );
+               toast.error(message ?? t('users.toast.roleFailed'));
                setRole(user.role);
             },
          },
@@ -104,7 +106,12 @@ export function UserActionsMenu({
             onSuccess: () =>
                {
                   toast.success(
-                     `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
+                     t(
+                        user.isActive
+                           ? 'users.toast.deactivated'
+                           : 'users.toast.activated',
+                        { name: getUserFullName(user) },
+                     ),
                   );
                   setStatusDialogOpen(false);
                },
@@ -113,9 +120,7 @@ export function UserActionsMenu({
                   error instanceof AxiosError
                      ? error.response?.data?.message
                      : undefined;
-               toast.error(
-                  message ?? 'Failed to update user status. Please try again.',
-               );
+               toast.error(message ?? t('users.toast.statusFailed'));
             },
          },
       );
@@ -126,13 +131,13 @@ export function UserActionsMenu({
          <DropdownMenu>
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
             <DropdownMenuContent align={align} className="w-52">
-               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+               <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                <DropdownMenuSeparator />
 
                {onViewDetails && (
                   <DropdownMenuItem onClick={() => onViewDetails(user)}>
                      <Eye className="size-4" />
-                     View
+                     {t('visitActions.view')}
                   </DropdownMenuItem>
                )}
 
@@ -143,7 +148,7 @@ export function UserActionsMenu({
                   }}
                >
                   <Pencil className="size-4" />
-                  Edit
+                  {t('common.edit')}
                </DropdownMenuItem>
 
                <DropdownMenuItem
@@ -153,19 +158,19 @@ export function UserActionsMenu({
                   }}
                >
                   <KeyRound className="size-4" />
-                  Reset Password
+                  {t('users.actions.resetPassword')}
                </DropdownMenuItem>
 
                <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                      <Shield className="size-4" />
-                     Change Role
+                     {t('users.actions.changeRole')}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                      <DropdownMenuSubContent>
                         <DropdownMenuGroup>
                            <DropdownMenuLabel className="text-muted-foreground">
-                              Roles
+                              {t('users.actions.roles')}
                            </DropdownMenuLabel>
                            <DropdownMenuRadioGroup
                               value={role}
@@ -175,16 +180,16 @@ export function UserActionsMenu({
                               }
                            >
                               <DropdownMenuRadioItem value="GUARD">
-                                 Guard
+                                 {t('role.guard')}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="RECEPTION">
-                                 Reception
+                                 {t('role.reception')}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="ADMIN">
-                                 Administrator
+                                 {t('role.admin')}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="MANAGER">
-                                 Manager
+                                 {t('role.manager')}
                               </DropdownMenuRadioItem>
                            </DropdownMenuRadioGroup>
                         </DropdownMenuGroup>
@@ -206,7 +211,11 @@ export function UserActionsMenu({
                   ) : (
                      <UserCheck className="size-4" />
                   )}
-                  {user.isActive ? 'Deactivate' : 'Activate'}
+                  {t(
+                     user.isActive
+                        ? 'users.actions.deactivate'
+                        : 'users.actions.activate',
+                  )}
                </DropdownMenuItem>
             </DropdownMenuContent>
          </DropdownMenu>

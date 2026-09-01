@@ -25,6 +25,7 @@ import {
 import type { Department } from '@/types/department.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Badge } from '../reui/badge';
@@ -41,6 +42,7 @@ export function EditDepartmentDialog({
    onOpenChange,
    department,
 }: EditDepartmentDialogProps) {
+   const { t } = useTranslation();
    const {
       register,
       handleSubmit,
@@ -74,13 +76,15 @@ export function EditDepartmentDialog({
          { id: department.id, ...values },
          {
             onSuccess: () => {
-               toast.success(`${values.name} has been updated`);
+               toast.success(
+                  t('departments.toast.updated', { name: values.name }),
+               );
                onOpenChange(false);
             },
             onError: (error) =>
                toast.error(
                   error.response?.data.message ??
-                     'Failed to update department. Please try again.',
+                     t('departments.toast.updateFailed'),
                ),
          },
       );
@@ -90,7 +94,7 @@ export function EditDepartmentDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent className="sm:max-w-120 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-               <DialogTitle>Edit Department</DialogTitle>
+               <DialogTitle>{t('departments.form.edit')}</DialogTitle>
                <DialogDescription className="sr-only" />
             </DialogHeader>
 
@@ -99,7 +103,7 @@ export function EditDepartmentDialog({
                   {/* Department Name */}
                   <Field>
                      <FieldLabel htmlFor="edit-name">
-                        Department Name
+                        {t('departments.form.name')}
                      </FieldLabel>
                      <Input
                         id="edit-name"
@@ -115,10 +119,10 @@ export function EditDepartmentDialog({
                   <Field>
                      <div className="flex items-center justify-between gap-2">
                         <FieldLabel htmlFor="edit-short-name">
-                           Short Name
+                           {t('departments.form.shortName')}
                         </FieldLabel>
                         <Badge variant="warning-outline" size="sm">
-                           Optional
+                           {t('common.optional')}
                         </Badge>
                      </div>
                      <Input
@@ -133,7 +137,7 @@ export function EditDepartmentDialog({
 
                   {/* Color */}
                   <Field>
-                     <FieldLabel>Department Color</FieldLabel>
+                     <FieldLabel>{t('departments.form.color')}</FieldLabel>
                      <Controller
                         name="color"
                         control={control}
@@ -153,11 +157,13 @@ export function EditDepartmentDialog({
                <DialogFooter>
                   <DialogClose asChild>
                      <Button type="button" variant="outline">
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
                   <Button type="submit" disabled={isSubmitting}>
-                     {isSubmitting ? 'Saving…' : 'Save Changes'}
+                     {isSubmitting
+                        ? t('common.saving')
+                        : t('common.saveChanges')}
                   </Button>
                </DialogFooter>
             </form>

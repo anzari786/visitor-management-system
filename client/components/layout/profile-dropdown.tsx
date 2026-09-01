@@ -17,6 +17,7 @@ import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { getUserFullName } from '@/lib/user';
 import { LogOut, UserCircle } from 'lucide-react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';
+import { useTranslation } from '@/lib/i18n';
 
 type Props = {
    trigger: ReactElement;
@@ -35,12 +36,13 @@ export default function ProfileDropdown({
    side,
    sideOffset = 8,
 }: Props) {
+   const { t } = useTranslation();
    const [logoutOpen, setLogoutOpen] = useState(false);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const user = useAuthStore((state) => state.user);
    const { mutate: logout, isPending: loggingOut } = useLogout();
 
-   const fullName = user ? getUserFullName(user) : 'User';
+   const fullName = user ? getUserFullName(user) : t('header.userFallback');
    const initials = user
       ? `${user.firstName[0]}${user.lastName[0]}`
       : 'U';
@@ -90,7 +92,7 @@ export default function ProfileDropdown({
                      }}
                   >
                      <UserCircle className="size-4 text-foreground" />
-                     <span>Profile</span>
+                     <span>{t('header.profile')}</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator className="my-1" />
@@ -104,7 +106,7 @@ export default function ProfileDropdown({
                      }}
                   >
                      <LogOut className="size-4" />
-                     <span>Log out</span>
+                     <span>{t('header.logout')}</span>
                   </DropdownMenuItem>
                </DropdownMenuGroup>
             </DropdownMenuContent>

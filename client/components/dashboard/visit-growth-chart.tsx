@@ -34,6 +34,7 @@ import type {
    GrowthPeriod,
 } from '@/types/dashboard.types';
 import { Skeleton } from '../ui/skeleton';
+import { useTranslation } from '@/lib/i18n';
 
 type ChartType = 'line' | 'area' | 'bar';
 
@@ -94,6 +95,7 @@ function GrowthChartSkeleton() {
 }
 
 export function VisitGrowthChart() {
+   const { t } = useTranslation();
    const { theme } = useTheme();
    const [chartType, setChartType] = useState<ChartType>('area');
    const [period, setPeriod] = useState<GrowthPeriod>('12m');
@@ -276,7 +278,7 @@ export function VisitGrowthChart() {
       return (
          <div className="bg-card rounded-xl border flex-1 flex flex-col items-center justify-center gap-2 p-6 text-sm text-destructive">
             <AlertCircle className="h-6 w-6" />
-            <span>Failed to load growth data.</span>
+            <span>{t('dashboard.growth.loadError')}</span>
          </div>
       );
    }
@@ -290,7 +292,7 @@ export function VisitGrowthChart() {
                      <TrendingUp className="size-4 text-muted-foreground" />
                   </Button>
                   <h3 className="font-medium text-sm sm:text-base">
-                     Monthly Visit Growth
+                     {t('dashboard.growth.title')}
                   </h3>
                </div>
                <Button variant="ghost" size="icon" className="size-8" disabled>
@@ -299,7 +301,7 @@ export function VisitGrowthChart() {
             </div>
             <div className="px-5 pb-5">
                <div className="h-50 sm:h-62.5 w-full flex items-center justify-center text-sm text-muted-foreground">
-                  No visit growth data available for this period.
+                  {t('dashboard.growth.empty')}
                </div>
             </div>
          </div>
@@ -314,7 +316,7 @@ export function VisitGrowthChart() {
                   <TrendingUp className="size-4 text-muted-foreground" />
                </Button>
                <h3 className="font-medium text-sm sm:text-base">
-                  Monthly Visit Growth
+                  {t('dashboard.growth.title')}
                </h3>
             </div>
             <DropdownMenu>
@@ -325,32 +327,40 @@ export function VisitGrowthChart() {
                </DropdownMenuTrigger>
                <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuSub>
-                     <DropdownMenuSubTrigger>Chart Type</DropdownMenuSubTrigger>
+                     <DropdownMenuSubTrigger>
+                        {t('dashboard.growth.chartType')}
+                     </DropdownMenuSubTrigger>
                      <DropdownMenuSubContent>
                         <DropdownMenuItem onClick={() => setChartType('line')}>
-                           Line Chart {chartType === 'line' && '✓'}
+                           {t('dashboard.growth.lineChart')}{' '}
+                           {chartType === 'line' && '✓'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setChartType('area')}>
-                           Area Chart {chartType === 'area' && '✓'}
+                           {t('dashboard.growth.areaChart')}{' '}
+                           {chartType === 'area' && '✓'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setChartType('bar')}>
-                           Bar Chart {chartType === 'bar' && '✓'}
+                           {t('dashboard.growth.barChart')}{' '}
+                           {chartType === 'bar' && '✓'}
                         </DropdownMenuItem>
                      </DropdownMenuSubContent>
                   </DropdownMenuSub>
                   <DropdownMenuSub>
                      <DropdownMenuSubTrigger>
-                        Time Period
+                        {t('dashboard.growth.timePeriod')}
                      </DropdownMenuSubTrigger>
                      <DropdownMenuSubContent>
                         <DropdownMenuItem onClick={() => setPeriod('3m')}>
-                           Last 3 Months {period === '3m' && '✓'}
+                           {t('dashboard.growth.last3')}{' '}
+                           {period === '3m' && '✓'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setPeriod('6m')}>
-                           Last 6 Months {period === '6m' && '✓'}
+                           {t('dashboard.growth.last6')}{' '}
+                           {period === '6m' && '✓'}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setPeriod('12m')}>
-                           Last 12 Months {period === '12m' && '✓'}
+                           {t('dashboard.growth.last12')}{' '}
+                           {period === '12m' && '✓'}
                         </DropdownMenuItem>
                      </DropdownMenuSubContent>
                   </DropdownMenuSub>
@@ -359,18 +369,18 @@ export function VisitGrowthChart() {
                      checked={showGrid}
                      onCheckedChange={setShowGrid}
                   >
-                     Show Grid
+                     {t('dashboard.growth.showGrid')}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                      checked={smoothCurve}
                      onCheckedChange={setSmoothCurve}
                      disabled={chartType === 'bar'}
                   >
-                     Smooth Curve
+                     {t('dashboard.growth.smoothCurve')}
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={resetToDefault}>
-                     Reset to Default
+                     {t('dashboard.growth.reset')}
                   </DropdownMenuItem>
                </DropdownMenuContent>
             </DropdownMenu>

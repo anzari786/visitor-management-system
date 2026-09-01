@@ -1,12 +1,14 @@
 'use client';
 
+import { useTranslation } from '@/lib/i18n';
+
 export function VisitorRegistrationContent() {
+   const { t } = useTranslation();
+
    return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-         <h1 className="text-xl font-semibold">Registration unavailable</h1>
-         <p className="mt-2 text-muted-foreground">
-            Visitor self-registration is not part of the current Host Portal flow.
-         </p>
+         <h1 className="text-xl font-semibold">{t('publicReg.stubTitle')}</h1>
+         <p className="mt-2 text-muted-foreground">{t('publicReg.stubBody')}</p>
       </div>
    );
 }

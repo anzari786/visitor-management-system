@@ -21,8 +21,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { DEFAULT_PROFILE_AVATAR_ID } from '@/constants/profile-avatars';
-import { useCheckUsername, useUpdateProfile } from '@/hooks/use-auth';
+import { PROFILE_AVATARS } from '@/constants/profile-avatars';
+import {
+   useCheckUsername,
+   useCurrentUser,
+   useUpdateProfile,
+} from '@/hooks/use-auth';
 import { useDebounce } from '@/hooks/use-debounce';
 import { formatEthiopianPhone } from '@/lib/phone';
 import {
@@ -31,32 +35,36 @@ import {
    type ProfileFormValues,
 } from '@/lib/validations/profile.schema';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
+import type { User } from '@/types/user.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { CheckIcon, KeyRound, Loader2, XIcon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import SpinnerBars from '@/components/shared/spinner-bars';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 export function EditProfileDialog() {
+   const { t } = useTranslation();
    const open = useProfileDialogStore((s) => s.open);
    const setOpen = useProfileDialogStore((s) => s.setOpen);
-   const user = useAuthStore((s) => s.user);
-   const getAvatarId = useProfileAvatarStore((s) => s.getAvatarId);
-   const setAvatar = useProfileAvatarStore((s) => s.setAvatar);
+   const storeUser = useAuthStore((s) => s.user);
+   const { data: fetchedUser, isLoading, isError } = useCurrentUser(open);
+   const fetchedUserData = fetchedUser as User | undefined;
+   const user: User | null = storeUser ?? (fetchedUserData ?? null);
    const { mutateAsync: updateProfile } = useUpdateProfile();
    const { theme, setTheme, resolvedTheme } = useTheme();
    const [passwordOpen, setPasswordOpen] = React.useState(false);
    const [themeMounted, setThemeMounted] = React.useState(false);
-   const [selectedAvatarId, setSelectedAvatarId] = React.useState(
-      DEFAULT_PROFILE_AVATAR_ID,
-   );
-   const [initialAvatarId, setInitialAvatarId] = React.useState(
-      DEFAULT_PROFILE_AVATAR_ID,
-   );
+   const [selectedAvatarId, setSelectedAvatarId] = React.useState<
+      string | null
+   >(null);
+   const [initialAvatarId, setInitialAvatarId] = React.useState<
+      string | null
+   >(null);
 
    React.useEffect(() => setThemeMounted(true), []);
 
@@ -78,7 +86,14 @@ export function EditProfileDialog() {
 
    React.useEffect(() => {
       if (open && user) {
-         const avatarId = getAvatarId(user.id);
+         const currentAvatar = user.avatar?.trim();
+         const avatarId =
+            currentAvatar && currentAvatar.length > 0
+               ?
+                    PROFILE_AVATARS.find(
+                       (avatar) => avatar.image === currentAvatar,
+                    )?.id ?? currentAvatar
+               : null;
          setSelectedAvatarId(avatarId);
          setInitialAvatarId(avatarId);
          reset({
@@ -87,7 +102,7 @@ export function EditProfileDialog() {
             phone: user.phone ?? '+251 ',
          });
       }
-   }, [open, user, reset, getAvatarId]);
+   }, [open, user, reset]);
 
    const usernameValue = watch('username');
    const phoneValue = watch('phone');
@@ -115,17 +130,61 @@ export function EditProfileDialog() {
       themeMounted && (theme === 'dark' || resolvedTheme === 'dark');
 
    const previewName =
-      fullNameValue?.trim() || (user ? getUserFullName(user) : 'User');
+      fullNameValue?.trim() ||
+      (user ? getUserFullName(user) : t('header.userFallback'));
+
+   if (isLoading && !user) {
+      return (
+         <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-md">
+               <div className="flex items-center justify-center gap-3 py-6 text-sm text-muted-foreground">
+                  <SpinnerBars
+                     bars={3}
+                     barWidth={6}
+                     minHeight={8}
+                     maxHeight={22}
+                     gap={4}
+                     duration={0.8}
+                     color="currentColor"
+                     className="text-muted-foreground"
+                  />
+                  <span>Loading profile…</span>
+               </div>
+            </DialogContent>
+         </Dialog>
+      );
+   }
+
+   if (isError && !user) {
+      return (
+         <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent className="sm:max-w-md">
+               <div className="py-6 text-center text-sm text-muted-foreground">
+                  We couldn’t load your profile right now. Please try again.
+               </div>
+            </DialogContent>
+         </Dialog>
+      );
+   }
 
    if (!user) return null;
 
-   const onSubmit = handleSubmit(async (values) => {
+    const onSubmit = handleSubmit(async (values) => {
       if (usernameTaken) return;
 
       const { firstName, lastName } = splitFullName(values.fullName);
+      const nextAvatar =
+         selectedAvatarId && selectedAvatarId.trim().length > 0
+            ?
+                 PROFILE_AVATARS.find(
+                    (avatar) =>
+                       avatar.id === selectedAvatarId ||
+                       avatar.image === selectedAvatarId,
+                 )?.image ?? selectedAvatarId
+            : null;
 
       try {
-         if (isDirty) {
+         if (isDirty || isAvatarDirty) {
             await updateProfile({
                firstName,
                lastName,
@@ -134,19 +193,16 @@ export function EditProfileDialog() {
                   !values.phone || values.phone === '+251 '
                      ? undefined
                      : values.phone,
+               avatar: isAvatarDirty ? nextAvatar : undefined,
             });
-         }
-
-         if (isAvatarDirty) {
-            setAvatar(user.id, selectedAvatarId);
             setInitialAvatarId(selectedAvatarId);
          }
 
-         toast.success('Profile updated successfully');
+         toast.success(t('profile.toast.updated'));
          reset(values);
          setOpen(false);
       } catch {
-         toast.error('Failed to update profile. Please try again.');
+         toast.error(t('profile.toast.updateFailed'));
       }
    });
 
@@ -159,11 +215,10 @@ export function EditProfileDialog() {
             >
                <DialogHeader className="border-b px-5 py-4 sm:px-6">
                   <DialogTitle className="text-base font-medium">
-                     Edit your profile
+                     {t('profile.edit.title')}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
-                     Update your name, username, phone, and appearance
-                     preferences.
+                     {t('profile.edit.description')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -176,12 +231,12 @@ export function EditProfileDialog() {
                                  htmlFor="pf-full-name"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Full Name
+                                 {t('common.fullName')}
                               </FieldLabel>
                               <Input
                                  id="pf-full-name"
                                  className="h-9 text-sm font-normal shadow-xs dark:bg-background"
-                                 placeholder="First and last name"
+                                 placeholder={t('profile.fullNamePlaceholder')}
                                  aria-invalid={!!errors.fullName}
                                  {...register('fullName')}
                               />
@@ -197,7 +252,7 @@ export function EditProfileDialog() {
                                  htmlFor="pf-username"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Username
+                                 {t('users.col.username')}
                               </FieldLabel>
                               <div className="relative">
                                  <Input
@@ -230,7 +285,7 @@ export function EditProfileDialog() {
                               )}
                               {usernameTaken && !errors.username && (
                                  <FieldError>
-                                    This username is already taken
+                                    {t('profile.usernameTaken')}
                                  </FieldError>
                               )}
                            </Field>
@@ -240,12 +295,12 @@ export function EditProfileDialog() {
                                  htmlFor="pf-phone"
                                  className="text-sm font-normal text-muted-foreground"
                               >
-                                 Phone
+                                 {t('common.phone')}
                               </FieldLabel>
                               <Input
                                  id="pf-phone"
                                  type="tel"
-                                 placeholder="+251 9XX XXX XXX"
+                                 placeholder={t('profile.phonePlaceholder')}
                                  className="h-9 text-sm font-normal shadow-xs dark:bg-background"
                                  aria-invalid={!!errors.phone}
                                  value={phoneValue ?? ''}
@@ -264,10 +319,10 @@ export function EditProfileDialog() {
                                     htmlFor="pf-dark-mode"
                                     className="text-sm font-medium text-primary"
                                  >
-                                    Dark mode
+                                    {t('profile.darkMode')}
                                  </Label>
                                  <p className="text-sm font-normal text-muted-foreground">
-                                    Use a darker interface on this device.
+                                    {t('profile.darkModeHint')}
                                  </p>
                               </div>
                               <Switch
@@ -287,7 +342,7 @@ export function EditProfileDialog() {
                               onClick={() => setPasswordOpen(true)}
                            >
                               <KeyRound className="size-4" />
-                              Change password
+                              {t('profile.changePassword')}
                            </Button>
                         </div>
                      </div>
@@ -304,8 +359,12 @@ export function EditProfileDialog() {
 
                   <div className="flex flex-col gap-4 border-t bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                      <p className="text-sm font-normal text-muted-foreground">
-                        Joined:{' '}
-                        {format(new Date(user.createdAt), 'd MMM, yyyy')}
+                        {t('profile.joined', {
+                           date: format(
+                              new Date(user.createdAt),
+                              'd MMM, yyyy',
+                           ),
+                        })}
                      </p>
                      <div className="flex w-full gap-3 sm:w-auto">
                         <DialogClose asChild>
@@ -314,7 +373,7 @@ export function EditProfileDialog() {
                               variant="outline"
                               className="h-9 flex-1 rounded-lg shadow-xs sm:flex-none"
                            >
-                              Cancel
+                              {t('common.cancel')}
                            </Button>
                         </DialogClose>
                         <Button
@@ -327,7 +386,9 @@ export function EditProfileDialog() {
                               usernameTaken
                            }
                         >
-                           {isSubmitting ? 'Saving…' : 'Save Changes'}
+                           {isSubmitting
+                              ? t('common.saving')
+                              : t('common.saveChanges')}
                         </Button>
                      </div>
                   </div>

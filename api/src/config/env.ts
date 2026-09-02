@@ -22,6 +22,15 @@ export const env = {
    // Session
    SESSION_SECRET: process.env.SESSION_SECRET!,
 
+   /**
+    * Development-only auth bypass. Requests without a session adopt the first
+    * active admin account. Ignored whenever NODE_ENV is 'production', so it
+    * cannot weaken a real deployment even if the variable is left set.
+    */
+   DEV_BYPASS_AUTH:
+      process.env.DEV_BYPASS_AUTH === 'true' &&
+      process.env.NODE_ENV !== 'production',
+
    // SMTP / transactional email
    SMTP_HOST: process.env.SMTP_HOST,
    SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),

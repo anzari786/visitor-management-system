@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import SpinnerBars from '@/components/shared/spinner-bars';
 import {
    Table,
    TableBody,
@@ -9,12 +10,11 @@ import {
    TableHeader,
    TableRow,
 } from '@/components/ui/table';
-import { USER_ROLE_CONFIG } from '@/constants/user';
 import { useUsers } from '@/hooks/use-users';
-import { formatLastLogin } from '@/lib/format-last-login';
+import { getLastLoginLabel } from '@/lib/format-last-login';
 import { getUserFullName } from '@/lib/user';
 import { cn } from '@/lib/utils';
-import type { User, UserRole, UserStatusFilter } from '@/types/user.types';
+import type { User, UserStatusFilter } from '@/types/user.types';
 import {
    ColumnDef,
    flexRender,
@@ -28,16 +28,26 @@ import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import UserDetailsSheet from './user-details';
 import { UserRowActions } from './user-row-actions';
-import { roleFilterLabels, UsersTableFilters } from './users-table-filters';
+import { UsersTableFilters } from './users-table-filters';
 import { UsersTablePagination } from './users-table-pagination';
+import { UserRoleBadge } from './user-role-badge';
 import { UserStatusBadge } from './user-status-badge';
+import { USER_ROLE_KEYS, useTranslation, type TranslationKey } from '@/lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
+type Translate = (
+   key: TranslationKey,
+   vars?: Record<string, string | number>,
+) => string;
+
+const getColumns = (
+   onViewDetails: (user: User) => void,
+   t: Translate,
+): ColumnDef<User>[] => [
    {
       id: 'name',
-      header: 'Name',
+      header: t('users.col.name'),
       cell: ({ row }) => (
          <button
             type="button"
@@ -50,38 +60,21 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    },
    {
       accessorKey: 'username',
-      header: 'Username',
+      header: t('users.col.username'),
       cell: ({ row }) => (
-         <span className="text-sm text-muted-foreground">
+         <span className="text-sm text-muted-foreground font-mono tracking-wide">
             {row.original.username}
          </span>
       ),
    },
    {
       accessorKey: 'role',
-      header: 'Role',
-      cell: ({ row }) => {
-         const role = row.original.role as UserRole;
-         const config = USER_ROLE_CONFIG[role];
-         const RoleIcon = config.icon;
-
-         return (
-            <Badge
-               variant="secondary"
-               className={cn(
-                  'h-6 gap-1.5 rounded-md px-2 font-medium',
-                  config.color,
-               )}
-            >
-               <RoleIcon className="size-3" />
-               {roleFilterLabels[role]}
-            </Badge>
-         );
-      },
+      header: t('users.col.role'),
+      cell: ({ row }) => <UserRoleBadge role={row.original.role} />,
    },
    {
       id: 'type',
-      header: 'Account Type',
+      header: t('users.col.accountType'),
       cell: ({ row }) => {
          const isSso = !!row.original.employee;
          const TypeIcon = isSso ? ShieldCheck : KeyRound;
@@ -97,7 +90,11 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
                )}
             >
                <TypeIcon className="size-3" />
-               {isSso ? 'SSO' : 'Local'}
+               {t(
+                  isSso
+                     ? 'users.accountType.sso'
+                     : 'users.accountType.local',
+               )}
             </Badge>
          );
       },
@@ -105,21 +102,24 @@ const getColumns = (onViewDetails: (user: User) => void): ColumnDef<User>[] => [
    {
       id: 'status',
 
-      header: 'Status',
+      header: t('common.status'),
       cell: ({ row }) => <UserStatusBadge isActive={row.original.isActive} />,
    },
    {
       id: 'lastActivity',
-      header: 'Last activity',
+      header: t('users.col.lastActivity'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground">
-            {formatLastLogin(row.original.lastLoginAt)}
+            {(() => {
+               const label = getLastLoginLabel(row.original.lastLoginAt);
+               return t(label.key, label.vars);
+            })()}
          </span>
       ),
    },
    {
       id: 'createdAt',
-      header: 'Created',
+      header: t('users.col.created'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground">
             {format(new Date(row.original.createdAt), 'MMM d, yyyy')}
@@ -140,6 +140,7 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ showFilters = true }: UsersTableProps) {
+   const { t } = useTranslation();
    const searchParams = useSearchParams();
 
    const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -152,7 +153,8 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
    const search = searchParams.get('search') ?? undefined;
    const statusFilter =
       (searchParams.get('status') as UserStatusFilter | 'all') || 'all';
-   const roleFilter = (searchParams.get('role') as UserRole | 'all') || 'all';
+   const roleFilter =
+      (searchParams.get('role') as User['role'] | 'all') || 'all';
 
    const { data, isLoading, isError, isFetching } = useUsers({
       page,
@@ -172,8 +174,8 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
    }, []);
 
    const columns = React.useMemo(
-      () => getColumns(handleViewDetails),
-      [handleViewDetails],
+      () => getColumns(handleViewDetails, t),
+      [handleViewDetails, t],
    );
 
    const table = useReactTable({
@@ -215,22 +217,23 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
                   </TableHeader>
                   <TableBody>
                      {isLoading ? (
-                        Array.from({ length: pageSize }).map((_, i) => (
-                           <TableRow key={i} className="border-border/70">
-                              {columns.map((_, j) => (
-                                 <TableCell key={j} className="px-4 py-3.5">
-                                    <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                                 </TableCell>
-                              ))}
-                           </TableRow>
-                        ))
+                        <TableRow className="hover:bg-transparent">
+                           <TableCell
+                              colSpan={columns.length}
+                              className="h-40 px-4"
+                           >
+                              <div className="flex justify-center text-primary">
+                                 <SpinnerBars />
+                              </div>
+                           </TableCell>
+                        </TableRow>
                      ) : isError ? (
                         <TableRow className="hover:bg-transparent">
                            <TableCell
                               colSpan={columns.length}
                               className="h-40 px-4 text-center text-sm text-destructive"
                            >
-                              Failed to load users. Please try again.
+                              {t('users.loadError')}
                            </TableCell>
                         </TableRow>
                      ) : users.length ? (
@@ -266,11 +269,10 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
                            >
                               <div className="mx-auto flex max-w-sm flex-col items-center gap-1.5">
                                  <p className="text-sm font-medium text-foreground">
-                                    No users found
+                                    {t('users.emptyTitle')}
                                  </p>
                                  <p className="text-sm text-muted-foreground">
-                                    Try adjusting your search or filters to find
-                                    what you&apos;re looking for.
+                                    {t('visits.emptyDescription')}
                                  </p>
                               </div>
                            </TableCell>

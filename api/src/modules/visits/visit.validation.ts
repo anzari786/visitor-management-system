@@ -38,8 +38,8 @@ const visitorInputSchema = z.object({
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
    organization: z.string().trim().min(1).max(150).optional(),
-   idType: identificationTypeSchema,
-   idNumber: z.string().trim().min(1).max(50),
+   idType: identificationTypeSchema.optional(),
+   idNumber: z.string().trim().min(1).max(50).optional(),
 });
 
 const hostInvitationVisitorSchema = z.object({
@@ -62,7 +62,10 @@ const visitRequestBodySchema = z
    .object({
       groupType: groupTypeSchema,
       durationType: durationTypeSchema,
-      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
+      purpose: z.union([
+         visitPurposeSchema,
+         z.string().trim().min(1).max(2000),
+      ]),
       hostEmployeeId: z.coerce.number().int().positive(),
       visitors: z.array(visitorInputSchema).min(1).max(50),
       scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
@@ -86,7 +89,10 @@ const hostInvitationBodySchema = z
    .object({
       groupType: groupTypeSchema,
       durationType: durationTypeSchema,
-      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
+      purpose: z.union([
+         visitPurposeSchema,
+         z.string().trim().min(1).max(2000),
+      ]),
       hostEmployeeId: z.coerce.number().int().positive(),
       visitors: z.array(hostInvitationVisitorSchema).max(50).default([]),
       expectedVisitorCount: z.coerce.number().int().min(1).max(50).optional(),
@@ -132,8 +138,7 @@ const hostInvitationBodySchema = z
          ) {
             ctx.addIssue({
                code: 'custom',
-               message:
-                  'A SINGLE visit must have expectedVisitorCount of 1',
+               message: 'A SINGLE visit must have expectedVisitorCount of 1',
                path: ['expectedVisitorCount'],
             });
          }
@@ -145,8 +150,7 @@ const hostInvitationBodySchema = z
          ) {
             ctx.addIssue({
                code: 'custom',
-               message:
-                  'A GROUP visit must expect at least 2 visitors',
+               message: 'A GROUP visit must expect at least 2 visitors',
                path: ['expectedVisitorCount'],
             });
          }
@@ -187,19 +191,6 @@ export const createWalkInVisitSchema = z.object({
 /** Host invitation — supports known visitors or count-only unknown invitations. */
 export const createHostInvitationSchema = z.object({
    body: hostInvitationBodySchema,
-});
-
-export const invitationTokenParamSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-});
-
-export const registerViaInvitationSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-   body: registerVisitorBodySchema,
 });
 
 export const registerVisitorAtVisitSchema = z.object({

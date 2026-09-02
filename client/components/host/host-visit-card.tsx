@@ -5,6 +5,7 @@ import { format, parse } from 'date-fns';
 import { Dot, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { HostVisit } from '@/types/host.types';
+import { useTranslation } from '@/lib/i18n';
 
 export type { HostVisit as HostVisitCardData };
 
@@ -39,6 +40,7 @@ export function HostVisitCard({
    statusClassName,
    actions,
 }: HostVisitCardProps) {
+   const { t } = useTranslation();
    const startDate = parseVisitDate(visit.startDate);
    const dayNumber = format(startDate, 'dd');
    const dayLabel = format(startDate, 'EEE').toUpperCase();
@@ -68,7 +70,7 @@ export function HostVisitCard({
                      </h3>
                      <p className="flex min-w-0 flex-wrap items-center text-xs text-muted-foreground">
                         <span className="truncate font-medium">
-                           {visit.orgName || 'Individual visitor'}
+                           {visit.orgName || t('host.individualVisitor')}
                         </span>
                         <MetaDot />
                         <span className="truncate">{scheduleLabel}</span>
@@ -87,7 +89,9 @@ export function HostVisitCard({
                               <MetaDot />
                               <span className="inline-flex items-center gap-1">
                                  <Users className="size-3 shrink-0" />
-                                 {visit.groupSize ?? 1} visitors
+                                 {t('host.visitorsCount', {
+                                    count: visit.groupSize ?? 1,
+                                 })}
                               </span>
                            </>
                         )}

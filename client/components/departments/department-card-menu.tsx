@@ -16,12 +16,14 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { EditDepartmentDialog } from './edit-department-dialog';
 import { ToggleDepartmentDialog } from './toggle-department-dialog';
+import { useTranslation } from '@/lib/i18n';
 
 type DepartmentCardMenuProps = {
    department: Department;
 };
 
 export function DepartmentCardMenu({ department }: DepartmentCardMenuProps) {
+   const { t } = useTranslation();
    const [editDialogOpen, setEditDialogOpen] = React.useState(false);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
@@ -34,12 +36,17 @@ export function DepartmentCardMenu({ department }: DepartmentCardMenuProps) {
          {
             onSuccess: () =>
                toast.success(
-                  `${department.name} has been ${department.isActive ? 'disabled' : 'enabled'}`,
+                  t(
+                     department.isActive
+                        ? 'departments.toast.disabled'
+                        : 'departments.toast.enabled',
+                     { name: department.name },
+                  ),
                ),
             onError: (error) =>
                toast.error(
                   error.response?.data.message ??
-                     'Failed to update department. Please try again.',
+                     t('departments.toast.updateFailed'),
                ),
             onSettled: () => setStatusDialogOpen(false),
          },
@@ -63,7 +70,7 @@ export function DepartmentCardMenu({ department }: DepartmentCardMenuProps) {
                      }}
                   >
                      <Pencil className="size-4" />
-                     Edit Department
+                     {t('departments.form.edit')}
                   </DropdownMenuItem>
                </DropdownMenuGroup>
 
@@ -77,9 +84,11 @@ export function DepartmentCardMenu({ department }: DepartmentCardMenuProps) {
                         setStatusDialogOpen(true);
                      }}
                   >
-                     {department.isActive
-                        ? 'Disable Department'
-                        : 'Enable Department'}
+                     {t(
+                        department.isActive
+                           ? 'departments.menu.disable'
+                           : 'departments.menu.enable',
+                     )}
                   </DropdownMenuItem>
                </DropdownMenuGroup>
             </DropdownMenuContent>

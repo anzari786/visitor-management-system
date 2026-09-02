@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 type LogoutConfirmDialogProps = {
    open: boolean;
@@ -24,6 +25,8 @@ export function LogoutConfirmDialog({
    onConfirm,
    isPending = false,
 }: LogoutConfirmDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -36,10 +39,9 @@ export function LogoutConfirmDialog({
                </div>
 
                <DialogHeader className="items-center sm:text-center">
-                  <DialogTitle>Sign out</DialogTitle>
+                  <DialogTitle>{t('logout.title')}</DialogTitle>
                   <DialogDescription>
-                     Are you sure you want to sign out? You will need to log in
-                     again to continue.
+                     {t('logout.description')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -51,7 +53,7 @@ export function LogoutConfirmDialog({
                         className="flex-1 cursor-pointer"
                         disabled={isPending}
                      >
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
                   <Button
@@ -61,7 +63,7 @@ export function LogoutConfirmDialog({
                      disabled={isPending}
                      onClick={onConfirm}
                   >
-                     {isPending ? 'Logging out…' : 'Log out'}
+                     {isPending ? t('logout.pending') : t('header.logout')}
                   </Button>
                </div>
             </div>

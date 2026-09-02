@@ -10,6 +10,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { CheckCircle2Icon } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 type CheckOutSuccessDialogProps = {
    open: boolean;
@@ -24,6 +25,8 @@ export function CheckOutSuccessDialog({
    visitorLabel,
    visitId,
 }: CheckOutSuccessDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -36,14 +39,13 @@ export function CheckOutSuccessDialog({
                </div>
                <DialogHeader className="items-center space-y-2">
                   <DialogTitle className="text-lg">
-                     Checked out successfully
+                     {t('checkOutSuccess.title')}
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     {visitorLabel} has been checked out for visit{' '}
-                     <span className="font-mono text-foreground">
-                        {visitId}
-                     </span>
-                     .
+                     {t('checkOutSuccess.description', {
+                        name: visitorLabel,
+                        id: visitId,
+                     })}
                   </DialogDescription>
                </DialogHeader>
                <DialogClose asChild>
@@ -51,7 +53,7 @@ export function CheckOutSuccessDialog({
                      type="button"
                      className="w-full cursor-pointer hover:bg-primary/90"
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
                </DialogClose>
             </div>

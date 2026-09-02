@@ -1,3 +1,6 @@
+'use client';
+
+import { useTranslation } from '@/lib/i18n';
 import {
    AlertDialog,
    AlertDialogAction,
@@ -26,22 +29,31 @@ export function ToggleDepartmentDialog({
    onConfirm,
    isPending,
 }: ToggleDepartmentDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <AlertDialog open={open} onOpenChange={onOpenChange}>
          <AlertDialogContent>
             <AlertDialogHeader>
                <AlertDialogTitle>
-                  {isActive ? 'Disable Department?' : 'Enable Department?'}
+                  {t(
+                     isActive
+                        ? 'departments.toggle.disableTitle'
+                        : 'departments.toggle.enableTitle',
+                  )}
                </AlertDialogTitle>
                <AlertDialogDescription>
-                  {isActive
-                     ? `${departmentName} will no longer be available for visitor assignments and check-ins until it is enabled again.`
-                     : `${departmentName} will become available for visitor assignments and check-ins.`}
+                  {t(
+                     isActive
+                        ? 'departments.toggle.disableBody'
+                        : 'departments.toggle.enableBody',
+                     { name: departmentName },
+                  )}
                </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                <AlertDialogCancel disabled={isPending}>
-                  Cancel
+                  {t('common.cancel')}
                </AlertDialogCancel>
                <AlertDialogAction
                   variant={isActive ? 'destructive' : 'default'}
@@ -49,12 +61,16 @@ export function ToggleDepartmentDialog({
                   disabled={isPending}
                >
                   {isPending
-                     ? isActive
-                        ? 'Disabling…'
-                        : 'Enabling…'
-                     : isActive
-                       ? 'Disable'
-                       : 'Enable'}
+                     ? t(
+                          isActive
+                             ? 'departments.toggle.disabling'
+                             : 'departments.toggle.enabling',
+                       )
+                     : t(
+                          isActive
+                             ? 'departments.toggle.disable'
+                             : 'departments.toggle.enable',
+                       )}
                </AlertDialogAction>
             </AlertDialogFooter>
          </AlertDialogContent>

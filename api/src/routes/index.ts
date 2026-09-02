@@ -3,7 +3,6 @@ import { Router } from 'express';
 import authRoutes from '../modules/auth/auth.routes.js';
 
 import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
-import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 
 import userRoutes from '../modules/users/user.routes.js';
@@ -23,7 +22,6 @@ router.use('/auth', authRoutes);
 
 // Dashboard & Reports
 router.use('/dashboard', dashboardRoutes);
-router.use('/reports', reportRoutes);
 
 // Administration
 router.use('/users', userRoutes);

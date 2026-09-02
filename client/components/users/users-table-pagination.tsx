@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -34,6 +35,7 @@ export function UsersTablePagination({
    pageCount,
    isFetching = false,
 }: UsersTablePaginationProps) {
+   const { t } = useTranslation();
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
@@ -143,17 +145,19 @@ export function UsersTablePagination({
       <div className="flex flex-col items-center justify-between gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
          <div className="flex w-full flex-col gap-2 sm:w-auto">
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase opacity-70">
-               <span>Results</span>
+               <span>{t('pagination.results')}</span>
                <div className="h-1 w-1 rounded-full bg-border" />
                <span className="tabular-nums text-foreground/80">
                   {total === 0 ? '0' : `${from}–${to}`}
                </span>
-               <span>of</span>
+               <span>{t('pagination.of')}</span>
                <span className="tabular-nums text-foreground/80">{total}</span>
             </div>
 
             <div className="inline-flex items-center gap-2 rounded-2xl border bg-background/80 p-1.5">
-               <span className="px-2 text-xs text-muted-foreground">Show</span>
+               <span className="px-2 text-xs text-muted-foreground">
+                  {t('pagination.show')}
+               </span>
                <Select
                   value={pageSize.toString()}
                   onValueChange={(value) => goToPage(1, Number(value))}
@@ -169,7 +173,7 @@ export function UsersTablePagination({
                   </SelectContent>
                </Select>
                <span className="pr-2 text-xs text-muted-foreground">
-                  per page
+                  {t('pagination.perPage')}
                </span>
             </div>
          </div>
@@ -207,7 +211,7 @@ export function UsersTablePagination({
                      page === 1 ? 'text-primary transition-colors' : undefined
                   }
                >
-                  First
+                  {t('pagination.first')}
                </span>
                <div className="h-1 w-1 rounded-full bg-border" />
                <span
@@ -217,7 +221,7 @@ export function UsersTablePagination({
                         : undefined
                   }
                >
-                  Last
+                  {t('pagination.last')}
                </span>
             </div>
          </div>

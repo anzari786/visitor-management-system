@@ -1,0 +1,4 @@
+# bcrypt ships a native addon — its install script must be allowed to run
+# (pnpm 10 blocks lifecycle scripts by default).
+allowBuilds:
+  bcrypt: true

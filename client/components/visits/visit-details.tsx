@@ -20,9 +20,13 @@ import {
    SheetHeader,
    SheetTitle,
 } from '@/components/ui/sheet';
-import { getVisitTypeLabel } from '@/constants/visit-types';
-import { getMeetingTypeLabel } from '@/constants/meeting-types';
-import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import {
+   ID_TYPE_KEYS,
+   MEETING_TYPE_KEYS,
+   VISIT_TYPE_KEYS,
+   useTranslation,
+   type TranslationKey,
+} from '@/lib/i18n';
 import {
    applyVisitorAttendance,
    canCheckIn,
@@ -92,14 +96,8 @@ function formatTimeLabel(time: string) {
    return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-function formatIdType(idType: IdType) {
-   return (
-      ID_TYPE_OPTIONS.find((option) => option.value === idType)?.label ??
-      idType
-         .split('_')
-         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-         .join(' ')
-   );
+function idTypeKey(idType: IdType): TranslationKey {
+   return ID_TYPE_KEYS[idType] ?? 'idType.other';
 }
 
 export function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
@@ -133,6 +131,8 @@ function DetailRow({
 }
 
 function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
+   const { t } = useTranslation();
+
    return (
       <div className="flex min-w-0 flex-col items-start gap-1">
          <span className="text-sm font-medium text-foreground">
@@ -155,7 +155,11 @@ function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
                <span className="inline-flex min-w-0 items-center gap-1.5">
                   <IdCard className="size-3 shrink-0" />
                   <span className="truncate">
-                     {visitor.idType ? formatIdType(visitor.idType) : 'ID'}
+                     {t(
+                        visitor.idType
+                           ? idTypeKey(visitor.idType)
+                           : 'checkIn.idLabel',
+                     )}
                      {visitor.idNumber ? ` · ${visitor.idNumber}` : ''}
                   </span>
                </span>
@@ -172,6 +176,7 @@ export function VisitDetailsSheet({
    onVisitChange,
    initialMode = 'view',
 }: VisitDetailsSheetProps) {
+   const { t } = useTranslation();
    const [selectedIds, setSelectedIds] = React.useState<
       Record<string, boolean>
    >({});
@@ -297,7 +302,7 @@ export function VisitDetailsSheet({
             : checkInEligible.map((v) => v.id);
 
       if (ids.length === 0) {
-         toast.error('Select at least one visitor to check in');
+         toast.error(t('visitDetails.toast.selectCheckIn'));
          return;
       }
 
@@ -393,7 +398,9 @@ export function VisitDetailsSheet({
       setSelectedIds({});
       setPendingCheckInIds([]);
       setSuccessLabel(
-         names.length === 1 ? names[0]! : `${names.length} visitors`,
+         names.length === 1
+            ? names[0]!
+            : t('visits.visitorsCount', { count: names.length }),
       );
       setCheckInPrintTargets(printTargets);
       setCheckInSuccessOpen(true);
@@ -406,7 +413,7 @@ export function VisitDetailsSheet({
             : checkOutEligible.map((v) => v.id);
 
       if (ids.length === 0) {
-         toast.error('Select at least one visitor to check out');
+         toast.error(t('visitDetails.toast.selectCheckOut'));
          return;
       }
 
@@ -426,7 +433,9 @@ export function VisitDetailsSheet({
       setSelectedIds({});
       setPendingCheckOutIds([]);
       setSuccessLabel(
-         names.length === 1 ? names[0]! : `${names.length} visitors`,
+         names.length === 1
+            ? names[0]!
+            : t('visits.visitorsCount', { count: names.length }),
       );
       setCheckOutSuccessOpen(true);
    };
@@ -447,12 +456,14 @@ export function VisitDetailsSheet({
             visitorName: visit.visitorName,
             visitSummary: `${visit.id} · ${visit.meetingType}`,
          });
-         toast.success('Approval email resent', {
-            description: `Reminder sent for ${visit.visitorName}'s visit request.`,
+         toast.success(t('visitActions.toast.emailResent'), {
+            description: t('visitActions.toast.emailResentBody', {
+               name: visit.visitorName,
+            }),
          });
       } catch {
-         toast.error('Could not resend email', {
-            description: 'Please try again in a moment.',
+         toast.error(t('visitActions.toast.emailFailed'), {
+            description: t('visitActions.toast.tryAgain'),
          });
       } finally {
          setIsResending(false);
@@ -479,7 +490,9 @@ export function VisitDetailsSheet({
                      <SheetDescription className="text-sm text-muted-foreground">
                         {visit.visitorName}
                         {group
-                           ? ` · ${visit.visitorCount} visitors`
+                           ? ` · ${t('visits.visitorsCount', {
+                                count: visit.visitorCount,
+                             })}`
                            : visit.organization
                              ? ` · ${visit.organization}`
                              : ''}
@@ -492,7 +505,7 @@ export function VisitDetailsSheet({
                         className="shrink-0"
                      >
                         <XIcon className="size-5" />
-                        <span className="sr-only">Close</span>
+                        <span className="sr-only">{t('common.close')}</span>
                      </Button>
                   </SheetClose>
                </SheetHeader>
@@ -501,12 +514,12 @@ export function VisitDetailsSheet({
                   <div className="flex flex-col gap-6 p-5 sm:p-6">
                      <section className="space-y-4">
                         <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                           Visit details
+                           {t('visitDetails.heading')}
                         </h3>
                         <div className="space-y-3.5">
                            <DetailRow
                               icon={Hash}
-                              label="Visit ID"
+                              label={t('visitDetails.visitId')}
                               value={
                                  <span className="font-mono text-xs">
                                     {visit.id}
@@ -515,62 +528,70 @@ export function VisitDetailsSheet({
                            />
                            <DetailRow
                               icon={Building2}
-                              label="Organization"
-                              value={visit.organization ?? 'Individual visitor'}
+                              label={t('visitDetails.organization')}
+                              value={
+                                 visit.organization ??
+                                 t('checkIn.individualVisitor')
+                              }
                            />
                            <DetailRow
                               icon={Users}
-                              label="Host"
+                              label={t('visits.col.host')}
                               value={visit.host}
                            />
                            <DetailRow
                               icon={Building2}
-                              label="Department"
+                              label={t('common.department')}
                               value={visit.department}
                            />
                            <DetailRow
                               icon={getVisitTypeIcon(visit.visitType)}
-                              label="Visit type"
+                              label={t('visits.col.visitType')}
                               value={
                                  <Badge
                                     variant="secondary"
                                     className="h-6 rounded-md px-2 font-medium"
                                  >
-                                    {getVisitTypeLabel(visit.visitType)}
+                                    {t(VISIT_TYPE_KEYS[visit.visitType])}
                                  </Badge>
                               }
                            />
                            <DetailRow
                               icon={Handshake}
-                              label="Meeting type"
+                              label={t('visits.col.meetingType')}
                               value={
                                  <Badge
                                     variant="secondary"
                                     className="h-6 rounded-md px-2 font-medium"
                                  >
-                                    {getMeetingTypeLabel(visit.meetingType)}
+                                    {t(MEETING_TYPE_KEYS[visit.meetingType])}
                                  </Badge>
                               }
                            />
                            <DetailRow
                               icon={CalendarDays}
-                              label="Visit date"
+                              label={t('visitDetails.visitDate')}
                               value={dateLabel}
                            />
                            <DetailRow
                               icon={Clock3}
-                              label="Time"
+                              label={t('common.time')}
                               value={timeLabel}
                            />
                            <DetailRow
                               icon={MapPin}
-                              label="Location"
+                              label={t('checkIn.location')}
                               value={locationLabel}
                            />
                            <DetailRow
                               icon={Users}
-                              label="Visitor count"
-                              value={`${visit.visitorCount}${group ? ' guests' : ' guest'}`}
+                              label={t('visitDetails.visitorCount')}
+                              value={t(
+                                 group
+                                    ? 'visitDetails.guests'
+                                    : 'visitDetails.guest',
+                                 { count: visit.visitorCount },
+                              )}
                            />
                         </div>
                      </section>
@@ -581,17 +602,32 @@ export function VisitDetailsSheet({
                         <div className="flex items-center justify-between gap-3 pb-1">
                            <div>
                               <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                 Visitors ({visit.visitors.length})
+                                 {t('visitDetails.visitorsHeading', {
+                                    count: visit.visitors.length,
+                                 })}
                               </h3>
                               <p className="mt-1 text-xs text-muted-foreground">
                                  {visit.isMultiDay
-                                    ? `${attendanceDayLabel}${windowOpen ? ' · open' : ''} · `
+                                    ? `${attendanceDayLabel}${
+                                         windowOpen
+                                            ? ` · ${t('visitDetails.windowOpen')}`
+                                            : ''
+                                      } · `
                                     : ''}
-                                 {isApprovalPending
-                                    ? `${notCheckedInCount} pending`
-                                    : `${notCheckedInCount} not checked in`}{' '}
-                                 · {checkedInCount} checked in ·{' '}
-                                 {checkedOutCount} checked out
+                                 {t(
+                                    isApprovalPending
+                                       ? 'visitDetails.pendingCount'
+                                       : 'visitDetails.notCheckedIn',
+                                    { count: notCheckedInCount },
+                                 )}{' '}
+                                 ·{' '}
+                                 {t('visitDetails.checkedInCount', {
+                                    count: checkedInCount,
+                                 })}{' '}
+                                 ·{' '}
+                                 {t('visitDetails.checkedOutCount', {
+                                    count: checkedOutCount,
+                                 })}
                               </p>
                            </div>
                            {group && (showCheckIn || showCheckOut) && (
@@ -616,14 +652,14 @@ export function VisitDetailsSheet({
                                     setSelectedIds(next);
                                  }}
                               >
-                                 Select eligible
+                                 {t('visitDetails.selectEligible')}
                               </Button>
                            )}
                         </div>
 
                         {visit.visitors.length === 0 ? (
                            <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-                              No visitors on this visit
+                              {t('visitDetails.noVisitors')}
                            </div>
                         ) : (
                            <FieldGroup className="w-full gap-3">
@@ -678,9 +714,11 @@ export function VisitDetailsSheet({
                                              />
                                              {selectable && (
                                                 <span className="mt-1 text-[11px] font-normal text-muted-foreground">
-                                                   {canSelectForCheckIn
-                                                      ? 'Eligible for check-in'
-                                                      : 'Eligible for check-out'}
+                                                   {t(
+                                                      canSelectForCheckIn
+                                                         ? 'visitDetails.eligibleCheckIn'
+                                                         : 'visitDetails.eligibleCheckOut',
+                                                   )}
                                                 </span>
                                              )}
                                           </FieldTitle>
@@ -728,7 +766,9 @@ export function VisitDetailsSheet({
                            ) : (
                               <Mail className="size-4" />
                            )}
-                           {isResending ? 'Sending…' : 'Resend Approval Email'}
+                           {isResending
+                              ? t('visitActions.sending')
+                              : t('visitActions.resendEmail')}
                         </Button>
                      )}
                      {showCheckIn && (
@@ -741,12 +781,12 @@ export function VisitDetailsSheet({
                         >
                            <LogIn className="size-4" />
                            {group
-                              ? `Check In${
-                                   selectedCheckInIds.length
-                                      ? ` (${selectedCheckInIds.length})`
-                                      : ` (${checkInEligible.length})`
-                                }`
-                              : 'Check In'}
+                              ? t('visitDetails.checkInCount', {
+                                   count:
+                                      selectedCheckInIds.length ||
+                                      checkInEligible.length,
+                                })
+                              : t('visitActions.checkIn')}
                         </Button>
                      )}
                      {showCheckOut && (
@@ -761,12 +801,12 @@ export function VisitDetailsSheet({
                         >
                            <LogOut className="size-4" />
                            {group
-                              ? `Check Out${
-                                   selectedCheckOutIds.length
-                                      ? ` (${selectedCheckOutIds.length})`
-                                      : ` (${checkOutEligible.length})`
-                                }`
-                              : 'Check Out'}
+                              ? t('visitDetails.checkOutCount', {
+                                   count:
+                                      selectedCheckOutIds.length ||
+                                      checkOutEligible.length,
+                                })
+                              : t('visitActions.checkOut')}
                         </Button>
                      )}
                   </SheetFooter>

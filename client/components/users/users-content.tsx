@@ -6,6 +6,8 @@ import type {
    CreateSsoUserFormValues,
    CreateUserFormValues,
 } from '@/lib/validations/user.schema';
+import type { CreateUserPayload } from '@/types/user.types';
+import { AxiosError } from 'axios';
 import { Plus } from 'lucide-react';
 import * as React from 'react';
 import { Suspense } from 'react';
@@ -14,8 +16,10 @@ import { Button } from '../ui/button';
 import CreateUser from './create-user';
 import { UsersTable } from './users-table';
 import { UsersTableSkeleton } from './users-table-skeleton';
+import { useTranslation } from '@/lib/i18n';
 
 export function UsersContent() {
+   const { t } = useTranslation();
    const [open, setOpen] = React.useState(false);
    const usersCount = useUsersCount();
    const { mutateAsync: createUser } = useCreateUser();
@@ -24,16 +28,31 @@ export function UsersContent() {
       values: CreateUserFormValues | CreateSsoUserFormValues,
    ) {
       try {
-         if ('employeeId' in values) {
-            // SSO user — call whatever mutation/endpoint handles SSO provisioning
-            // await createSsoUser(values);
-         } else {
-            await createUser(values);
-         }
-         toast.success('User created successfully');
+         const payload: CreateUserPayload =
+            'employeeId' in values
+               ? {
+                    authProvider: 'SSO',
+                    employeeId: Number(values.employeeId),
+                    roles: [values.role],
+                 }
+               : {
+                    authProvider: 'LOCAL',
+                    firstName: values.firstName,
+                    lastName: values.lastName,
+                    email: values.email,
+                    username: values.username,
+                    roles: [values.role],
+                 };
+
+         await createUser(payload);
+         toast.success(t('users.toast.created'));
          setOpen(false);
-      } catch {
-         toast.error('Failed to create user. Please try again.');
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? error.response?.data?.message
+               : undefined;
+         toast.error(message ?? t('users.toast.createFailed'));
       }
    }
 
@@ -41,11 +60,10 @@ export function UsersContent() {
       <Content
          subtitle={
             <p>
-               Manage staff accounts, roles, and access.{' '}
+               {t('users.subtitle')}{' '}
                <span className="font-medium tabular-nums text-foreground">
-                  {usersCount} users
-               </span>{' '}
-               currently have access.
+                  {t('users.accessCount', { count: usersCount })}
+               </span>
             </p>
          }
          actionButton={
@@ -55,8 +73,8 @@ export function UsersContent() {
                className="gap-2 sm:gap-3 h-8 sm:h-9 text-xs sm:text-sm bg-linear-to-b from-foreground to-foreground/90 text-background"
             >
                <Plus className="size-3 sm:size-4" />
-               <span className="hidden sm:inline">Create User</span>
-               <span className="sm:hidden">New</span>
+               <span className="hidden sm:inline">{t('users.create')}</span>
+               <span className="sm:hidden">{t('users.new')}</span>
             </Button>
          }
       >

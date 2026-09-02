@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
-import { Check, Copy, Loader2, Send } from 'lucide-react';
+import { Check, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
 import {
@@ -17,10 +17,7 @@ import {
 } from '@/lib/validations/host-invitation.schema';
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
-import {
-   visitInvitationService,
-   type HostInvitationCreated,
-} from '@/services/visit-invitation.service';
+import { hostService, type HostInvitationCreated } from '@/services/host.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -49,6 +46,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslation } from '@/lib/i18n';
 
 type CreateInvitationDialogProps = {
    open: boolean;
@@ -73,19 +71,14 @@ function SectionHeading({
    );
 }
 
-function normalizeOrganization(value?: string) {
-   const trimmed = value?.trim();
-   return trimmed ? trimmed : undefined;
-}
-
 export function CreateInvitationDialog({
    open,
    onOpenChange,
 }: CreateInvitationDialogProps) {
+   const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
-   const [copiedLink, setCopiedLink] = useState(false);
 
    const form = useForm<
       HostInvitationFormInput,
@@ -108,7 +101,6 @@ export function CreateInvitationDialog({
       if (!nextOpen) {
          form.reset(hostInvitationDefaultValues);
          setCreatedInvitation(null);
-         setCopiedLink(false);
       }
       onOpenChange(nextOpen);
    };
@@ -119,18 +111,23 @@ export function CreateInvitationDialog({
 
       if (knows === 'yes') {
          form.clearErrors(['visitorCount', 'visitorOrganization']);
-         form.setValue('visitorCount', 1);
-         form.setValue('visitorOrganization', '');
+         form.setValue('visitorCount', 1, { shouldDirty: true });
+         form.setValue('visitorOrganization', '', { shouldDirty: true });
          const visitors = form.getValues('visitors');
          if (!visitors?.length) {
-            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+               shouldDirty: true,
+            });
          }
       } else {
          form.clearErrors(['visitors']);
-         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+            shouldDirty: true,
+         });
          form.setValue(
             'visitorCount',
-            Math.max(1, form.getValues('visitorCount') ?? 1),
+            Math.max(1, Number(form.getValues('visitorCount') ?? 1)),
+            { shouldDirty: true },
          );
       }
    };
@@ -153,9 +150,9 @@ export function CreateInvitationDialog({
                ? {
                     ...values,
                     visitors: [],
-                    visitorOrganization: normalizeOrganization(
-                       values.visitorOrganization,
-                    ),
+                    visitorOrganization: values.visitorOrganization?.trim()
+                       ? values.visitorOrganization.trim()
+                       : undefined,
                     visitorCount: values.visitorCount ?? 1,
                  }
                : {
@@ -177,45 +174,11 @@ export function CreateInvitationDialog({
          }
 
          const apiPayload = mapHostInvitationToApi(payload, Number(employeeId));
+         await hostService.createHostInvitation(apiPayload);
 
-         const { data } =
-            await visitInvitationService.createHostInvitation(apiPayload);
-         const created = data.data;
-
-         const count =
-            payload.knowsVisitorInfo === 'yes'
-               ? payload.visitors.length
-               : (payload.visitorCount ?? 1);
-
-         const locationSummary = `${payload.floor}, ${payload.room}`;
-
-         if (payload.knowsVisitorInfo === 'no' && created.registration) {
-            setCreatedInvitation(created);
-            toast.success(
-               count > 1
-                  ? 'Group invitation created successfully'
-                  : 'Invitation created successfully',
-               {
-                  description: `Share the registration link with your visitors. Location: ${locationSummary}`,
-               },
-            );
-            return;
-         }
-
-         toast.success(
-            payload.knowsVisitorInfo === 'yes'
-               ? count > 1
-                  ? `Invitations sent to ${count} visitors`
-                  : 'Invitation sent to the visitor'
-               : count > 1
-                 ? 'Group invitation created successfully'
-                 : 'Invitation created successfully',
-            {
-               description: `Visit location: ${locationSummary}`,
-            },
-         );
+         setCreatedInvitation({ id: 'created', visitCode: 'created' });
+         toast.success(t('host.invite.toast.createdSimple'));
          form.reset(hostInvitationDefaultValues);
-         onOpenChange(false);
       } catch (error) {
          const message =
             error instanceof Error
@@ -227,67 +190,24 @@ export function CreateInvitationDialog({
       }
    }, onInvalid);
 
-   const copyRegistrationLink = async () => {
-      const url = createdInvitation?.registration?.registrationUrl;
-      if (!url) return;
-
-      await navigator.clipboard.writeText(url);
-      setCopiedLink(true);
-      toast.success('Registration link copied');
-      setTimeout(() => setCopiedLink(false), 2000);
-   };
-
-   if (createdInvitation?.registration) {
-      const expected = createdInvitation.expectedVisitorCount;
-      const registered = createdInvitation.registeredCount;
-
+   if (createdInvitation) {
       return (
          <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent
                aria-describedby={undefined}
-               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
             >
                <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>Invitation Created</DialogTitle>
+                  <DialogTitle>{t('host.invite.created')}</DialogTitle>
                </DialogHeader>
 
-               <div className="space-y-6 px-6 py-5">
-                  <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                     <p className="font-medium text-foreground">
-                        Expected visitors: {expected}
-                     </p>
-                     <p className="text-muted-foreground">
-                        Registered: {registered} / {expected}
-                     </p>
-                  </div>
-
-                  <div className="space-y-2">
-                     <p className="text-sm font-medium">Registration link</p>
-                     <div className="flex gap-2">
-                        <Input
-                           readOnly
-                           value={
-                              createdInvitation.registration.registrationUrl
-                           }
-                           className="font-mono text-xs"
-                        />
-                        <Button
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           className="shrink-0 cursor-pointer"
-                           onClick={copyRegistrationLink}
-                        >
-                           {copiedLink ? (
-                              <Check className="size-4" />
-                           ) : (
-                              <Copy className="size-4" />
-                           )}
-                        </Button>
+               <div className="space-y-4 px-6 py-5">
+                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
+                     <div className="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                        <Check className="size-5" />
                      </div>
-                     <p className="text-xs text-muted-foreground">
-                        Share this link with your visitors so they can register
-                        before arriving.
+                     <p className="text-sm font-medium text-foreground">
+                        {t('host.invite.createdBody')}
                      </p>
                   </div>
                </div>
@@ -298,7 +218,7 @@ export function CreateInvitationDialog({
                      className="cursor-pointer"
                      onClick={() => handleOpenChange(false)}
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
                </DialogFooter>
             </DialogContent>
@@ -313,7 +233,7 @@ export function CreateInvitationDialog({
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Invite Visitors</DialogTitle>
+               <DialogTitle>{t('host.invite.title')}</DialogTitle>
             </DialogHeader>
 
             <form
@@ -324,7 +244,7 @@ export function CreateInvitationDialog({
                <div className={scrollAreaClass}>
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visitor Information"
+                        title={t('selfService.review.visitorInfo')}
                         description={
                            knowsVisitorInfo === 'yes'
                               ? 'Enter contact details for each invited visitor.'
@@ -334,7 +254,7 @@ export function CreateInvitationDialog({
 
                      <Field>
                         <FieldLabel>
-                           Do you know the visitor information?
+                           {t('host.invite.knowVisitors')}
                         </FieldLabel>
                         <Tabs
                            value={knowsVisitorInfo}
@@ -345,13 +265,13 @@ export function CreateInvitationDialog({
                                  value="yes"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 Yes, I know them
+                                 {t('host.invite.yesKnow')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="no"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 No, not yet
+                                 {t('host.invite.notYet')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -365,8 +285,8 @@ export function CreateInvitationDialog({
                      {knowsVisitorInfo === 'yes' ? (
                         <InvitationVisitorsFields
                            form={form}
-                           heading="Known Visitors"
-                           description="Add each invited guest with their contact details. At least one visitor is required."
+                           heading={t('host.invite.knownVisitors')}
+                           description={t('host.invite.knownVisitorsHint')}
                         />
                      ) : (
                         <>
@@ -383,8 +303,10 @@ export function CreateInvitationDialog({
                                        id="visitorCount"
                                        min={1}
                                        max={50}
-                                       value={field.value ?? 1}
-                                       onChange={field.onChange}
+                                       value={Number(field.value ?? 1)}
+                                       onChange={(nextValue) =>
+                                          field.onChange(Number(nextValue))
+                                       }
                                        aria-invalid={
                                           !!form.formState.errors.visitorCount
                                        }
@@ -393,8 +315,8 @@ export function CreateInvitationDialog({
                               />
                               <FieldDescription>
                                  {(visitorCount ?? 1) === 1
-                                    ? 'Use 1 for a single unknown visitor (e.g. technician or courier).'
-                                    : 'Use 2 or more for a group visit. Names and contact details are not required.'}
+                                    ? 'For a single unknown visitor.'
+                                    : 'For a group of unknown visitors.'}
                               </FieldDescription>
                               <FieldError>
                                  {form.formState.errors.visitorCount?.message}
@@ -402,13 +324,13 @@ export function CreateInvitationDialog({
                            </Field>
 
                            <Field>
-                              <FieldLabel htmlFor="unknownOrganization">
-                                 Organization
+                              <FieldLabel htmlFor="visitorOrganization">
+                                 {t('visitDetails.organization')}
                               </FieldLabel>
                               <Input
-                                 id="unknownOrganization"
+                                 id="visitorOrganization"
                                  autoComplete="off"
-                                 placeholder="Visiting company or organization (optional)"
+                                 placeholder={t('host.invite.orgPlaceholder')}
                                  {...form.register('visitorOrganization')}
                               />
                            </Field>
@@ -418,8 +340,8 @@ export function CreateInvitationDialog({
 
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visit Details"
-                        description="Purpose, schedule, and where the visitor should go upon arrival."
+                        title={t('selfService.details.title')}
+                        description={t('host.invite.visitDetailsHint')}
                      />
 
                      <Controller
@@ -442,7 +364,7 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.purpose
                                     }
                                  >
-                                    <SelectValue placeholder="Select visit purpose" />
+                                    <SelectValue placeholder={t('host.invite.selectPurpose')} />
                                  </SelectTrigger>
                                  <SelectContent>
                                     {VISIT_PURPOSE_OPTIONS.map((opt) => (
@@ -463,7 +385,7 @@ export function CreateInvitationDialog({
                      />
 
                      <Field>
-                        <FieldLabel>Schedule Type</FieldLabel>
+                        <FieldLabel>{t('schedule.type')}</FieldLabel>
                         <Tabs
                            value={scheduleType}
                            onValueChange={(value) =>
@@ -478,13 +400,13 @@ export function CreateInvitationDialog({
                                  value="single_day"
                                  className="cursor-pointer"
                               >
-                                 Single Day
+                                 {t('schedule.singleDay')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="multi_day"
                                  className="cursor-pointer"
                               >
-                                 Multi-Day
+                                 {t('schedule.multiDay')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -497,10 +419,10 @@ export function CreateInvitationDialog({
                            render={({ field }) => (
                               <DatePickerField
                                  id="visitDate"
-                                 label="Visit Date"
+                                 label={t('schedule.visitDate')}
                                  value={field.value}
                                  onChange={field.onChange}
-                                 placeholder="Select visit date"
+                                 placeholder={t('schedule.selectVisitDate')}
                                  error={
                                     form.formState.errors.visitDate?.message
                                  }
@@ -518,7 +440,7 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="startDate"
-                                    label="Start Date"
+                                    label={t('schedule.startDate')}
                                     value={field.value}
                                     onChange={(date) => {
                                        field.onChange(date);
@@ -531,7 +453,7 @@ export function CreateInvitationDialog({
                                           }
                                        }
                                     }}
-                                    placeholder="Select start date"
+                                    placeholder={t('schedule.selectStartDate')}
                                     error={
                                        form.formState.errors.startDate?.message
                                     }
@@ -547,10 +469,10 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="endDate"
-                                    label="End Date"
+                                    label={t('schedule.endDate')}
                                     value={field.value}
                                     onChange={field.onChange}
-                                    placeholder="Select end date"
+                                    placeholder={t('schedule.selectEndDate')}
                                     error={
                                        form.formState.errors.endDate?.message
                                     }
@@ -628,8 +550,8 @@ export function CreateInvitationDialog({
 
                      <div className="space-y-4">
                         <SectionHeading
-                           title="Visit Location"
-                           description="Tell visitors exactly where to go when they arrive."
+                           title={t('host.invite.visitLocation')}
+                           description={t('host.invite.visitLocationHint')}
                         />
                         <VisitLocationFields
                            form={form}
@@ -648,7 +570,7 @@ export function CreateInvitationDialog({
                      disabled={isSubmitting}
                      onClick={() => handleOpenChange(false)}
                   >
-                     Cancel
+                     {t('common.cancel')}
                   </Button>
                   <Button
                      type="submit"
@@ -658,12 +580,12 @@ export function CreateInvitationDialog({
                      {isSubmitting ? (
                         <>
                            <Loader2 className="size-4 animate-spin" />
-                           Sending...
+                           {t('host.invite.sending')}
                         </>
                      ) : (
                         <>
                            <Send className="size-4" />
-                           Send Invitation
+                           {t('host.invite.send')}
                         </>
                      )}
                   </Button>

@@ -9,14 +9,8 @@ import {
    TableHeader,
    TableRow,
 } from '@/components/ui/table';
-import {
-   getVisitTypeLabel,
-   type VisitTypeValue,
-} from '@/constants/visit-types';
-import {
-   getMeetingTypeLabel,
-   type MeetingTypeValue,
-} from '@/constants/meeting-types';
+import type { VisitTypeValue } from '@/constants/visit-types';
+import type { MeetingTypeValue } from '@/constants/meeting-types';
 import { MOCK_VISITS } from '@/data/mock-visits';
 import {
    applyVisitorAttendance,
@@ -59,6 +53,12 @@ import { visitAttendanceService } from '@/services/visit-attendance.service';
 import type { CheckInPrintTarget } from './check-in-success-dialog';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
+import {
+   MEETING_TYPE_KEYS,
+   VISIT_TYPE_KEYS,
+   useTranslation,
+   type TranslationKey,
+} from '@/lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -142,10 +142,18 @@ type RowHandlers = {
    ) => void;
 };
 
-const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
+type Translate = (
+   key: TranslationKey,
+   vars?: Record<string, string | number>,
+) => string;
+
+const getColumns = (
+   handlers: RowHandlers,
+   t: Translate,
+): ColumnDef<ManagedVisit>[] => [
    {
       accessorKey: 'id',
-      header: 'Visit Code',
+      header: t('visits.col.visitCode'),
       cell: ({ row }) => (
          <span className="font-mono text-xs font-medium tracking-wide text-foreground">
             {row.original.id}
@@ -154,7 +162,7 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    },
    {
       id: 'visitor',
-      header: 'Visitor',
+      header: t('visits.col.visitor'),
       cell: ({ row }) => {
          const { visitorName, visitorCount, organization } = row.original;
          const isGroup = visitorCount > 1;
@@ -170,7 +178,7 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
                   </p>
                ) : (
                   <Badge variant="secondary" className="text-xs font-medium">
-                     Unknown
+                     {t('visits.unknownVisitor')}
                   </Badge>
                )}
 
@@ -178,8 +186,12 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
                   <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                      <Users className="size-3 shrink-0" />
                      <span>
-                        +{visitorCount - 1} more
-                        {visitorCount - 1 === 1 ? ' visitor' : ' visitors'}
+                        {t(
+                           visitorCount - 1 === 1
+                              ? 'visits.moreVisitor'
+                              : 'visits.moreVisitors',
+                           { count: visitorCount - 1 },
+                        )}
                      </span>
                   </p>
                )}
@@ -189,13 +201,16 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    },
    {
       accessorKey: 'visitorCount',
-      header: 'Guests',
+      header: t('visits.col.guests'),
       cell: ({ row }) => {
          const count = row.original.visitorCount;
          return (
             <div
                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
-               title={`${count} visitor${count === 1 ? '' : 's'}`}
+               title={t(
+                  count === 1 ? 'visits.visitorCount' : 'visits.visitorsCount',
+                  { count },
+               )}
             >
                <Users className="size-3.5" />
                <span className="font-medium text-foreground tabular-nums">
@@ -207,14 +222,14 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    },
    {
       accessorKey: 'host',
-      header: 'Host',
+      header: t('visits.col.host'),
       cell: ({ row }) => (
          <span className="text-sm text-foreground">{row.original.host}</span>
       ),
    },
    {
       accessorKey: 'department',
-      header: 'Department',
+      header: t('visits.col.department'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground">
             {row.original.department}
@@ -223,29 +238,29 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    },
    {
       accessorKey: 'visitType',
-      header: 'Visit type',
+      header: t('visits.col.visitType'),
       cell: ({ row }) => {
          const Icon = getVisitTypeIcon(row.original.visitType);
          return (
             <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
                <Icon className="size-4 text-muted-foreground" />
-               {getVisitTypeLabel(row.original.visitType)}
+               {t(VISIT_TYPE_KEYS[row.original.visitType])}
             </span>
          );
       },
    },
    {
       accessorKey: 'meetingType',
-      header: 'Meeting type',
+      header: t('visits.col.meetingType'),
       cell: ({ row }) => (
          <Badge variant="secondary" className="h-6 rounded-md px-2 font-medium">
-            {getMeetingTypeLabel(row.original.meetingType)}
+            {t(MEETING_TYPE_KEYS[row.original.meetingType])}
          </Badge>
       ),
    },
    {
       id: 'schedule',
-      header: 'Date & time',
+      header: t('visits.col.schedule'),
       cell: ({ row }) => {
          const visit = row.original;
          const { dateLabel, timeLabel } = formatVisitSchedule(visit);
@@ -265,7 +280,7 @@ const getColumns = (handlers: RowHandlers): ColumnDef<ManagedVisit>[] => [
    },
    {
       accessorKey: 'status',
-      header: 'Status',
+      header: t('common.status'),
       cell: ({ row }) => (
          <ManagedVisitStatusBadge status={row.original.status} />
       ),
@@ -291,6 +306,7 @@ interface VisitsTableProps {
 }
 
 export function VisitsTable({ showFilters = true }: VisitsTableProps) {
+   const { t } = useTranslation();
    const searchParams = useSearchParams();
    const [visits, setVisits] = React.useState<ManagedVisit[]>(() =>
       MOCK_VISITS.map((visit) =>
@@ -442,7 +458,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
    const openManualCheckIn = React.useCallback((visit: ManagedVisit) => {
       if (!canCheckIn(visit)) {
-         toast.error('This visit is not ready for check-in');
+         toast.error(t('visits.toast.notReadyCheckIn'));
          return;
       }
 
@@ -456,7 +472,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setQrCheckInVisitId(visit.id);
       setQrCheckInVisitorIds(eligible.map((visitor) => visitor.id));
       setQrCheckInOpen(true);
-   }, []);
+   }, [t]);
 
    const handleVisitorInfoComplete = React.useCallback(
       (visitorData: any[]) => {
@@ -505,18 +521,18 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
          if (!result.eligibleForCheckOut || result.visitors.length === 0) {
             throw new Error(
-               result.reason ?? 'No checked-in visitor found for this badge',
+               result.reason ?? t('visits.toast.noBadgeMatch'),
             );
          }
 
          setBadgeCheckoutVisitId(result.visit.id);
          setCheckoutVisitorIds(result.visitors.map((visitor) => visitor.id));
          setBadgeCheckoutOpen(true);
-         toast.success('Badge matched', {
+         toast.success(t('visits.toast.badgeMatched'), {
             description: `${result.visitors.map((v) => v.name).join(', ')} · ${result.badgeToken}`,
          });
       },
-      [visits],
+      [visits, t],
    );
 
    const handleBadgeCheckoutConfirm = React.useCallback(() => {
@@ -536,13 +552,15 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
       setBadgeSuccessLabel(
          eligible.length === 1
             ? eligible[0]!.name
-            : `${eligible.length || badgeCheckoutVisit.visitorCount} visitors`,
+            : t('visits.visitorsCount', {
+                 count: eligible.length || badgeCheckoutVisit.visitorCount,
+              }),
       );
       setBadgeSuccessVisitId(badgeCheckoutVisit.id);
       setBadgeSuccessOpen(true);
       setBadgeCheckoutVisitId(null);
       setCheckoutVisitorIds(null);
-   }, [badgeCheckoutVisit, checkoutVisitorIds, upsertVisit]);
+   }, [badgeCheckoutVisit, checkoutVisitorIds, upsertVisit, t]);
 
    const handleQrCheckInConfirm = React.useCallback(
       async (payload: CheckInConfirmPayload) => {
@@ -580,7 +598,12 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                         : error instanceof Error
                           ? error.message
                           : undefined;
-                  toast.error(message ?? `Unable to check in ${visitor.name}`);
+                  toast.error(
+                     message ??
+                        t('visits.toast.checkInFailed', {
+                           name: visitor.name,
+                        }),
+                  );
                   return;
                }
             }
@@ -608,7 +631,9 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
          const names = selected.map((visitor) => visitor.name);
          setQrCheckInSuccessLabel(
-            names.length === 1 ? names[0]! : `${names.length} visitors`,
+            names.length === 1
+               ? names[0]!
+               : t('visits.visitorsCount', { count: names.length }),
          );
          setQrCheckInSuccessVisitId(qrCheckInVisit.id);
          setQrCheckInPrintTargets(printTargets);
@@ -616,7 +641,7 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          setQrCheckInVisitId(null);
          setQrCheckInVisitorIds(null);
       },
-      [qrCheckInVisit, upsertVisit],
+      [qrCheckInVisit, upsertVisit, t],
    );
 
    const handleView = React.useCallback((visit: ManagedVisit) => {
@@ -662,19 +687,23 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
 
    const columns = React.useMemo(
       () =>
-         getColumns({
-            onView: handleView,
-            onCheckIn: handleCheckIn,
-            onCheckOut: handleCheckOut,
-            onCancel: handleCancel,
-            onOpenAttendance: handleOpenAttendance,
-         }),
+         getColumns(
+            {
+               onView: handleView,
+               onCheckIn: handleCheckIn,
+               onCheckOut: handleCheckOut,
+               onCancel: handleCancel,
+               onOpenAttendance: handleOpenAttendance,
+            },
+            t,
+         ),
       [
          handleView,
          handleCheckIn,
          handleCheckOut,
          handleCancel,
          handleOpenAttendance,
+         t,
       ],
    );
 
@@ -754,11 +783,10 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                                     <CalendarSearch className="size-6 text-muted-foreground" />
                                  </div>
                                  <p className="text-sm font-medium text-foreground">
-                                    No visits found
+                                    {t('visits.emptyTitle')}
                                  </p>
                                  <p className="text-sm text-muted-foreground">
-                                    Try adjusting your search or filters to find
-                                    what you&apos;re looking for.
+                                    {t('visits.emptyDescription')}
                                  </p>
                               </div>
                            </TableCell>
@@ -801,8 +829,8 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
          <QrScannerDialog
             open={checkoutQrScannerOpen}
             onOpenChange={setCheckoutQrScannerOpen}
-            title="Scan Badge QR"
-            description="Scan the printed visitor badge QR to find the checked-in visitor."
+            title={t('visits.scanBadgeTitle')}
+            description={t('visits.scanBadgeDescription')}
             onScan={handleCheckoutQrScanned}
          />
 

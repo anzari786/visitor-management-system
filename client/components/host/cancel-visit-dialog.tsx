@@ -13,6 +13,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { HostVisitCardData } from './host-visit-card';
+import { useTranslation } from '@/lib/i18n';
 
 type CancelVisitDialogProps = {
    visit: HostVisitCardData | null;
@@ -27,6 +28,7 @@ export function CancelVisitDialog({
    onOpenChange,
    onConfirm,
 }: CancelVisitDialogProps) {
+   const { t } = useTranslation();
    const [reason, setReason] = useState('');
    const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,36 +60,30 @@ export function CancelVisitDialog({
                <Ban size={18} />
             </div>
             <DialogHeader>
-               <DialogTitle>Cancel this visit?</DialogTitle>
+               <DialogTitle>{t('host.cancel.title')}</DialogTitle>
                <p className="text-sm text-muted-foreground">
-                  {visit ? (
-                     <>
-                        Cancel{' '}
-                        <span className="font-medium text-foreground">
-                           {visit.visitorName}
-                        </span>
-                        &apos;s visit on{' '}
-                        {visit.isMultiDay && visit.endDate
-                           ? `${visit.startDate} – ${visit.endDate}`
-                           : visit.startDate}
-                        .
-                     </>
-                  ) : (
-                     'This visit will be cancelled.'
-                  )}
+                  {visit
+                     ? t('host.cancel.body', {
+                          name: visit.visitorName,
+                          date:
+                             visit.isMultiDay && visit.endDate
+                                ? `${visit.startDate} – ${visit.endDate}`
+                                : visit.startDate,
+                       })
+                     : t('host.cancel.bodyFallback')}
                </p>
             </DialogHeader>
 
             <div className="w-full space-y-2">
                <Label htmlFor="cancel-visit-reason">
-                  Reason{' '}
+                  {t('host.cancel.reason')}{' '}
                   <span className="font-normal text-muted-foreground">
-                     (optional)
+                     {t('host.cancel.optional')}
                   </span>
                </Label>
                <Textarea
                   id="cancel-visit-reason"
-                  placeholder="Add a short reason"
+                  placeholder={t('host.cancel.reasonPlaceholder')}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   disabled={isSubmitting}
@@ -103,7 +99,7 @@ export function CancelVisitDialog({
                      className="flex-1 cursor-pointer"
                      disabled={isSubmitting}
                   >
-                     Keep Visit
+                     {t('host.cancel.keep')}
                   </Button>
                </DialogClose>
                <Button
@@ -113,7 +109,9 @@ export function CancelVisitDialog({
                   disabled={isSubmitting}
                   onClick={handleConfirm}
                >
-                  {isSubmitting ? 'Cancelling...' : 'Cancel Visit'}
+                  {isSubmitting
+                     ? t('host.cancel.pending')
+                     : t('host.cancel.confirm')}
                </Button>
             </div>
          </DialogContent>

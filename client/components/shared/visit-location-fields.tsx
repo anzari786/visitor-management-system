@@ -24,6 +24,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '../ui/scroll-area';
+import { useTranslation } from '@/lib/i18n';
 
 type LocationFormFields = {
    floor?: string;
@@ -48,6 +49,7 @@ function RoomSelectField<T extends FieldValues & LocationFormFields>({
    form: UseFormReturn<T>;
    roomId: string;
 }) {
+   const { t } = useTranslation();
    const roomError = form.formState.errors.room;
 
    return (
@@ -57,7 +59,8 @@ function RoomSelectField<T extends FieldValues & LocationFormFields>({
          render={({ field }) => (
             <Field>
                <FieldLabel htmlFor={roomId} className="gap-1">
-                  Room <span className="text-destructive">*</span>
+                  {t('location.room')}{' '}
+                  <span className="text-destructive">*</span>
                </FieldLabel>
                <Select
                   value={field.value || undefined}
@@ -68,7 +71,7 @@ function RoomSelectField<T extends FieldValues & LocationFormFields>({
                      className="w-full"
                      aria-invalid={!!roomError}
                   >
-                     <SelectValue placeholder="Select a room" />
+                     <SelectValue placeholder={t('location.selectRoom')} />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
                      <ScrollArea className="h-72 w-full">
@@ -108,6 +111,7 @@ export function VisitLocationFields<
    idPrefix = 'location',
    showDescription = true,
 }: VisitLocationFieldsProps<T>) {
+   const { t } = useTranslation();
    const floorId = `${idPrefix}-floor`;
    const roomId = `${idPrefix}-room`;
    const floorError = form.formState.errors.floor;
@@ -115,10 +119,7 @@ export function VisitLocationFields<
    return (
       <div className="space-y-4">
          {showDescription && (
-            <FieldDescription>
-               Visitors will be directed to this floor and room when they
-               arrive.
-            </FieldDescription>
+            <FieldDescription>{t('location.hint')}</FieldDescription>
          )}
 
          <Controller
@@ -127,7 +128,8 @@ export function VisitLocationFields<
             render={({ field }) => (
                <Field>
                   <FieldLabel htmlFor={floorId} className="gap-1">
-                     Floor <span className="text-destructive">*</span>
+                     {t('location.floor')}{' '}
+                     <span className="text-destructive">*</span>
                   </FieldLabel>
                   <Select
                      value={field.value || undefined}
@@ -138,7 +140,7 @@ export function VisitLocationFields<
                         className="w-full"
                         aria-invalid={!!floorError}
                      >
-                        <SelectValue placeholder="Select the floor" />
+                        <SelectValue placeholder={t('location.selectFloor')} />
                      </SelectTrigger>
                      <SelectContent>
                         {FLOOR_OPTIONS.map((floor) => (

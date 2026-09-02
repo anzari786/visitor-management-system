@@ -40,6 +40,7 @@ enum VisitStatus {
   PENDING_APPROVAL
   APPROVED
   REJECTED
+  EXPIRED
   RESCHEDULED
   CANCELLED
   PARTIALLY_CHECKED_IN
@@ -160,6 +161,7 @@ model User {
   lastName  String
   email     String? @unique
   phone     String?
+  avatar    String?
 
   /// Local auth credentials. Never store plaintext passwords.
   username           String?   @unique
@@ -251,7 +253,7 @@ model Visitor {
   phone        String?
   organization String?
 
-  /// Collected on public/reception requests; may be filled at check-in for invitations.
+  /// Collected and verified at check-in for all visit types.
   idType   IdType?
   idNumber String?
 
@@ -317,7 +319,6 @@ model Visit {
 
   days          VisitDay[]
   participants  VisitParticipant[]
-  invitation    VisitInvitation?
   statusHistory VisitStatusHistory[]
   notifications Notification[]
 
@@ -329,21 +330,6 @@ model Visit {
   @@index([purpose])
   @@index([createdAt])
   @@map("visits")
-}
-
-/// Secure registration link for host invitations with unknown visitors.
-model VisitInvitation {
-  id        Int       @id @default(autoincrement())
-  visitId   Int       @unique
-  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@index([expiresAt])
-  @@map("visit_invitations")
 }
 
 /// One calendar day within a (possibly multi-day) visit.

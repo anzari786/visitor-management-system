@@ -12,6 +12,8 @@ import {
 
    BadRequestError,
 
+   ConflictError,
+
 } from '../../lib/errors.js';
 
 import { authUserSelect, localCredentialSelect } from './auth.types.js';
@@ -348,6 +350,63 @@ export const buildSessionUser = (user: AuthUserWithRelations): SessionUser => ({
 
 });
 
+export const updateCurrentUserProfile = async (
+   userId: number,
+   input: {
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      phone?: string | null;
+      avatar?: string | null;
+   },
+): Promise<AuthUserWithRelations> => {
+   const data: {
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      phone?: string | null;
+      avatar?: string | null;
+   } = {};
+
+   if (input.firstName !== undefined) {
+      data.firstName = input.firstName.trim();
+   }
+
+   if (input.lastName !== undefined) {
+      data.lastName = input.lastName.trim();
+   }
+
+   if (input.username !== undefined) {
+      const normalizedUsername = input.username.trim();
+      if (normalizedUsername) {
+         const existingUsername = await prisma.user.findUnique({
+            where: { username: normalizedUsername },
+            select: { id: true },
+         });
+
+         if (existingUsername && existingUsername.id !== userId) {
+            throw new ConflictError('Username already exists', 'USERNAME_EXISTS');
+         }
+
+         data.username = normalizedUsername;
+      }
+   }
+
+   if (input.phone !== undefined) {
+      data.phone = input.phone?.trim() || null;
+   }
+
+   if (input.avatar !== undefined) {
+      data.avatar = input.avatar?.trim() || null;
+   }
+
+   return prisma.user.update({
+      where: { id: userId },
+      data,
+      select: authUserSelect,
+   });
+};
+
 
 
 export const formatAuthUser = (user: AuthUserWithRelations) => ({
@@ -363,6 +422,8 @@ export const formatAuthUser = (user: AuthUserWithRelations) => ({
    email: user.email ?? undefined,
 
    phone: user.phone ?? undefined,
+
+   avatar: user.avatar ?? undefined,
 
    username: user.username ?? undefined,
 

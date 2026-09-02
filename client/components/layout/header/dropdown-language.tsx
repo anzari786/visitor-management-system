@@ -1,48 +1,22 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { type ReactElement } from 'react';
 import {
    DropdownMenu,
    DropdownMenuContent,
+   DropdownMenuLabel,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
+   DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { LOCALES, LOCALE_META, useTranslation, type Locale } from '@/lib/i18n';
 
 type Props = {
    trigger: ReactElement;
    defaultOpen?: boolean;
    align?: 'start' | 'center' | 'end';
 };
-
-type Language = {
-   value: string;
-   label: string;
-   icon: string;
-};
-
-const LANGUAGES: Language[] = [
-   {
-      value: 'english',
-      label: 'English (UK)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-us.svg',
-   },
-   {
-      value: 'chinese',
-      label: '中国人 (Chinese)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-china.svg',
-   },
-   {
-      value: 'french',
-      label: 'français (French)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-france.svg',
-   },
-   {
-      value: 'arabic',
-      label: 'عربي (Arabic)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-australia.svg',
-   },
-];
 
 const itemClass =
    'cursor-pointer gap-2 pl-2 text-sm data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground [&>span]:hidden';
@@ -52,33 +26,40 @@ export default function LanguageDropdown({
    defaultOpen,
    align = 'end',
 }: Props) {
-   const [language, setLanguage] = useState(LANGUAGES[0].value);
+   const { locale, setLocale, t } = useTranslation();
 
    return (
       <DropdownMenu defaultOpen={defaultOpen}>
          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
 
-         <DropdownMenuContent className="w-50" align={align}>
+         <DropdownMenuContent className="w-52" align={align}>
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+               {t('header.language')}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+
             <DropdownMenuRadioGroup
-               value={language}
-               onValueChange={setLanguage}
-               className="flex flex-col gap-2"
+               value={locale}
+               onValueChange={(value) => setLocale(value as Locale)}
+               className="flex flex-col gap-1"
             >
-               {LANGUAGES.map(({ value, label, icon }) => (
+               {LOCALES.map((value) => (
                   <DropdownMenuRadioItem
                      key={value}
                      value={value}
                      className={itemClass}
                   >
-                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                     <img
-                        src={icon}
-                        alt={label}
-                        width={16}
-                        height={16}
-                        className="rounded-full"
-                     />
-                     {label}
+                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted text-[10px] font-semibold uppercase">
+                        {value}
+                     </span>
+                     <span className="flex min-w-0 flex-col leading-tight">
+                        <span className="truncate">
+                           {LOCALE_META[value].label}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                           {LOCALE_META[value].englishLabel}
+                        </span>
+                     </span>
                   </DropdownMenuRadioItem>
                ))}
             </DropdownMenuRadioGroup>

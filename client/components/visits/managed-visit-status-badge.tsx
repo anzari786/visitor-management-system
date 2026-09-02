@@ -1,10 +1,16 @@
+'use client';
+
 import { cn } from '@/lib/utils';
 import type {
    ManagedVisitStatus,
    VisitorAttendanceStatus,
 } from '@/types/visit.types';
-import { MANAGED_VISIT_STATUS_LABELS } from '@/data/mock-visits';
-import { ATTENDANCE_STATUS_LABELS, getVisitorAttendanceLabel } from '@/lib/visit-attendance';
+import {
+   ATTENDANCE_STATUS_KEYS,
+   MANAGED_VISIT_STATUS_KEYS,
+   getVisitorAttendanceLabelKey,
+   useTranslation,
+} from '@/lib/i18n';
 import { Badge } from '@/components/ui/badge';
 
 const statusStyles: Record<
@@ -106,6 +112,7 @@ export function ManagedVisitStatusBadge({
    status: ManagedVisitStatus;
    className?: string;
 }) {
+   const { t } = useTranslation();
    const styles = statusStyles[status];
 
    return (
@@ -119,7 +126,7 @@ export function ManagedVisitStatusBadge({
          )}
       >
          <span className={cn('size-1.5 rounded-full', styles.dot)} />
-         {MANAGED_VISIT_STATUS_LABELS[status]}
+         {t(MANAGED_VISIT_STATUS_KEYS[status])}
       </Badge>
    );
 }
@@ -132,10 +139,13 @@ export function VisitorAttendanceBadge({
    /** When provided, "Pending" is only shown for requested visits. */
    visitStatus?: ManagedVisitStatus;
 }) {
+   const { t } = useTranslation();
    const styles = attendanceStyles[status];
-   const label = visitStatus
-      ? getVisitorAttendanceLabel(status, visitStatus)
-      : ATTENDANCE_STATUS_LABELS[status];
+   const label = t(
+      visitStatus
+         ? getVisitorAttendanceLabelKey(status, visitStatus)
+         : ATTENDANCE_STATUS_KEYS[status],
+   );
 
    return (
       <Badge

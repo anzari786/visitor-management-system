@@ -37,6 +37,7 @@ export const VISIT_STATUS_LABELS: Record<VisitStatus, string> = {
    PENDING_APPROVAL: 'Pending Approval',
    APPROVED: 'Approved',
    REJECTED: 'Rejected',
+   EXPIRED: 'Expired',
    RESCHEDULED: 'Rescheduled',
    CANCELLED: 'Cancelled',
    PARTIALLY_CHECKED_IN: 'Partially Checked In',

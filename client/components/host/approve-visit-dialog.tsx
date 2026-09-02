@@ -11,7 +11,6 @@ import {
    type VisitLocationInput,
    type VisitLocationValues,
 } from '@/lib/validations/visit-location.schema';
-import { sendVisitApprovalEmail } from '@/services/visit-notification.service';
 import { VisitLocationFields } from '@/components/shared/visit-location-fields';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +20,7 @@ import {
    DialogHeader,
    DialogTitle,
 } from '@/components/ui/dialog';
+import { useTranslation } from '@/lib/i18n';
 
 export type ApproveVisitRequest = {
    id: string;
@@ -42,6 +42,7 @@ export function ApproveVisitDialog({
    onOpenChange,
    onApproved,
 }: ApproveVisitDialogProps) {
+   const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = useState(false);
 
    const form = useForm<VisitLocationInput, unknown, VisitLocationValues>({
@@ -70,27 +71,19 @@ export function ApproveVisitDialog({
 
       setIsSubmitting(true);
       try {
-         const email = await sendVisitApprovalEmail({
-            visitorName: request.visitorName,
-            floor: values.floor,
-            room: values.room,
-         });
-
          onApproved?.({
             requestId: request.id,
             floor: values.floor,
             room: values.room,
          });
 
-         toast.success(`Visit approved for ${request.visitorName}`, {
-            description: email.body,
-         });
+         toast.success(t('host.approve.toast', { name: request.visitorName }));
          handleOpenChange(false);
       } catch (error) {
          const message =
             error instanceof Error
                ? error.message
-               : 'Unable to approve this visit request. Please try again.';
+               : t('host.approve.error');
          toast.error(message);
       } finally {
          setIsSubmitting(false);
@@ -110,13 +103,11 @@ export function ApproveVisitDialog({
                      <MapPin size={18} />
                   </div>
                   <DialogHeader>
-                     <DialogTitle>Approve visit request</DialogTitle>
+                     <DialogTitle>{t('host.approve.title')}</DialogTitle>
                      <p className="text-sm text-muted-foreground">
-                        Set the floor and room for{' '}
-                        <span className="font-medium text-foreground">
-                           {request.visitorName}
-                        </span>
-                        .
+                        {t('host.approve.body', {
+                           name: request.visitorName,
+                        })}
                      </p>
                   </DialogHeader>
 
@@ -140,7 +131,7 @@ export function ApproveVisitDialog({
                               className="flex-1 cursor-pointer"
                               disabled={isSubmitting}
                            >
-                              Cancel
+                              {t('common.cancel')}
                            </Button>
                         </DialogClose>
                         <Button
@@ -151,12 +142,12 @@ export function ApproveVisitDialog({
                            {isSubmitting ? (
                               <>
                                  <Loader2 className="size-4 animate-spin" />
-                                 Approving...
+                                 {t('host.approve.pending')}
                               </>
                            ) : (
                               <>
                                  <Check className="size-4" />
-                                 Approve Visit
+                                 {t('host.approve.submit')}
                               </>
                            )}
                         </Button>

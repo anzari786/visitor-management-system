@@ -13,11 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { getSidebarNavItems } from '@/lib/navigation';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
+import { useCurrentUser } from '@/hooks/use-auth';
 import { ChevronsUpDown } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,9 +22,12 @@ import { AppSidebarSkeleton } from './app-sidebar-skeleton';
 import { NavMain } from './nav-main';
 import ProfileDropdown from './profile-dropdown';
 import { getUserFullName } from '@/lib/user';
+import { useTranslation } from '@/lib/i18n';
 import type { User } from '@/types/user.types';
 
 function SidebarBrand() {
+   const { t } = useTranslation();
+
    return (
       <SidebarMenu>
          <SidebarMenuItem>
@@ -40,7 +39,7 @@ function SidebarBrand() {
                   <div className="flex aspect-square size-11 items-center justify-center rounded-xl border bg-card p-1 shrink-0">
                      <Image
                         src="/logo.png"
-                        alt="Ethiopian Agricultural Transformation Institute logo"
+                        alt={t('nav.logoAlt')}
                         width={44}
                         height={44}
                         priority
@@ -52,7 +51,7 @@ function SidebarBrand() {
                         ATI
                      </span>
                      <span className="mt-0.5 text-sm text-muted-foreground whitespace-nowrap leading-snug">
-                        Visitor Management System
+                        {t('nav.brandSubtitle')}
                      </span>
                   </div>
                </Link>
@@ -65,10 +64,7 @@ function SidebarBrand() {
 function NavUser({ user }: { user: User }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
-   const avatarId = useProfileAvatarStore(
-      (s) => s.selections[String(user.id)] ?? DEFAULT_PROFILE_AVATAR_ID,
-   );
-   const avatarSrc = getProfileAvatarById(avatarId).image;
+   const avatarSrc = user.avatar ?? undefined;
 
    return (
       <SidebarMenu>
@@ -83,7 +79,9 @@ function NavUser({ user }: { user: User }) {
                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
                      <Avatar className="size-8 rounded-full">
-                        <AvatarImage src={avatarSrc} alt={fullName} />
+                        {avatarSrc ? (
+                           <AvatarImage src={avatarSrc} alt={fullName} />
+                        ) : null}
                         <AvatarFallback className="rounded-full">
                            {user.firstName[0]}
                            {user.lastName[0]}
@@ -108,17 +106,20 @@ function NavUser({ user }: { user: User }) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
    const user = useAuthStore((state) => state.user);
-   const isLoading = useAuthStore((state) => !state.isHydrated);
+   const isHydrated = useAuthStore((state) => state.isHydrated);
+   const { data: fetchedUser, isLoading } = useCurrentUser(!user && isHydrated);
+   const activeUser: User | null =
+      user ?? (fetchedUser as User | undefined) ?? null;
 
-   if (isLoading) {
+   if (!isHydrated || (isLoading && !user)) {
       return <AppSidebarSkeleton {...props} />;
    }
 
-   if (!user) {
+   if (!activeUser) {
       return null;
    }
 
-   const navItems = getSidebarNavItems(user.role);
+   const navItems = getSidebarNavItems(activeUser.role);
 
    return (
       <Sidebar
@@ -137,7 +138,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarContent>
 
             <SidebarFooter className="px-2 pb-2">
-               <NavUser user={user} />
+               <NavUser user={activeUser} />
             </SidebarFooter>
          </div>
       </Sidebar>

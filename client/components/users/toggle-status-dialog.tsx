@@ -1,4 +1,7 @@
+'use client';
+
 import { UserCheckIcon, UserXIcon } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 import { Button } from '../ui/button';
 import {
    Dialog,
@@ -26,6 +29,8 @@ export function ToggleStatusDialog({
    onConfirm,
    isPending,
 }: ToggleStatusDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -48,12 +53,19 @@ export function ToggleStatusDialog({
                </div>
                <DialogHeader className="items-center">
                   <DialogTitle>
-                     {isActive ? 'Deactivate User?' : 'Activate User?'}
+                     {t(
+                        isActive
+                           ? 'users.toggle.deactivateTitle'
+                           : 'users.toggle.activateTitle',
+                     )}
                   </DialogTitle>
                   <DialogDescription>
-                     {isActive
-                        ? `${userName}'s account will be deactivated and they will lose access to the system.`
-                        : `${userName}'s account will be reactivated and they will regain access to the system.`}
+                     {t(
+                        isActive
+                           ? 'users.toggle.deactivateBody'
+                           : 'users.toggle.activateBody',
+                        { name: userName },
+                     )}
                   </DialogDescription>
                </DialogHeader>
                <div className="flex gap-2 w-full">
@@ -63,25 +75,27 @@ export function ToggleStatusDialog({
                         disabled={isPending}
                         className="flex-1 cursor-pointer"
                      >
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
-                  <DialogClose asChild>
-                     <Button
-                        variant={isActive ? 'destructive' : 'default'}
-                        onClick={onConfirm}
-                        disabled={isPending}
-                        className="flex-1 cursor-pointer"
-                     >
-                        {isPending
-                           ? isActive
-                              ? 'Deactivating…'
-                              : 'Activating…'
-                           : isActive
-                             ? 'Deactivate User'
-                             : 'Activate User'}
-                     </Button>
-                  </DialogClose>
+                  <Button
+                     variant={isActive ? 'destructive' : 'default'}
+                     onClick={onConfirm}
+                     disabled={isPending}
+                     className="flex-1 cursor-pointer"
+                  >
+                     {isPending
+                        ? t(
+                             isActive
+                                ? 'users.toggle.deactivating'
+                                : 'users.toggle.activating',
+                          )
+                        : t(
+                             isActive
+                                ? 'users.toggle.deactivateAction'
+                                : 'users.toggle.activateAction',
+                          )}
+                  </Button>
                </div>
             </div>
          </DialogContent>

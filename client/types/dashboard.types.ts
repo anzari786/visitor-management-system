@@ -2,6 +2,28 @@ export type GrowthPeriod = '3m' | '6m' | '12m';
 
 export type DepartmentTimeRange = '7days' | '30days' | '90days';
 
+export type ExportPeriod = '7d' | '30d' | '3m' | '6m' | 'all' | 'custom';
+
+export type ExportVisitStatus =
+   | 'PENDING_APPROVAL'
+   | 'APPROVED'
+   | 'REJECTED'
+   | 'EXPIRED'
+   | 'RESCHEDULED'
+   | 'CANCELLED'
+   | 'PARTIALLY_CHECKED_IN'
+   | 'CHECKED_IN'
+   | 'PARTIALLY_CHECKED_OUT'
+   | 'CHECKED_OUT';
+
+export type ExportVisitLogParams = {
+   period: ExportPeriod;
+   departmentId?: number;
+   status?: ExportVisitStatus;
+   from?: string;
+   to?: string;
+};
+
 export type DateFilter =
    | 'all'
    | 'today'
@@ -17,9 +39,15 @@ export type VisitStats = {
    totalVisits: number;
    totalVisitsChange: number;
    currentlyInside: number;
+   currentlyInsideChange: number;
    averageVisitDuration: string;
    averageVisitDurationChange: number;
    overstays: number;
+   overstaysChange: number;
+   pendingApprovals: number;
+   upcomingVisits: number;
+   checkedInVisitors: number;
+   checkedOutVisitors: number;
 };
 
 /**
@@ -54,7 +82,7 @@ export type DashboardStatId =
    | 'total_visits'
    | 'currently_inside'
    | 'avg_duration'
-   | 'overstays';
+   | 'pending_approvals';
 
 export type DashboardStatCard = {
    id: DashboardStatId;

@@ -7,6 +7,19 @@ import {
    useState,
    type ReactElement,
 } from 'react';
+import { formatDistanceToNowStrict } from 'date-fns';
+import {
+   Bell,
+   CalendarClock,
+   CheckCircle2,
+   ClipboardCheck,
+   Loader2,
+   LogIn,
+   LogOut,
+   type LucideIcon,
+   UserPlus,
+   XCircle,
+} from 'lucide-react';
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -16,17 +29,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import {
-   CalendarClock,
-   CheckCircle2,
-   ClipboardCheck,
-   LogIn,
-   LogOut,
-   type LucideIcon,
-   UserPlus,
-   XCircle,
-} from 'lucide-react';
+   useMarkAllNotificationsRead,
+   useMarkNotificationAsRead,
+   useNotificationUnreadCount,
+   useNotifications,
+} from '@/hooks/use-notifications';
+import type { Notification as NotificationItem } from '@/types/notification.types';
+import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 type Props = {
    trigger: ReactElement;
@@ -42,15 +53,6 @@ type NotificationType =
    | 'visitor_checked_in'
    | 'visitor_checked_out'
    | 'visit_cancelled';
-
-type Notification = {
-   id: string;
-   type: NotificationType;
-   title: string;
-   description: string;
-   time: string;
-   read: boolean;
-};
 
 const INITIAL_VISIBLE_COUNT = 4;
 
@@ -95,87 +97,68 @@ const TYPE_STYLES: Record<
    },
 };
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-   {
-      id: '1',
-      type: 'visit_request_received',
-      title: 'New visit request received',
-      description: 'Abebe Kebede requested a visit with the Operations team.',
-      time: '2m ago',
-      read: false,
-   },
-   {
-      id: '2',
-      type: 'visit_request_approved',
-      title: 'Visit request approved',
-      description: 'Sara Alemu’s visit for tomorrow at 10:00 AM was approved.',
-      time: '18m ago',
-      read: false,
-   },
-   {
-      id: '3',
-      type: 'visitor_checked_in',
-      title: 'Visitor checked in',
-      description: 'Daniel Haile has checked in at the front desk.',
-      time: '42m ago',
-      read: false,
-   },
-   {
-      id: '4',
-      type: 'visit_rescheduled',
-      title: 'Visit rescheduled',
-      description: 'Helen Tadesse moved her visit from Monday to Wednesday.',
-      time: '1h ago',
-      read: false,
-   },
-   {
-      id: '5',
-      type: 'visit_request_rejected',
-      title: 'Visit request rejected',
-      description: 'Yonas Bekele’s visit request was rejected by the host.',
-      time: '2h ago',
-      read: true,
-   },
-   {
-      id: '6',
-      type: 'visitor_checked_out',
-      title: 'Visitor checked out',
-      description: 'Marta Girma has completed checkout and left the premises.',
-      time: '3h ago',
-      read: true,
-   },
-   {
-      id: '7',
-      type: 'visit_cancelled',
-      title: 'Visit cancelled',
-      description: 'The scheduled visit for Michael Assefa has been cancelled.',
-      time: '5h ago',
-      read: true,
-   },
-];
+const mapNotificationType = (type: string): NotificationType => {
+   switch (type) {
+      case 'VISIT_APPROVAL_REQUEST':
+      case 'VISIT_SUBMITTED':
+      case 'INVITATION_SENT':
+         return 'visit_request_received';
+      case 'VISIT_APPROVED':
+         return 'visit_request_approved';
+      case 'VISIT_REJECTED':
+         return 'visit_request_rejected';
+      case 'VISIT_RESCHEDULED':
+         return 'visit_rescheduled';
+      case 'VISITOR_ARRIVED':
+      case 'VISITOR_REGISTERED':
+         return 'visitor_checked_in';
+      case 'VISITOR_CHECKED_OUT':
+         return 'visitor_checked_out';
+      case 'VISIT_CANCELLED':
+      case 'OVERDUE_VISIT':
+         return 'visit_cancelled';
+      default:
+         return 'visit_request_received';
+   }
+};
+
+const formatNotificationTime = (value?: string | null) => {
+   if (!value) return 'just now';
+
+   try {
+      return formatDistanceToNowStrict(new Date(value), { addSuffix: true });
+   } catch {
+      return 'just now';
+   }
+};
 
 function NotificationList({
    notifications,
    onSelect,
+   pendingReadId,
 }: {
-   notifications: Notification[];
-   onSelect: (id: string) => void;
+   notifications: NotificationItem[];
+   onSelect: (notification: NotificationItem) => void;
+   pendingReadId: number | null;
 }) {
    return (
       <div className="px-1.5 pb-1">
          {notifications.map((notification) => {
-            const style = TYPE_STYLES[notification.type];
+            const mappedType = mapNotificationType(notification.type);
+            const style = TYPE_STYLES[mappedType];
             const Icon = style.icon;
+            const isPending = pendingReadId === Number(notification.id);
 
             return (
                <button
                   key={notification.id}
                   type="button"
-                  onClick={() => onSelect(notification.id)}
+                  onClick={() => onSelect(notification)}
                   className={cn(
                      'my-1 flex w-full items-start gap-3 rounded-xl p-2.5 text-left transition-colors hover:bg-accent/70 cursor-pointer',
-                     !notification.read && 'bg-accent/40',
+                     !notification.isRead && 'bg-accent/40',
                   )}
+                  aria-label={notification.title ?? 'Notification'}
                >
                   <div
                      className={cn('rounded-xl p-2.5 shrink-0', style.bgColor)}
@@ -187,23 +170,28 @@ function NotificationList({
                         <p
                            className={cn(
                               'text-sm text-popover-foreground',
-                              notification.read
+                              notification.isRead
                                  ? 'font-medium'
                                  : 'font-semibold',
                            )}
                         >
-                           {notification.title}
+                           {notification.title ?? 'Notification'}
                         </p>
-                        {!notification.read && (
+                        {!notification.isRead && (
                            <span className="mt-1 size-1.5 shrink-0 rounded-full bg-primary" />
                         )}
                      </div>
                      <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">
-                        {notification.description}
+                        {notification.message || 'No details available.'}
                      </p>
-                     <p className="mt-1 text-xs text-muted-foreground">
-                        {notification.time}
-                     </p>
+                     <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                           {formatNotificationTime(notification.createdAt)}
+                        </p>
+                        {isPending && (
+                           <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                        )}
+                     </div>
                   </div>
                </button>
             );
@@ -217,14 +205,29 @@ export default function NotificationDropdown({
    defaultOpen,
    align = 'end',
 }: Props) {
-   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+   const { t } = useTranslation();
+   const [open, setOpen] = useState(Boolean(defaultOpen));
    const [expanded, setExpanded] = useState(false);
    const [listHeight, setListHeight] = useState<number>();
    const listContainerRef = useRef<HTMLDivElement>(null);
 
+   const {
+      data: notifications = [],
+      isLoading,
+      isError,
+   } = useNotifications({
+      page: 1,
+      limit: 20,
+   });
+   const { data: unreadCountData } = useNotificationUnreadCount();
+   const markAsRead = useMarkNotificationAsRead();
+   const markAllAsRead = useMarkAllNotificationsRead();
+
    const unreadCount = useMemo(
-      () => notifications.filter((notification) => !notification.read).length,
-      [notifications],
+      () =>
+         unreadCountData?.unreadCount ??
+         notifications.filter((notification) => !notification.isRead).length,
+      [notifications, unreadCountData],
    );
 
    const hasMany = notifications.length > INITIAL_VISIBLE_COUNT;
@@ -234,36 +237,26 @@ export default function NotificationDropdown({
          : notifications;
 
    const showSeeAll = hasMany && !expanded;
-   const showMarkAllAsRead = (!hasMany || expanded) && unreadCount > 0;
+   const showMarkAllAsReadButton = (!hasMany || expanded) && unreadCount > 0;
 
    useLayoutEffect(() => {
-      if (!expanded && listContainerRef.current) {
+      if (!expanded && listContainerRef.current && notifications.length > 0) {
          setListHeight(listContainerRef.current.offsetHeight);
       }
-   }, [expanded, visibleNotifications.length]);
+   }, [expanded, notifications.length, visibleNotifications.length]);
 
-   function markAllAsRead() {
-      setNotifications((current) =>
-         current.map((notification) => ({ ...notification, read: true })),
-      );
-   }
-
-   function markAsRead(id: string) {
-      setNotifications((current) =>
-         current.map((notification) =>
-            notification.id === id
-               ? { ...notification, read: true }
-               : notification,
-         ),
-      );
+   function handleNotificationSelect(notification: NotificationItem) {
+      if (notification.isRead) return;
+      markAsRead.mutate(Number(notification.id));
    }
 
    return (
       <div className="relative flex items-center justify-center">
          <DropdownMenu
-            defaultOpen={defaultOpen}
-            onOpenChange={(open) => {
-               if (!open) {
+            open={open}
+            onOpenChange={(nextOpen) => {
+               setOpen(nextOpen);
+               if (!nextOpen) {
                   setExpanded(false);
                   setListHeight(undefined);
                }
@@ -281,67 +274,119 @@ export default function NotificationDropdown({
             >
                <DropdownMenuLabel className="flex items-center justify-between gap-3 p-4 font-normal">
                   <p className="text-base font-medium text-popover-foreground">
-                     Notifications
+                     {t('header.notifications')}
                   </p>
                   {unreadCount > 0 ? (
-                     <Badge className="h-5 font-normal">{unreadCount} New</Badge>
+                     <Badge className="h-5 font-normal">
+                        {unreadCount} New
+                     </Badge>
                   ) : (
                      <Badge variant="secondary" className="h-5 font-normal">
-                        All caught up
+                        {t('header.allCaughtUp')}
                      </Badge>
                   )}
                </DropdownMenuLabel>
 
-               <div
-                  ref={listContainerRef}
-                  className="overflow-hidden"
-                  style={
-                     expanded && listHeight
-                        ? { height: listHeight }
-                        : undefined
-                  }
-               >
-                  {expanded ? (
-                     <ScrollArea className="h-full">
+               {isLoading ? (
+                  <div className="px-1.5 pb-1">
+                     {Array.from({ length: 3 }).map((_, index) => (
+                        <div
+                           key={index}
+                           className="my-1 flex w-full items-start gap-3 rounded-xl p-2.5"
+                        >
+                           <div className="h-10 w-10 shrink-0 rounded-xl bg-muted/80" />
+                           <div className="min-w-0 flex-1 space-y-2">
+                              <div className="h-4 w-2/3 rounded bg-muted/80" />
+                              <div className="h-3 w-full rounded bg-muted/60" />
+                              <div className="h-3 w-20 rounded bg-muted/60" />
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               ) : isError ? (
+                  <div className="px-4 pb-4 pt-1">
+                     <p className="text-sm text-destructive">
+                        {t('header.notificationsLoadError')}
+                     </p>
+                  </div>
+               ) : notifications.length === 0 ? (
+                  <div className="flex min-h-40 items-center justify-center px-4 py-6">
+                     <div className="flex flex-col items-center justify-center text-center">
+                        <div className="mb-3 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                           <Bell className="size-5" />
+                        </div>
+                        <p className="text-sm font-medium text-foreground">
+                           {t('header.noNotifications')}
+                        </p>
+                     </div>
+                  </div>
+               ) : (
+                  <div
+                     ref={listContainerRef}
+                     className="overflow-hidden"
+                     style={
+                        expanded && listHeight
+                           ? { height: listHeight }
+                           : undefined
+                     }
+                  >
+                     {expanded ? (
+                        <ScrollArea className="h-full">
+                           <NotificationList
+                              notifications={visibleNotifications}
+                              onSelect={handleNotificationSelect}
+                              pendingReadId={
+                                 markAsRead.isPending
+                                    ? Number(markAsRead.variables ?? 0)
+                                    : null
+                              }
+                           />
+                        </ScrollArea>
+                     ) : (
                         <NotificationList
                            notifications={visibleNotifications}
-                           onSelect={markAsRead}
+                           onSelect={handleNotificationSelect}
+                           pendingReadId={
+                              markAsRead.isPending
+                                 ? Number(markAsRead.variables ?? 0)
+                                 : null
+                           }
                         />
-                     </ScrollArea>
-                  ) : (
-                     <NotificationList
-                        notifications={visibleNotifications}
-                        onSelect={markAsRead}
-                     />
-                  )}
-               </div>
+                     )}
+                  </div>
+               )}
 
-               <div className="mx-1.5 mb-1.5 p-2 pt-1">
-                  {showSeeAll ? (
-                     <Button
-                        type="button"
-                        className="w-full rounded-xl cursor-pointer hover:bg-primary/80"
-                        onClick={(event) => {
-                           event.preventDefault();
-                           setExpanded(true);
-                        }}
-                     >
-                        See All Notifications
-                     </Button>
-                  ) : showMarkAllAsRead ? (
-                     <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full rounded-xl cursor-pointer"
-                        onClick={(event) => {
-                           event.preventDefault();
-                           markAllAsRead();
-                        }}
-                     >
-                        Mark All as Read
-                     </Button>
-                  ) : null}
-               </div>
+               {!isLoading && !isError && notifications.length > 0 && (
+                  <div className="mx-1.5 mb-1.5 p-2 pt-1">
+                     {showSeeAll ? (
+                        <Button
+                           type="button"
+                           className="w-full rounded-xl cursor-pointer hover:bg-primary/80"
+                           onClick={(event) => {
+                              event.preventDefault();
+                              setExpanded(true);
+                           }}
+                        >
+                           {t('header.seeAllNotifications')}
+                        </Button>
+                     ) : showMarkAllAsReadButton ? (
+                        <Button
+                           type="button"
+                           variant="outline"
+                           className="w-full rounded-xl cursor-pointer"
+                           disabled={markAllAsRead.isPending}
+                           onClick={(event) => {
+                              event.preventDefault();
+                              markAllAsRead.mutate();
+                           }}
+                        >
+                           {markAllAsRead.isPending
+                              ? 'Updating...'
+                              : 'Mark All as Read'}
+                        </Button>
+                     ) : null}
+                  </div>
+               )}
             </DropdownMenuContent>
          </DropdownMenu>
       </div>

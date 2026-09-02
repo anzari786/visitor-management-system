@@ -6,6 +6,7 @@ import {
    subDays,
    subMonths,
    differenceInMinutes,
+   endOfDay,
 } from 'date-fns';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
@@ -20,6 +21,7 @@ import {
 import type {
    ChartTimeRange,
    DateFilter,
+   ExportVisitLogQuery,
    GrowthPeriod,
 } from './dashboard.validation.js';
 import type {
@@ -107,6 +109,140 @@ function formatVisitDuration(minutes: number): string {
    const hours = Math.floor(minutes / 60);
    const remaining = Math.round(minutes % 60);
    return remaining > 0 ? `${hours}h ${remaining}min` : `${hours}h`;
+}
+
+const DASHBOARD_EXPORT_PERIODS = {
+   '7d': { unit: 'days', value: 7 },
+   '30d': { unit: 'days', value: 30 },
+   '3m': { unit: 'months', value: 3 },
+   '6m': { unit: 'months', value: 6 },
+} as const;
+
+const DEPARTMENT_ID_TO_NAME: Record<number, string> = {
+   1: 'Human Resources',
+   2: 'Finance',
+   3: 'Information Technology',
+   4: 'Research & Development',
+   5: 'Procurement',
+   6: 'Legal Affairs',
+};
+
+const EXPORT_VISIT_LOG_COLUMNS = [
+   'Visit Code',
+   'Visit Date',
+   'Visitor Name',
+   'Organization',
+   'Visitor Phone',
+   'Host Name',
+   'Department',
+   'Purpose',
+   'Visit Source',
+   'Visit Status',
+   'Attendance Status',
+   'Scheduled Start',
+   'Scheduled End',
+   'Check-In Time',
+   'Check-Out Time',
+   'Visit Duration',
+] as const;
+
+type VisitLogCsvRow = {
+   'Visit Code': string;
+   'Visit Date': string;
+   'Visitor Name': string;
+   Organization: string;
+   'Visitor Phone': string;
+   'Host Name': string;
+   Department: string;
+   Purpose: string;
+   'Visit Source': string;
+   'Visit Status': string;
+   'Attendance Status': string;
+   'Scheduled Start': string;
+   'Scheduled End': string;
+   'Check-In Time': string;
+   'Check-Out Time': string;
+   'Visit Duration': string;
+};
+
+function formatDateTime(value: Date | null | undefined): string {
+   if (!value) return '';
+   return format(value, 'yyyy-MM-dd HH:mm');
+}
+
+function formatScheduleDateTime(date: Date, time: string): string {
+   const [hours, minutes] = time.split(':').map(Number);
+   const scheduled = new Date(date);
+   scheduled.setHours(hours, minutes, 0, 0);
+   return format(scheduled, 'yyyy-MM-dd HH:mm');
+}
+
+function formatDurationFromAttendance(
+   checkInAt: Date | null | undefined,
+   checkOutAt: Date | null | undefined,
+): string {
+   if (!checkInAt || !checkOutAt) return '';
+
+   const totalMinutes = differenceInMinutes(checkOutAt, checkInAt);
+   return formatVisitDuration(totalMinutes);
+}
+
+function escapeCsvValue(value: string | number | null | undefined): string {
+   const text = String(value ?? '').replace(/"/g, '""');
+   return `"${text}"`;
+}
+
+function buildVisitLogCsv(rows: VisitLogCsvRow[]): string {
+   if (!rows.length) {
+      return EXPORT_VISIT_LOG_COLUMNS.map(escapeCsvValue).join(',') + '\n';
+   }
+
+   const header = EXPORT_VISIT_LOG_COLUMNS.map(escapeCsvValue).join(',');
+   const body = rows
+      .map((row) =>
+         EXPORT_VISIT_LOG_COLUMNS.map((column) =>
+            escapeCsvValue(row[column]),
+         ).join(','),
+      )
+      .join('\n');
+
+   return `${header}\n${body}\n`;
+}
+
+function resolveDateRange(
+   period: ExportVisitLogQuery['period'],
+   from?: string,
+   to?: string,
+) {
+   const now = new Date();
+
+   if (period === 'all') return null;
+
+   if (period === 'custom') {
+      return {
+         start: startOfDay(new Date(from!)),
+         end: endOfDay(new Date(to!)),
+      };
+   }
+
+   const config = DASHBOARD_EXPORT_PERIODS[period];
+
+   return {
+      start:
+         config.unit === 'days'
+            ? subDays(startOfDay(now), config.value)
+            : startOfDay(subMonths(now, config.value)),
+      end: now,
+   };
+}
+
+function buildCsvFilename(departmentName?: string) {
+   const dateStr = format(new Date(), 'yyyy-MM-dd');
+   const departmentSuffix = departmentName
+      ? `-dept-${departmentName.replace(/\s+/g, '-').toLowerCase()}`
+      : '';
+
+   return `visit-log${departmentSuffix}-${dateStr}.csv`;
 }
 
 function averageDurationMinutes(
@@ -354,5 +490,113 @@ export async function getVisitStatusStats(
    return {
       data,
       total: data.reduce((sum, item) => sum + item.value, 0),
+   };
+}
+
+export async function exportVisitLogCsv(query: ExportVisitLogQuery): Promise<{
+   filename: string;
+   csv: string;
+}> {
+   const { period, departmentId, departmentName, status, from, to } = query;
+   const range = resolveDateRange(period, from, to);
+   const resolvedDepartmentName =
+      departmentName ??
+      (departmentId !== undefined
+         ? DEPARTMENT_ID_TO_NAME[departmentId]
+         : undefined);
+
+   const visits = await prisma.visit.findMany({
+      where: {
+         ...(resolvedDepartmentName
+            ? { departmentNameSnapshot: resolvedDepartmentName }
+            : {}),
+         ...(status ? { status } : {}),
+         createdAt: range ? { gte: range.start, lte: range.end } : undefined,
+      },
+      include: {
+         hostEmployee: true,
+         days: true,
+         participants: {
+            include: {
+               visitor: true,
+               attendances: {
+                  include: {
+                     visitDay: true,
+                  },
+               },
+            },
+         },
+      },
+      orderBy: { createdAt: 'desc' },
+   });
+
+   const rows = visits.flatMap((visit) => {
+      const visitDays = visit.days.length
+         ? visit.days
+         : [
+              {
+                 id: 0,
+                 visitId: visit.id,
+                 date: visit.startDate,
+                 createdAt: visit.createdAt,
+              },
+           ];
+
+      const hostName =
+         visit.hostNameSnapshot ??
+         (visit.hostEmployee
+            ? `${visit.hostEmployee.firstName} ${visit.hostEmployee.lastName}`.trim()
+            : '');
+
+      return visit.participants.flatMap((participant) => {
+         const visitor = participant.visitor;
+         const visitorName = `${visitor.firstName} ${visitor.lastName}`.trim();
+         const attendanceByDay = new Map(
+            participant.attendances.map((attendance) => [
+               attendance.visitDayId,
+               attendance,
+            ]),
+         );
+
+         return visitDays.map((visitDay) => {
+            const attendance = attendanceByDay.get(visitDay.id) ?? null;
+            const visitDate = visitDay.date;
+            const scheduledStart = formatScheduleDateTime(
+               visitDate,
+               visit.startTime,
+            );
+            const scheduledEnd = formatScheduleDateTime(
+               visitDate,
+               visit.endTime,
+            );
+
+            return {
+               'Visit Code': visit.visitCode,
+               'Visit Date': format(visitDate, 'yyyy-MM-dd'),
+               'Visitor Name': visitorName,
+               Organization: visit.organization ?? visitor.organization ?? '',
+               'Visitor Phone': visitor.phone ?? '',
+               'Host Name': hostName,
+               Department: visit.departmentNameSnapshot ?? '',
+               Purpose: visit.purpose,
+               'Visit Source': visit.source,
+               'Visit Status': visit.status,
+               'Attendance Status': attendance?.status ?? 'EXPECTED',
+               'Scheduled Start': scheduledStart,
+               'Scheduled End': scheduledEnd,
+               'Check-In Time': formatDateTime(attendance?.checkInAt ?? null),
+               'Check-Out Time': formatDateTime(attendance?.checkOutAt ?? null),
+               'Visit Duration': formatDurationFromAttendance(
+                  attendance?.checkInAt ?? null,
+                  attendance?.checkOutAt ?? null,
+               ),
+            } satisfies VisitLogCsvRow;
+         });
+      });
+   });
+
+   return {
+      filename: buildCsvFilename(resolvedDepartmentName),
+      csv: buildVisitLogCsv(rows),
    };
 }

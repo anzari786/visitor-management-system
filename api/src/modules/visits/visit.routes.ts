@@ -9,8 +9,6 @@ import {
    decideRejectVisit,
    rescheduleVisitHandler,
    cancelVisitHandler,
-   getInvitationPreview,
-   registerViaInvitation,
    registerVisitorAtVisit,
    getVisitRegistrationProgressHandler,
 } from './visit.controller.js';
@@ -26,8 +24,6 @@ import {
    visitDecisionSchema,
    approveVisitSchema,
    rescheduleVisitSchema,
-   invitationTokenParamSchema,
-   registerViaInvitationSchema,
    registerVisitorAtVisitSchema,
 } from './visit.validation.js';
 
@@ -53,19 +49,6 @@ router.post(
    requireAuth,
    validate(createHostInvitationSchema),
    submitHostInvitation,
-);
-
-// Public invitation registration — must be registered before /:id routes.
-router.get(
-   '/invitations/:token',
-   validate(invitationTokenParamSchema),
-   getInvitationPreview,
-);
-
-router.post(
-   '/invitations/:token/register',
-   validate(registerViaInvitationSchema),
-   registerViaInvitation,
 );
 
 router.get('/', requireAuth, validate(listVisitsSchema), getVisits);

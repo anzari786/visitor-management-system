@@ -17,8 +17,11 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Separator } from '../ui/separator';
+import LanguageDropdown from '@/components/shared/language-dropdown';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 export default function Login() {
+   const { t } = useTranslation();
    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
    const { mutate: login, isPending } = useLogin();
@@ -50,6 +53,10 @@ export default function Login() {
    return (
       <Card className="w-full rounded-4xl border border-border bg-card/85 px-6 py-10 pt-14 shadow-2xs shadow-primary/10 backdrop-blur-xl">
          <div className="flex flex-col items-center space-y-8">
+            <div className="flex w-full justify-end">
+               <LanguageDropdown align="end" />
+            </div>
+
             {/* Title */}
             <div className="space-y-2 text-center">
                <Image
@@ -61,10 +68,10 @@ export default function Login() {
                   className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
                />
                <h1 className="text-balance font-semibold text-xl text-foreground sm:text-2xl">
-                  Welcome back!
+                  {t('auth.login.heading')}
                </h1>
                <p className="text-sm text-pretty text-muted-foreground">
-                  Please enter your details to access dashboard
+                  {t('auth.login.subheading')}
                </p>
             </div>
 
@@ -76,13 +83,13 @@ export default function Login() {
                {/* Username Input */}
                <div className="space-y-2">
                   <Label htmlFor="username" className="ml-1 text-foreground">
-                     Username
+                     {t('auth.login.username')}
                   </Label>
                   <div className="relative">
                      <Input
                         id="username"
                         type="text"
-                        placeholder="Enter Username"
+                        placeholder={t('auth.login.usernamePlaceholder')}
                         aria-invalid={!!errors.username}
                         {...register('username')}
                         className="rounded-xl border-input bg-background ps-9 text-sm text-foreground shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30"
@@ -93,7 +100,7 @@ export default function Login() {
                   </div>
                   {errors.username && (
                      <p className="ml-3 text-xs font-medium text-destructive">
-                        {errors.username.message}
+                        {t(errors.username.message as TranslationKey)}
                      </p>
                   )}
                </div>
@@ -101,13 +108,13 @@ export default function Login() {
                {/* Password Input */}
                <div className="space-y-2">
                   <Label htmlFor="password" className="ml-1 text-foreground">
-                     Password
+                     {t('auth.login.password')}
                   </Label>
                   <div className="relative">
                      <Input
                         id="password"
                         type={isPasswordVisible ? 'text' : 'password'}
-                        placeholder="Enter Password"
+                        placeholder={t('auth.login.passwordPlaceholder')}
                         aria-invalid={!!errors.password}
                         {...register('password')}
                         className="rounded-xl border-input bg-background ps-9 pe-9 text-sm text-foreground shadow-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30"
@@ -118,7 +125,9 @@ export default function Login() {
                      <Button
                         aria-controls="password"
                         aria-label={
-                           isPasswordVisible ? 'Hide password' : 'Show password'
+                           isPasswordVisible
+                              ? t('auth.login.hidePassword')
+                              : t('auth.login.showPassword')
                         }
                         aria-pressed={isPasswordVisible}
                         className="absolute top-0 right-0 h-full px-3 hover:bg-transparent cursor-pointer"
@@ -136,7 +145,7 @@ export default function Login() {
                   </div>
                   {errors.password && (
                      <p className="ml-3 text-xs font-medium text-red-500">
-                        {errors.password.message}
+                        {t(errors.password.message as TranslationKey)}
                      </p>
                   )}
                </div>
@@ -148,12 +157,18 @@ export default function Login() {
                   size="lg"
                   className="mt-2 w-full rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all hover:bg-primary/90 hover:shadow-primary/30 active:bg-primary/80 disabled:opacity-50"
                >
-                  <span>{isPending ? 'Signing in…' : 'Login'}</span>
+                  <span>
+                     {isPending
+                        ? t('auth.login.submitting')
+                        : t('auth.login.submit')}
+                  </span>
                </Button>
 
                <div className="flex items-center gap-4 py-2">
                   <Separator className="flex-1" />
-                  <span className="text-muted-foreground text-sm">OR</span>
+                  <span className="text-muted-foreground text-sm">
+                     {t('auth.login.or')}
+                  </span>
                   <Separator className="flex-1" />
                </div>
 
@@ -162,16 +177,16 @@ export default function Login() {
                   size="lg"
                   variant="outline"
                >
-                  Single sign-on (SSO)
+                  {t('auth.login.sso')}
                </Button>
             </form>
 
             {/* Footer Notice */}
             <div className="text-pretty text-center text-muted-foreground text-xs">
                <p>
-                  © 2026 Ethiopian Agricultural Transformation Institute (ATI) •
+                  {t('auth.login.footerOrg')}
                </p>
-               <p>Visitor Management System</p>
+               <p>{t('nav.brandSubtitle')}</p>
             </div>
          </div>
       </Card>

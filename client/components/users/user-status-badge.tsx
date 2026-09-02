@@ -1,15 +1,18 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 const statusStyles = {
    active: {
-      label: 'Active',
+      labelKey: 'status.active',
       bg: 'bg-emerald-400/15 dark:bg-emerald-400/10',
       text: 'text-emerald-700 dark:text-emerald-300',
       dot: 'bg-emerald-500',
    },
    inactive: {
-      label: 'Inactive',
+      labelKey: 'status.inactive',
       bg: 'bg-red-400/15 dark:bg-red-400/10',
       text: 'text-red-700 dark:text-red-300',
       dot: 'bg-red-500',
@@ -23,6 +26,7 @@ export function UserStatusBadge({
    isActive: boolean;
    className?: string;
 }) {
+   const { t } = useTranslation();
    const styles = isActive ? statusStyles.active : statusStyles.inactive;
 
    return (
@@ -36,7 +40,7 @@ export function UserStatusBadge({
          )}
       >
          <span className={cn('size-1.5 rounded-full', styles.dot)} />
-         {styles.label}
+         {t(styles.labelKey)}
       </Badge>
    );
 }

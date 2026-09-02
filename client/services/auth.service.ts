@@ -13,43 +13,45 @@ import type {
 
 import type { User } from '@/types/user.types';
 
+const BASE = '/v1/auth';
+
 export const authService = {
    login(payload: LoginPayload) {
-      return api.post<ApiResponse<LoginData>>('/auth/login', payload);
+      return api.post<ApiResponse<LoginData>>(`${BASE}/login`, payload);
    },
 
    logout() {
-      return api.post<ApiResponse<null>>('/auth/logout');
+      return api.post<ApiResponse<null>>(`${BASE}/logout`);
    },
 
    getMe() {
-      return api.get<ApiResponse<User>>('/auth/me');
+      return api.get<ApiResponse<User>>(`${BASE}/me`);
    },
 
    updateProfile(payload: UpdateProfilePayload) {
-      return api.patch<ApiResponse<User>>('/auth/me', payload);
+      return api.patch<ApiResponse<User>>(`${BASE}/me`, payload);
    },
 
    changePassword(payload: ChangePasswordPayload) {
-      return api.post<ApiResponse<null>>('/auth/change-password', payload);
+      return api.post<ApiResponse<null>>(`${BASE}/change-password`, payload);
    },
 
    forceChangePassword(payload: ForceChangePasswordPayload) {
       return api.post<ApiResponse<User>>(
-         '/auth/force-change-password',
+         `${BASE}/force-change-password`,
          payload,
       );
    },
 
    completePasswordSetup(payload: CompletePasswordSetupPayload) {
       return api.post<ApiResponse<null>>(
-         '/auth/password/setup/complete',
+         `${BASE}/password/setup/complete`,
          payload,
       );
    },
 
    checkUsername(username: string) {
-      return api.get<ApiResponse<CheckUsernameData>>('/auth/check-username', {
+      return api.get<ApiResponse<CheckUsernameData>>(`${BASE}/check-username`, {
          params: { username },
       });
    },

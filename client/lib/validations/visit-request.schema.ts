@@ -1,50 +1,40 @@
-import { z } from 'zod';
-import { isValidEthiopianPhone } from '../phone';
 import {
-   HOST_EMPLOYEES,
    VISIT_PURPOSE_OPTIONS,
-   VISIT_REQUEST_DEPARTMENTS,
    type VisitPurposeValue,
-   type VisitRequestDepartmentId,
 } from '@/constants/visit-request';
 import { startOfDay } from 'date-fns';
+import { z } from 'zod';
+import { isValidEthiopianPhone } from '../phone';
 
 export const visitorSchema = z.object({
    firstName: z
       .string()
-      .min(1, 'First name is required')
-      .max(50, 'First name must be 50 characters or fewer'),
+      .min(1, 'validation.firstNameRequired')
+      .max(50, 'validation.firstNameMax'),
    lastName: z
       .string()
-      .min(1, 'Last name is required')
-      .max(50, 'Last name must be 50 characters or fewer'),
+      .min(1, 'validation.lastNameRequired')
+      .max(50, 'validation.lastNameMax'),
    email: z
       .string()
-      .min(1, 'Email is required')
-      .email('Enter a valid email address')
-      .max(100, 'Email must be 100 characters or fewer'),
+      .min(1, 'validation.emailRequired2')
+      .email('validation.emailInvalid')
+      .max(100, 'validation.emailMax100'),
    phone: z
       .string()
-      .min(1, 'Phone number is required')
+      .min(1, 'validation.phoneRequired')
       .refine((val) => isValidEthiopianPhone(val), {
-         message: 'Enter a valid Ethiopian phone number',
+         message: 'validation.phoneInvalid',
       }),
    organization: z
       .string()
-      .max(100, 'Organization must be 100 characters or fewer')
+      .max(100, 'validation.organizationMax')
       .optional()
       .transform((val) => {
          const trimmed = val?.trim();
          return trimmed ? trimmed : undefined;
       }),
 });
-
-const hostIds = HOST_EMPLOYEES.map((h) => h.id) as [string, ...string[]];
-
-const departmentIds = VISIT_REQUEST_DEPARTMENTS.map((d) => d.id) as [
-   VisitRequestDepartmentId,
-   ...VisitRequestDepartmentId[],
-];
 
 const purposeValues = VISIT_PURPOSE_OPTIONS.map((o) => o.value) as [
    VisitPurposeValue,
@@ -66,17 +56,17 @@ export const emptyVisitorValues: {
 };
 
 const visitDetailsFieldsSchema = z.object({
-   hostId: z.enum(hostIds, { message: 'Please select a host employee' }),
-   departmentId: z.enum(departmentIds, {
-      message: 'Please select a department',
-   }),
+   hostId: z.string().min(1, 'validation.selectHost'),
+   hostName: z.string().optional(),
+   departmentId: z.string().min(1, 'validation.selectDepartment'),
+   departmentName: z.string().optional(),
    purpose: z.enum(purposeValues, {
-      message: 'Please select a visit purpose',
+      message: 'validation.selectPurpose',
    }),
-   startDate: z.date({ error: 'Start date is required' }),
-   endDate: z.date({ error: 'End date is required' }),
-   startTime: z.string().min(1, 'Start time is required'),
-   endTime: z.string().min(1, 'End time is required'),
+   startDate: z.date({ error: 'validation.startDateRequired' }),
+   endDate: z.date({ error: 'validation.endDateRequired' }),
+   startTime: z.string().min(1, 'validation.startTimeRequired'),
+   endTime: z.string().min(1, 'validation.endTimeRequired'),
 });
 
 function refineHostAndDepartment(
@@ -87,28 +77,7 @@ function refineHostAndDepartment(
       ctx.addIssue({
          code: 'custom',
          path: ['hostId'],
-         message: 'Please select a host employee',
-      });
-      return;
-   }
-
-   const host = HOST_EMPLOYEES.find((h) => h.id === data.hostId);
-
-   if (!host) {
-      ctx.addIssue({
-         code: 'custom',
-         path: ['hostId'],
-         message: 'Please select a valid host employee',
-      });
-      return;
-   }
-
-   if (!host.departmentId) {
-      ctx.addIssue({
-         code: 'custom',
-         path: ['hostId'],
-         message:
-            'Selected host does not have a department assigned. Please choose another host.',
+         message: 'validation.selectHost',
       });
       return;
    }
@@ -117,16 +86,9 @@ function refineHostAndDepartment(
       ctx.addIssue({
          code: 'custom',
          path: ['departmentId'],
-         message: 'Please select a department',
+         message: 'validation.selectDepartment',
       });
       return;
-   }
-
-   if (host.departmentId !== data.departmentId) {
-      const message =
-         'The selected host is not part of the selected department. Please choose a valid host or update the department.';
-      ctx.addIssue({ code: 'custom', path: ['hostId'], message });
-      ctx.addIssue({ code: 'custom', path: ['departmentId'], message });
    }
 }
 
@@ -144,7 +106,7 @@ function refineVisitSchedule(
          ctx.addIssue({
             code: 'custom',
             path: ['endDate'],
-            message: 'End date cannot be before start date',
+            message: 'validation.endDateBeforeStart',
          });
       }
    }
@@ -153,12 +115,12 @@ function refineVisitSchedule(
       ctx.addIssue({
          code: 'custom',
          path: ['endTime'],
-         message: 'End time must be after start time',
+         message: 'validation.endTimeAfterStart',
       });
       ctx.addIssue({
          code: 'custom',
          path: ['startTime'],
-         message: 'Start time must be before end time',
+         message: 'validation.startBeforeEnd',
       });
    }
 }
@@ -178,18 +140,11 @@ function refineVisitDetails(
    refineVisitSchedule(data, ctx);
 }
 
-export const visitorsStepSchema = z.object({
-   visitors: z.array(visitorSchema).min(1, 'At least one visitor is required'),
-});
-
-export const visitDetailsSchema =
-   visitDetailsFieldsSchema.superRefine(refineVisitDetails);
-
 export const visitRequestSchema = z
    .object({
       visitors: z
          .array(visitorSchema)
-         .min(1, 'At least one visitor is required'),
+         .min(1, 'validation.atLeastOneVisitor'),
    })
    .extend(visitDetailsFieldsSchema.shape)
    .superRefine(refineVisitDetails);

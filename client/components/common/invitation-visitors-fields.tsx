@@ -19,6 +19,7 @@ import {
    FieldLegend,
    FieldSet,
 } from '@/components/ui/field';
+import { useTranslation } from '@/lib/i18n';
 
 type FormType = UseFormReturn<
    HostInvitationFormInput,
@@ -26,13 +27,8 @@ type FormType = UseFormReturn<
    HostInvitationFormValues
 >;
 
-function VisitorFields({
-   form,
-   index,
-}: {
-   form: FormType;
-   index: number;
-}) {
+function VisitorFields({ form, index }: { form: FormType; index: number }) {
+   const { t } = useTranslation();
    const errors = form.formState.errors.visitors?.[index];
 
    return (
@@ -40,12 +36,13 @@ function VisitorFields({
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
                <FieldLabel htmlFor={`visitors.${index}.firstName`}>
-                  First Name <span className="text-destructive">*</span>
+                  {t('common.firstName')}{' '}
+                  <span className="text-destructive">*</span>
                </FieldLabel>
                <Input
                   id={`visitors.${index}.firstName`}
                   autoComplete="off"
-                  placeholder="Enter first name"
+                  placeholder={t('visitorForm.firstNamePlaceholder')}
                   aria-invalid={!!errors?.firstName}
                   {...form.register(`visitors.${index}.firstName`)}
                />
@@ -54,12 +51,13 @@ function VisitorFields({
 
             <Field>
                <FieldLabel htmlFor={`visitors.${index}.lastName`}>
-                  Last Name <span className="text-destructive">*</span>
+                  {t('common.lastName')}{' '}
+                  <span className="text-destructive">*</span>
                </FieldLabel>
                <Input
                   id={`visitors.${index}.lastName`}
                   autoComplete="off"
-                  placeholder="Enter last name"
+                  placeholder={t('visitorForm.lastNamePlaceholder')}
                   aria-invalid={!!errors?.lastName}
                   {...form.register(`visitors.${index}.lastName`)}
                />
@@ -69,23 +67,26 @@ function VisitorFields({
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.email`}>
-               Email <span className="text-destructive">*</span>
+               {t('common.email')} <span className="text-destructive">*</span>
             </FieldLabel>
             <Input
                id={`visitors.${index}.email`}
                type="email"
                autoComplete="off"
-               placeholder="visitor@example.com"
+               placeholder={t('visitorForm.emailPlaceholder')}
                aria-invalid={!!errors?.email}
                {...form.register(`visitors.${index}.email`)}
             />
-            <FieldDescription>Used for the invitation email.</FieldDescription>
+            <FieldDescription>
+               {t('visitorForm.emailInviteHint')}
+            </FieldDescription>
             <FieldError>{errors?.email?.message}</FieldError>
          </Field>
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.phone`}>
-               Phone Number <span className="text-destructive">*</span>
+               {t('common.phoneNumber')}{' '}
+               <span className="text-destructive">*</span>
             </FieldLabel>
             <Controller
                name={`visitors.${index}.phone`}
@@ -95,7 +96,7 @@ function VisitorFields({
                      id={`visitors.${index}.phone`}
                      type="tel"
                      autoComplete="off"
-                     placeholder="Enter visitor phone number"
+                     placeholder={t('visitorForm.phonePlaceholder')}
                      aria-invalid={!!errors?.phone}
                      value={field.value ?? ''}
                      onChange={(e) =>
@@ -110,12 +111,12 @@ function VisitorFields({
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.organization`}>
-               Organization
+               {t('visitDetails.organization')}
             </FieldLabel>
             <Input
                id={`visitors.${index}.organization`}
                autoComplete="off"
-               placeholder="Visitor's company or organization (optional)"
+               placeholder={t('visitorForm.orgPlaceholder')}
                {...form.register(`visitors.${index}.organization`)}
             />
             <FieldError>{errors?.organization?.message}</FieldError>
@@ -135,6 +136,7 @@ export function InvitationVisitorsFields({
    heading,
    description,
 }: InvitationVisitorsFieldsProps) {
+   const { t } = useTranslation();
    const { fields, append, remove } = useFieldArray({
       control: form.control,
       name: 'visitors',
@@ -157,7 +159,7 @@ export function InvitationVisitorsFields({
                onClick={() => append({ ...emptyInvitationVisitorValues })}
             >
                <Plus className="size-4" />
-               Add Visitor
+               {t('visitorForm.addVisitor')}
             </Button>
          </div>
 
@@ -167,7 +169,9 @@ export function InvitationVisitorsFields({
                className="w-full rounded-lg border border-border p-4 sm:p-5"
             >
                <div className="mb-4 flex items-center justify-between gap-3">
-                  <FieldLegend className="mb-0">Visitor {index + 1}</FieldLegend>
+                  <FieldLegend className="mb-0">
+                     {t('visitorForm.visitorNumber', { number: index + 1 })}
+                  </FieldLegend>
                   {fields.length > 1 && (
                      <Button
                         type="button"
@@ -177,7 +181,7 @@ export function InvitationVisitorsFields({
                         onClick={() => remove(index)}
                      >
                         <Trash2 className="size-4" />
-                        Remove
+                        {t('visitorForm.remove')}
                      </Button>
                   )}
                </div>
@@ -186,7 +190,9 @@ export function InvitationVisitorsFields({
          ))}
 
          {form.formState.errors.visitors?.root?.message && (
-            <FieldError>{form.formState.errors.visitors.root.message}</FieldError>
+            <FieldError>
+               {form.formState.errors.visitors.root.message}
+            </FieldError>
          )}
          {typeof form.formState.errors.visitors?.message === 'string' && (
             <FieldError>{form.formState.errors.visitors.message}</FieldError>

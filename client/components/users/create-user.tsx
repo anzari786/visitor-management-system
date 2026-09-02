@@ -22,8 +22,8 @@ import {
 } from '@/lib/validations/user.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { Controller, useForm } from 'react-hook-form';
-import { Badge } from '../reui/badge';
 import {
    Select,
    SelectContent,
@@ -36,7 +36,6 @@ import {
    KeyRound,
    ShieldCheck,
    Loader2,
-   Info,
    LoaderCircleIcon,
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -55,11 +54,8 @@ import {
    AutocompleteSeparator,
    AutocompleteStatus,
 } from '@/components/ui/autocomplete';
-import {
-   HOST_DEPARTMENT_ORDER,
-   HOST_EMPLOYEES,
-   type HostEmployee,
-} from '@/constants/visit-request';
+import { visitRequestService } from '@/services/visit-request.service';
+import type { EmployeeSearchResult } from '@/types/self-service.types';
 
 type CreateUserProps = {
    open: boolean;
@@ -72,31 +68,27 @@ type CreateUserProps = {
 const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 
-function matchesQuery(text: string, query: string) {
-   return text.toLowerCase().includes(query.toLowerCase());
+async function searchEmployees(query: string): Promise<EmployeeSearchResult[]> {
+   const { data } = await visitRequestService.searchEmployees({
+      q: query.trim(),
+      limit: 25,
+   });
+   return data.data;
 }
 
-async function searchEmployees(query: string): Promise<HostEmployee[]> {
-   await new Promise((resolve) =>
-      setTimeout(resolve, Math.random() * 400 + 150),
-   );
-
-   const q = query.trim();
-   if (!q) return HOST_EMPLOYEES;
-
-   return HOST_EMPLOYEES.filter(
-      (host) =>
-         matchesQuery(host.name, q) ||
-         matchesQuery(host.title, q) ||
-         matchesQuery(host.departmentName, q),
-   );
-}
-
-function groupEmployeesByDepartment(hosts: HostEmployee[]) {
-   return HOST_DEPARTMENT_ORDER.map((departmentName) => ({
+function groupEmployeesByDepartment(hosts: EmployeeSearchResult[]) {
+   const groups = new Map<string, EmployeeSearchResult[]>();
+   hosts
+      .filter((employee) => employee.isActive)
+      .forEach((employee) => {
+         const group = groups.get(employee.departmentName) ?? [];
+         group.push(employee);
+         groups.set(employee.departmentName, group);
+      });
+   return [...groups.entries()].map(([departmentName, items]) => ({
       departmentName,
-      items: hosts.filter((h) => h.departmentName === departmentName),
-   })).filter((group) => group.items.length > 0);
+      items,
+   }));
 }
 
 const CIRCLE_RADIUS = 7;
@@ -199,6 +191,7 @@ function SectionHeading({
 }
 
 const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
+   const { t } = useTranslation();
    const {
       register,
       handleSubmit,
@@ -213,7 +206,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
          lastName: '',
          email: '',
          username: '',
-         role: 'front_desk',
+         role: 'RECEPTION',
       },
    });
 
@@ -245,14 +238,14 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
             <FieldGroup className="gap-6">
                <div className="space-y-4">
                   <SectionHeading
-                     title="User Information"
-                     description="Basic profile details for the user."
+                     title={t('users.form.userInformation')}
+                     description={t('users.form.userInformationHint')}
                   />
                   {/* First / Last name row */}
                   <div className="grid grid-cols-2 gap-3">
                      <Field>
                         <FieldLabel htmlFor="first-name">
-                           First Name
+                           {t('common.firstName')}
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
@@ -267,7 +260,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 
                      <Field>
                         <FieldLabel htmlFor="last-name">
-                           Last Name
+                           {t('common.lastName')}
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
@@ -284,7 +277,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                   {/* Email */}
                   <Field>
                      <FieldLabel htmlFor="email">
-                        Email
+                        {t('common.email')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Input
@@ -302,11 +295,11 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                   {/* Username */}
                   <Field>
                      <FieldLabel htmlFor="username">
-                        Username
+                        {t('users.col.username')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <FieldDescription>
-                        Min. 3 characters, alphanumeric &amp; underscores
+                        {t('users.form.usernameHint')}
                      </FieldDescription>
                      <div className="relative">
                         <Input
@@ -332,7 +325,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                   {/* Role */}
                   <Field>
                      <FieldLabel htmlFor="role">
-                        Role
+                        {t('users.col.role')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Controller
@@ -350,9 +343,17 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
+                                 <SelectItem value="GUARD">
+                                    {t('role.guard')}
+                                 </SelectItem>
+                                 <SelectItem value="RECEPTION">
+                                    {t('role.reception')}
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    {t('role.admin')}
+                                 </SelectItem>
+                                 <SelectItem value="MANAGER">
+                                    {t('role.manager')}
                                  </SelectItem>
                               </SelectContent>
                            </Select>
@@ -366,8 +367,8 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 
                <div className="space-y-4">
                   <SectionHeading
-                     title="Authentication"
-                     description="How this user will sign in to the system."
+                     title={t('users.form.authentication')}
+                     description={t('users.form.authenticationHint')}
                   />
                   <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
                      <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
@@ -375,12 +376,10 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                      </div>
                      <div className="space-y-1">
                         <p className="text-sm font-medium leading-none">
-                           Local Account
+                           {t('users.form.localAccount')}
                         </p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                           Uses username and password authentication. The user
-                           will be prompted to set their password upon first
-                           login or via a reset link.
+                           {t('users.form.localAccountHint')}
                         </p>
                      </div>
                   </div>
@@ -396,7 +395,7 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                disabled={isSubmitting}
                onClick={() => onOpenChange(false)}
             >
-               Cancel
+               {t('common.cancel')}
             </Button>
             <Button
                type="submit"
@@ -406,10 +405,10 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                {isSubmitting ? (
                   <>
                      <Loader2 className="size-4 animate-spin" />
-                     Creating…
+                     {t('users.form.creating')}
                   </>
                ) : (
-                  'Create User'
+                  t('users.create')
                )}
             </Button>
          </DialogFooter>
@@ -418,31 +417,31 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 };
 
 const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
+   const { t } = useTranslation();
    const {
       handleSubmit,
       control,
       reset,
-      setValue,
       watch,
       formState: { errors, isSubmitting },
    } = useForm<CreateSsoUserFormValues>({
       resolver: zodResolver(createSsoUserSchema),
       defaultValues: {
          employeeId: '',
-         role: 'front_desk',
+         role: 'RECEPTION',
       },
    });
 
    const [autocompleteOpen, setAutocompleteOpen] = React.useState(false);
    const [inputValue, setInputValue] = React.useState('');
    const [isLoadingEmployees, setIsLoadingEmployees] = React.useState(false);
-   const [results, setResults] = React.useState<HostEmployee[]>(HOST_EMPLOYEES);
+   const [results, setResults] = React.useState<EmployeeSearchResult[]>([]);
    const [searchError, setSearchError] = React.useState<string | null>(null);
 
    const selectedEmployeeId = watch('employeeId');
    const selectedEmployee = React.useMemo(
-      () => HOST_EMPLOYEES.find((e) => e.id === selectedEmployeeId),
-      [selectedEmployeeId],
+      () => results.find((e) => e.id === selectedEmployeeId),
+      [results, selectedEmployeeId],
    );
 
    React.useEffect(() => {
@@ -463,7 +462,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
             if (!ignore) setResults(data);
          } catch {
             if (!ignore) {
-               setSearchError('Unable to search employees. Please try again.');
+               setSearchError(t('users.form.searchFailed'));
                setResults([]);
             }
          } finally {
@@ -492,15 +491,20 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
       status = (
          <div className="flex items-center gap-2">
             <LoaderCircleIcon className="size-4 animate-spin" />
-            Searching employees...
+            {t('users.form.searchingEmployees')}
          </div>
       );
    } else if (searchError) {
       status = searchError;
    } else if (inputValue && results.length === 0) {
-      status = `No employees found for "${inputValue}"`;
+      status = t('users.form.noEmployeesFor', { query: inputValue });
    } else if (results.length > 0) {
-      status = `${results.length} employee${results.length === 1 ? '' : 's'} found`;
+      status = t(
+         results.length === 1
+            ? 'users.form.employeeFound'
+            : 'users.form.employeesFound',
+         { count: results.length },
+      );
    }
 
    return (
@@ -513,8 +517,8 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
             <FieldGroup className="gap-6">
                <div className="space-y-4">
                   <SectionHeading
-                     title="Employee Selection"
-                     description="Select an organization employee to provision their account."
+                     title={t('users.form.employeeSelection')}
+                     description={t('users.form.employeeSelectionHint')}
                   />
 
                   <Controller
@@ -523,7 +527,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                      render={({ field }) => (
                         <Field>
                            <FieldLabel htmlFor="employeeId">
-                              Employee{' '}
+                              {t('users.form.employee')}{' '}
                               <span className="text-destructive">*</span>
                            </FieldLabel>
                            <Autocomplete
@@ -535,14 +539,14 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                               }}
                               onInputValueChange={setInputValue}
                               defaultInputValue={
-                                 HOST_EMPLOYEES.find(
-                                    (e) => e.id === field.value,
-                                 )?.name ?? ''
+                                 results.find((e) => e.id === field.value)
+                                    ? `${results.find((e) => e.id === field.value)?.firstName} ${results.find((e) => e.id === field.value)?.lastName}`
+                                    : ''
                               }
                            >
                               <AutocompleteInput
                                  id="employeeId"
-                                 placeholder="Search by name or department"
+                                 placeholder={t('users.form.employeeSearch')}
                                  autoComplete="off"
                                  showTrigger
                                  showClear
@@ -559,7 +563,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                     {!isLoadingEmployees &&
                                     results.length === 0 ? (
                                        <AutocompleteEmpty>
-                                          No matching employees found.
+                                          {t('users.form.noEmployees')}
                                        </AutocompleteEmpty>
                                     ) : (
                                        grouped.map((group, groupIndex) => (
@@ -576,14 +580,16 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                                 <AutocompleteItem
                                                    key={employee.id}
                                                    value={employee.id}
-                                                   label={employee.name}
+                                                   label={`${employee.firstName} ${employee.lastName}`}
                                                 >
                                                    <div className="min-w-0 flex-1">
                                                       <p className="truncate text-sm font-medium">
-                                                         {employee.name}
+                                                         {employee.firstName}{' '}
+                                                         {employee.lastName}
                                                       </p>
                                                       <p className="truncate text-xs text-muted-foreground">
-                                                         {employee.title}
+                                                         {employee.position ??
+                                                            employee.departmentName}
                                                       </p>
                                                    </div>
                                                 </AutocompleteItem>
@@ -604,15 +610,16 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                         <div className="grid grid-cols-2 gap-y-3">
                            <div className="space-y-0.5">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                 Full Name
+                                 {t('common.fullName')}
                               </p>
                               <p className="text-sm font-medium">
-                                 {selectedEmployee.name}
+                                 {selectedEmployee.firstName}{' '}
+                                 {selectedEmployee.lastName}
                               </p>
                            </div>
                            <div className="space-y-0.5">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                 Email
+                                 {t('common.email')}
                               </p>
                               <p className="text-sm font-medium">
                                  {selectedEmployee.id}@organization.com
@@ -620,7 +627,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                            </div>
                            <div className="space-y-0.5">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                 Department
+                                 {t('common.department')}
                               </p>
                               <p className="text-sm font-medium">
                                  {selectedEmployee.departmentName}
@@ -628,10 +635,11 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                            </div>
                            <div className="space-y-0.5">
                               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                 Job Title
+                                 {t('users.form.jobTitle')}
                               </p>
                               <p className="text-sm font-medium">
-                                 {selectedEmployee.title}
+                                 {selectedEmployee.position ??
+                                    selectedEmployee.departmentName}
                               </p>
                            </div>
                         </div>
@@ -640,7 +648,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 
                   <Field>
                      <FieldLabel htmlFor="sso-role">
-                        Role
+                        {t('users.col.role')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Controller
@@ -658,9 +666,17 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
+                                 <SelectItem value="GUARD">
+                                    {t('role.guard')}
+                                 </SelectItem>
+                                 <SelectItem value="RECEPTION">
+                                    {t('role.reception')}
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    {t('role.admin')}
+                                 </SelectItem>
+                                 <SelectItem value="MANAGER">
+                                    {t('role.manager')}
                                  </SelectItem>
                               </SelectContent>
                            </Select>
@@ -674,8 +690,8 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 
                <div className="space-y-4">
                   <SectionHeading
-                     title="Authentication"
-                     description="How this user will sign in to the system."
+                     title={t('users.form.authentication')}
+                     description={t('users.form.authenticationHint')}
                   />
                   <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
                      <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
@@ -683,12 +699,10 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                      </div>
                      <div className="space-y-1">
                         <p className="text-sm font-medium leading-none">
-                           SSO Authentication
+                           {t('users.form.sso')}
                         </p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                           Uses your organization&apos;s identity provider
-                           (e.g., Azure AD, Okta). The user will sign in using
-                           their existing work credentials.
+                           {t('users.form.ssoHint')}
                         </p>
                      </div>
                   </div>
@@ -703,7 +717,7 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                className="cursor-pointer"
                onClick={() => onOpenChange(false)}
             >
-               Cancel
+               {t('common.cancel')}
             </Button>
             <Button
                type="submit"
@@ -713,10 +727,10 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                {isSubmitting ? (
                   <>
                      <Loader2 className="size-4 animate-spin" />
-                     Creating…
+                     {t('users.form.creating')}
                   </>
                ) : (
-                  'Create User'
+                  t('users.create')
                )}
             </Button>
          </DialogFooter>
@@ -725,6 +739,8 @@ const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
 };
 
 const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -732,7 +748,7 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Create User</DialogTitle>
+               <DialogTitle>{t('users.create')}</DialogTitle>
             </DialogHeader>
 
             <Tabs defaultValue="local" className="flex min-h-0 flex-1 flex-col">
@@ -740,11 +756,11 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                   <TabsList className="grid w-full grid-cols-2">
                      <TabsTrigger value="local" className="cursor-pointer">
                         <KeyRound className="mr-2 size-4" />
-                        Local
+                        {t('users.accountType.local')}
                      </TabsTrigger>
                      <TabsTrigger value="sso" className="cursor-pointer">
                         <ShieldCheck className="mr-2 size-4" />
-                        SSO
+                        {t('users.accountType.sso')}
                      </TabsTrigger>
                   </TabsList>
                </div>

@@ -10,6 +10,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { Save } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
 
 type SaveSettingsDialogProps = {
    open: boolean;
@@ -24,6 +25,8 @@ export function SaveSettingsDialog({
    onConfirm,
    isPending = false,
 }: SaveSettingsDialogProps) {
+   const { t } = useTranslation();
+
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -36,11 +39,9 @@ export function SaveSettingsDialog({
                </div>
 
                <DialogHeader className="items-center sm:text-center">
-                  <DialogTitle>Save System Settings?</DialogTitle>
+                  <DialogTitle>{t('settings.save.title')}</DialogTitle>
                   <DialogDescription>
-                     The updated configuration will be applied across the
-                     visitor management system. Some changes may affect active
-                     sessions, visit monitoring, and security policies.
+                     {t('settings.save.description')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -52,7 +53,7 @@ export function SaveSettingsDialog({
                         className="flex-1 cursor-pointer"
                         disabled={isPending}
                      >
-                        Review Changes
+                        {t('settings.save.review')}
                      </Button>
                   </DialogClose>
                   <Button
@@ -61,7 +62,9 @@ export function SaveSettingsDialog({
                      disabled={isPending}
                      onClick={onConfirm}
                   >
-                     {isPending ? 'Saving…' : 'Save Settings'}
+                     {isPending
+                        ? t('settings.saving')
+                        : t('settings.saveSettings')}
                   </Button>
                </div>
             </div>

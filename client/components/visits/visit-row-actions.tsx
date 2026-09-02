@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import type { ManagedVisit } from '@/types/visit.types';
 import { MoreHorizontal } from 'lucide-react';
 import { VisitActionsMenu } from './visit-actions-menu';
+import { useTranslation } from '@/lib/i18n';
 
 interface VisitRowActionsProps {
    visit: ManagedVisit;
@@ -25,6 +26,8 @@ export function VisitRowActions({
    onCancel,
    onOpenAttendance,
 }: VisitRowActionsProps) {
+   const { t } = useTranslation();
+
    return (
       <VisitActionsMenu
          visit={visit}
@@ -36,7 +39,7 @@ export function VisitRowActions({
          align="end"
          trigger={
             <Button variant="ghost" size="icon" className="size-8">
-               <span className="sr-only">Open menu</span>
+               <span className="sr-only">{t('visits.openMenu')}</span>
                <MoreHorizontal className="size-4" />
             </Button>
          }

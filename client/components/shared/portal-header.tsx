@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import LanguageDropdown from '@/components/shared/language-dropdown';
+import { useTranslation } from '@/lib/i18n';
 
 type PortalHeaderProps = {
    homeHref?: string;
@@ -16,6 +17,8 @@ export function PortalHeader({
    homeHref = '/',
    languageDropdownId = 'language-dropdown-trigger',
 }: PortalHeaderProps) {
+   const { t } = useTranslation();
+
    return (
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 shadow-sm backdrop-blur supports-backdrop-filter:bg-background/80">
          <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
@@ -23,7 +26,7 @@ export function PortalHeader({
                <div className="rounded-xl border bg-card p-1">
                   <Image
                      src="/logo.png"
-                     alt="Ethiopian Agricultural Transformation Institute logo"
+                     alt={t('nav.logoAlt')}
                      width={40}
                      height={40}
                      priority
@@ -33,11 +36,11 @@ export function PortalHeader({
 
                <div className="leading-tight">
                   <h1 className="text-sm font-semibold tracking-tight sm:text-base">
-                     Visitor Management System
+                     {t('nav.brandSubtitle')}
                   </h1>
 
                   <p className="text-xs text-muted-foreground">
-                     Ethiopian Agricultural Transformation Institute
+                     {t('portal.orgName')}
                   </p>
                </div>
             </Link>

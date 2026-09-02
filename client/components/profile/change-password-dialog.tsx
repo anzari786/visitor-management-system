@@ -20,6 +20,7 @@ import { KeyRound } from 'lucide-react';
 import * as React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 type ChangePasswordDialogProps = {
    open: boolean;
@@ -30,6 +31,7 @@ export function ChangePasswordDialog({
    open,
    onOpenChange,
 }: ChangePasswordDialogProps) {
+   const { t } = useTranslation();
    const { mutateAsync: changePassword, isPending } = useChangePassword();
 
    const {
@@ -62,10 +64,10 @@ export function ChangePasswordDialog({
             currentPassword: values.currentPassword,
             newPassword: values.newPassword,
          });
-         toast.success('Password changed successfully');
+         toast.success(t('profile.toast.passwordChanged'));
          onOpenChange(false);
       } catch {
-         toast.error('Failed to change password. Please try again.');
+         toast.error(t('profile.toast.passwordFailed'));
       }
    });
 
@@ -79,14 +81,14 @@ export function ChangePasswordDialog({
                <div className="flex items-center gap-2">
                   <KeyRound size={16} className="text-primary" />
                   <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                     Security
+                     {t('profile.security')}
                   </span>
                </div>
 
                <DialogHeader>
-                  <DialogTitle>Change password</DialogTitle>
+                  <DialogTitle>{t('profile.changePassword')}</DialogTitle>
                   <DialogDescription>
-                     Choose a strong password to keep your VMS account secure.
+                     {t('profile.changePasswordHint')}
                   </DialogDescription>
                </DialogHeader>
 
@@ -97,8 +99,8 @@ export function ChangePasswordDialog({
                      render={({ field }) => (
                         <PasswordInput
                            id="cp-current"
-                           label="Current password"
-                           placeholder="Enter current password"
+                           label={t('profile.currentPassword')}
+                           placeholder={t('profile.currentPasswordPlaceholder')}
                            autoComplete="current-password"
                            error={errors.currentPassword?.message}
                            {...field}
@@ -112,8 +114,8 @@ export function ChangePasswordDialog({
                      render={({ field }) => (
                         <PasswordInput
                            id="cp-new"
-                           label="New password"
-                           placeholder="Enter new password"
+                           label={t('profile.newPassword')}
+                           placeholder={t('profile.newPasswordPlaceholder')}
                            autoComplete="new-password"
                            showStrength
                            error={errors.newPassword?.message}
@@ -128,8 +130,8 @@ export function ChangePasswordDialog({
                      render={({ field }) => (
                         <PasswordInput
                            id="cp-confirm"
-                           label="Confirm new password"
-                           placeholder="Re-enter new password"
+                           label={t('profile.confirmNewPassword')}
+                           placeholder={t('profile.confirmPasswordPlaceholder')}
                            autoComplete="new-password"
                            error={errors.confirmPassword?.message}
                            {...field}
@@ -146,7 +148,7 @@ export function ChangePasswordDialog({
                         className="flex-1 cursor-pointer"
                         disabled={isPending}
                      >
-                        Cancel
+                        {t('common.cancel')}
                      </Button>
                   </DialogClose>
                   <Button

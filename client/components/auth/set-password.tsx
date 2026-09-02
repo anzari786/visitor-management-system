@@ -33,10 +33,12 @@ import { useEffect, useState } from 'react';
 import type { ApiErrorResponse } from '@/types/api.types';
 import { useAuthStore } from '@/store/auth-store';
 import Image from 'next/image';
+import { useTranslation } from '@/lib/i18n';
 
 type ResultState = 'success' | 'expired' | 'invalid' | null;
 
 const SetPassword = () => {
+   const { t } = useTranslation();
    const router = useRouter();
    const user = useAuthStore((state) => state.user);
    const [setupToken, setSetupToken] = useState<string | null>(null);
@@ -95,28 +97,25 @@ const SetPassword = () => {
 
    const resultCopy = {
       success: {
-         title: 'Password set successfully',
-         description:
-            'Your ATI VMS account is ready. You can now sign in with your new password.',
+         title: t('auth.setPassword.successTitle'),
+         description: t('auth.setPassword.successDescription'),
          icon: CheckCircle2Icon,
          iconClass: 'bg-teal-400/10 text-teal-400',
-         action: 'Go to Login',
+         action: t('auth.setPassword.goToLogin'),
       },
       expired: {
-         title: 'Password setup link expired',
-         description:
-            'This password setup link is no longer valid. Please request a new link from your administrator.',
+         title: t('auth.setPassword.expiredTitle'),
+         description: t('auth.setPassword.expiredDescription'),
          icon: Clock3,
          iconClass: 'bg-amber-400/10 text-amber-500',
-         action: 'Go to Login',
+         action: t('auth.setPassword.goToLogin'),
       },
       invalid: {
-         title: 'Invalid password setup link',
-         description:
-            'This password setup link is invalid or has already been used. Please request a new link from your administrator.',
+         title: t('auth.setPassword.invalidTitle'),
+         description: t('auth.setPassword.invalidDescription'),
          icon: Link2Off,
          iconClass: 'bg-rose-400/10 text-rose-500',
-         action: 'Go to Login',
+         action: t('auth.setPassword.goToLogin'),
       },
    } as const;
    const result = resultState ? resultCopy[resultState] : null;
@@ -136,11 +135,10 @@ const SetPassword = () => {
                      className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
                   />
                   <CardTitle className="text-balance text-xl font-semibold text-foreground sm:text-2xl">
-                     Create your password
+                     {t('auth.setPassword.title')}
                   </CardTitle>
                   <CardDescription className="text-pretty text-sm text-muted-foreground">
-                     Create a secure password to complete your ATI VMS account
-                     setup.
+                     {t('auth.setPassword.description')}
                   </CardDescription>
                </CardHeader>
                <CardContent className="px-0">
@@ -152,8 +150,10 @@ const SetPassword = () => {
                            render={({ field }) => (
                               <PasswordInput
                                  id="set-password-new"
-                                 label="New password"
-                                 placeholder="Enter your new password"
+                                 label={t('auth.setPassword.newPassword')}
+                                 placeholder={t(
+                                    'auth.setPassword.newPasswordPlaceholder',
+                                 )}
                                  autoComplete="new-password"
                                  showStrength
                                  error={errors.newPassword?.message}
@@ -167,8 +167,10 @@ const SetPassword = () => {
                            render={({ field }) => (
                               <PasswordInput
                                  id="set-password-confirm"
-                                 label="Confirm password"
-                                 placeholder="Re-enter your new password"
+                                 label={t('auth.setPassword.confirmPassword')}
+                                 placeholder={t(
+                                    'auth.setPassword.confirmPasswordPlaceholder',
+                                 )}
                                  autoComplete="new-password"
                                  error={errors.confirmPassword?.message}
                                  {...field}
@@ -182,7 +184,9 @@ const SetPassword = () => {
                         className="w-full"
                         disabled={isPending}
                      >
-                        {isPending ? 'Creating password…' : 'Create password'}
+                        {isPending
+                           ? t('auth.setPassword.submitting')
+                           : t('auth.setPassword.submit')}
                      </Button>
                   </form>
                </CardContent>

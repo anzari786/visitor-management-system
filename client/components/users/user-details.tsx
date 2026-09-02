@@ -14,16 +14,16 @@ import {
    SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { USER_ROLE_CONFIG } from '@/constants/user';
 import {
    useResetPassword,
    useToggleUserStatus,
    useUser,
 } from '@/hooks/use-users';
-import { formatLastLogin } from '@/lib/format-last-login';
+import { getLastLoginLabel } from '@/lib/format-last-login';
 import { getUserFullName } from '@/lib/user';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/user.types';
+import { AxiosError } from 'axios';
 import { format } from 'date-fns';
 import {
    CalendarDays,
@@ -45,8 +45,11 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { EditUser } from './edit-user';
 import { ResetPasswordDialog } from './reset-password-dialog';
+import { RoleBadge } from './role-badge';
 import { ToggleStatusDialog } from './toggle-status-dialog';
 import { UserStatusBadge } from './user-status-badge';
+import { UserRoleBadge } from './user-role-badge';
+import { useTranslation } from '@/lib/i18n';
 
 type UserDetailsSheetProps = {
    open: boolean;
@@ -110,8 +113,7 @@ function UserDetailsSkeleton() {
 }
 
 function UserDetailsBody({ user }: { user: User }) {
-   const role = USER_ROLE_CONFIG[user.role];
-   const RoleIcon = role.icon;
+   const { t } = useTranslation();
    const isSso = !!user.employee;
    const TypeIcon = isSso ? ShieldCheck : KeyRound;
 
@@ -119,45 +121,34 @@ function UserDetailsBody({ user }: { user: User }) {
       <div className="flex flex-col gap-6 p-5 sm:p-6">
          <section className="space-y-4">
             <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-               Account information
+               {t('users.details.accountInformation')}
             </h3>
             <div className="space-y-3.5">
                <DetailRow
                   icon={UserIcon}
-                  label="Name"
+                  label={t('users.col.name')}
                   value={getUserFullName(user)}
                />
                <DetailRow
                   icon={Hash}
-                  label="Username"
+                  label={t('users.col.username')}
                   value={
                      <span className="font-mono text-xs">{user.username}</span>
                   }
                />
                <DetailRow
                   icon={Phone}
-                  label="Phone"
+                  label={t('common.phone')}
                   value={user.phone || '—'}
                />
                <DetailRow
                   icon={Shield}
-                  label="Role"
-                  value={
-                     <Badge
-                        variant="secondary"
-                        className={cn(
-                           'h-6 gap-1.5 rounded-md px-2 font-medium',
-                           role.color,
-                        )}
-                     >
-                        <RoleIcon className="size-3" />
-                        {role.label}
-                     </Badge>
-                  }
+                  label={t('users.col.role')}
+                  value={<UserRoleBadge role={user.role} />}
                />
                <DetailRow
                   icon={isSso ? ShieldCheck : KeyRound}
-                  label="Account Type"
+                  label={t('users.col.accountType')}
                   value={
                      <Badge
                         variant="outline"
@@ -169,23 +160,30 @@ function UserDetailsBody({ user }: { user: User }) {
                         )}
                      >
                         <TypeIcon className="size-3" />
-                        {isSso ? 'SSO' : 'Local'}
+                        {t(
+                           isSso
+                              ? 'users.accountType.sso'
+                              : 'users.accountType.local',
+                        )}
                      </Badge>
                   }
                />
                <DetailRow
                   icon={user.isActive ? UserCheck : UserX}
-                  label="Status"
+                  label={t('common.status')}
                   value={<UserStatusBadge isActive={user.isActive} />}
                />
                <DetailRow
                   icon={Clock3}
-                  label="Last activity"
-                  value={formatLastLogin(user.lastLoginAt)}
+                  label={t('users.col.lastActivity')}
+                  value={(() => {
+                     const label = getLastLoginLabel(user.lastLoginAt);
+                     return t(label.key, label.vars);
+                  })()}
                />
                <DetailRow
                   icon={CalendarDays}
-                  label="Created"
+                  label={t('users.col.created')}
                   value={format(new Date(user.createdAt), 'MMM d, yyyy')}
                />
             </div>
@@ -195,20 +193,24 @@ function UserDetailsBody({ user }: { user: User }) {
 
          <section className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-               Activity
+               {t('users.details.activity')}
             </h3>
             <div className="grid grid-cols-2 gap-3">
                <div className="rounded-xl border bg-muted/40 p-3 text-center">
                   <p className="text-lg font-semibold tabular-nums text-foreground">
                      {user.checkIns}
                   </p>
-                  <p className="text-xs text-muted-foreground">Check-ins</p>
+                  <p className="text-xs text-muted-foreground">
+                     {t('users.details.checkIns')}
+                  </p>
                </div>
                <div className="rounded-xl border bg-muted/40 p-3 text-center">
                   <p className="text-lg font-semibold tabular-nums text-foreground">
                      {user.checkOuts}
                   </p>
-                  <p className="text-xs text-muted-foreground">Check-outs</p>
+                  <p className="text-xs text-muted-foreground">
+                     {t('users.details.checkOuts')}
+                  </p>
                </div>
             </div>
          </section>
@@ -221,11 +223,11 @@ export function UserDetailsSheet({
    onOpenChange,
    userId,
 }: UserDetailsSheetProps) {
+   const { t } = useTranslation();
    const { data: user, isLoading, isError } = useUser(userId);
 
    const [editOpen, setEditOpen] = React.useState(false);
    const [resetDialogOpen, setResetDialogOpen] = React.useState(false);
-   const [tempPassword, setTempPassword] = React.useState<string | null>(null);
    const [statusDialogOpen, setStatusDialogOpen] = React.useState(false);
 
    const { mutate: resetPassword, isPending: isResetting } = useResetPassword();
@@ -237,12 +239,16 @@ export function UserDetailsSheet({
       resetPassword(user.id, {
          onSuccess: () => {
             toast.success(
-               `Password reset email sent to ${getUserFullName(user)}`,
+               t('users.toast.resetSent', { name: getUserFullName(user) }),
             );
             setResetDialogOpen(false);
          },
-         onError: () => {
-            toast.error('Failed to send reset email. Please try again.');
+         onError: (error) => {
+            const message =
+               error instanceof AxiosError
+                  ? error.response?.data?.message
+                  : undefined;
+            toast.error(message ?? t('users.toast.resetFailed'));
             setResetDialogOpen(false);
          },
       });
@@ -254,17 +260,27 @@ export function UserDetailsSheet({
          { id: user.id, isActive: !user.isActive },
          {
             onSuccess: () =>
-               toast.success(
-                  `${getUserFullName(user)} has been ${user.isActive ? 'deactivated' : 'activated'}`,
-               ),
-            onError: () =>
-               toast.error('Failed to update user status. Please try again.'),
-            onSettled: () => setStatusDialogOpen(false),
+               {
+                  toast.success(
+                     t(
+                        user.isActive
+                           ? 'users.toast.deactivated'
+                           : 'users.toast.activated',
+                        { name: getUserFullName(user) },
+                     ),
+                  );
+                  setStatusDialogOpen(false);
+               },
+            onError: (error) => {
+               const message =
+                  error instanceof AxiosError
+                     ? error.response?.data?.message
+                     : undefined;
+               toast.error(message ?? t('users.toast.statusFailed'));
+            },
          },
       );
    };
-
-   const role = user ? USER_ROLE_CONFIG[user.role] : null;
 
    return (
       <>
@@ -280,17 +296,17 @@ export function UserDetailsSheet({
                      <div className="flex flex-wrap items-center gap-2">
                         <SheetTitle className="text-base font-semibold tracking-tight">
                            {isLoading
-                              ? 'Loading…'
+                              ? t('common.loading')
                               : user
                                 ? getUserFullName(user)
-                                : 'User'}
+                                : t('header.userFallback')}
                         </SheetTitle>
                         {user && <UserStatusBadge isActive={user.isActive} />}
                      </div>
                      <SheetDescription className="text-sm text-muted-foreground">
                         {user
-                           ? `${user.username}${role ? ` · ${role.label}` : ''}`
-                           : 'Account details'}
+                           ? user.username
+                           : t('users.details.accountDetails')}
                      </SheetDescription>
                   </div>
                   <SheetClose asChild>
@@ -300,7 +316,7 @@ export function UserDetailsSheet({
                         className="shrink-0"
                      >
                         <XIcon className="size-5" />
-                        <span className="sr-only">Close</span>
+                        <span className="sr-only">{t('common.close')}</span>
                      </Button>
                   </SheetClose>
                </SheetHeader>
@@ -310,7 +326,7 @@ export function UserDetailsSheet({
                      <UserDetailsSkeleton />
                   ) : isError || !user ? (
                      <div className="p-5 text-center text-sm text-destructive sm:p-6">
-                        Failed to load user details. Please try again.
+                        {t('users.details.loadError')}
                      </div>
                   ) : (
                      <UserDetailsBody user={user} />
@@ -325,7 +341,7 @@ export function UserDetailsSheet({
                         onClick={() => setEditOpen(true)}
                      >
                         <Pencil className="size-4" />
-                        Edit
+                        {t('common.edit')}
                      </Button>
                      <Button
                         variant="outline"
@@ -333,7 +349,7 @@ export function UserDetailsSheet({
                         onClick={() => setResetDialogOpen(true)}
                      >
                         <KeyRound className="size-4" />
-                        Reset Password
+                        {t('users.actions.resetPassword')}
                      </Button>
                      <Button
                         variant={user.isActive ? 'destructive' : 'default'}
@@ -345,7 +361,11 @@ export function UserDetailsSheet({
                         ) : (
                            <UserCheck className="size-4" />
                         )}
-                        {user.isActive ? 'Deactivate' : 'Activate'}
+                        {t(
+                           user.isActive
+                              ? 'users.actions.deactivate'
+                              : 'users.actions.activate',
+                        )}
                      </Button>
                   </SheetFooter>
                )}

@@ -3,6 +3,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDepartments } from '@/hooks/use-departments';
 import { DepartmentCard } from './department-card';
+import { useTranslation } from '@/lib/i18n';
 
 function DepartmentCardSkeleton() {
    return (
@@ -24,6 +25,7 @@ function DepartmentCardSkeleton() {
 }
 
 export function DepartmentCardGrid() {
+   const { t } = useTranslation();
    const { data: departments, isLoading, isError } = useDepartments();
 
    if (isLoading) {
@@ -39,14 +41,16 @@ export function DepartmentCardGrid() {
    if (isError) {
       return (
          <p className="text-sm text-destructive">
-            Failed to load departments. Please refresh the page.
+            {t('departments.loadError')}
          </p>
       );
    }
 
    if (!departments?.length) {
       return (
-         <p className="text-sm text-muted-foreground">No departments found.</p>
+         <p className="text-sm text-muted-foreground">
+            {t('departments.empty')}
+         </p>
       );
    }
 

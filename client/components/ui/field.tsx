@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
+import { useTranslation, type TranslationKey } from "@/lib/i18n"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 
@@ -191,9 +192,16 @@ function FieldError({
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>
 }) {
+  const { t } = useTranslation()
+
+  // Validation schemas store dictionary keys as their messages; `t` returns
+  // anything it does not recognise unchanged, so plain English still renders.
   const content = useMemo(() => {
+    const translate = (message?: string) =>
+      message ? t(message as TranslationKey) : message
+
     if (children) {
-      return children
+      return typeof children === "string" ? translate(children) : children
     }
 
     if (!errors?.length) {
@@ -205,18 +213,18 @@ function FieldError({
     ]
 
     if (uniqueErrors?.length == 1) {
-      return uniqueErrors[0]?.message
+      return translate(uniqueErrors[0]?.message)
     }
 
     return (
       <ul className="ml-4 flex list-disc flex-col gap-1">
         {uniqueErrors.map(
           (error, index) =>
-            error?.message && <li key={index}>{error.message}</li>
+            error?.message && <li key={index}>{translate(error.message)}</li>
         )}
       </ul>
     )
-  }, [children, errors])
+  }, [children, errors, t])
 
   if (!content) {
     return null

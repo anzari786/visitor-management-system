@@ -27,26 +27,26 @@ const floorValues = FLOOR_OPTIONS as unknown as [
 export const invitationVisitorSchema = z.object({
    firstName: z
       .string()
-      .min(1, 'First name is required')
-      .max(50, 'First name must be 50 characters or fewer'),
+      .min(1, 'validation.firstNameRequired')
+      .max(50, 'validation.firstNameMax'),
    lastName: z
       .string()
-      .min(1, 'Last name is required')
-      .max(50, 'Last name must be 50 characters or fewer'),
+      .min(1, 'validation.lastNameRequired')
+      .max(50, 'validation.lastNameMax'),
    email: z
       .string()
-      .min(1, 'Email is required')
-      .email('Enter a valid email address')
-      .max(100, 'Email must be 100 characters or fewer'),
+      .min(1, 'validation.emailRequired2')
+      .email('validation.emailInvalid')
+      .max(100, 'validation.emailMax100'),
    phone: z
       .string()
-      .min(1, 'Phone number is required')
+      .min(1, 'validation.phoneRequired')
       .refine((val) => isValidEthiopianPhone(val), {
-         message: 'Enter a valid Ethiopian phone number',
+         message: 'validation.phoneInvalid',
       }),
    organization: z
       .string()
-      .max(100, 'Organization must be 100 characters or fewer')
+      .max(100, 'validation.organizationMax')
       .optional()
       .transform((val) => {
          const trimmed = val?.trim();
@@ -74,24 +74,34 @@ const baseInvitationSchema = z.object({
    knowsVisitorInfo: z.enum(['yes', 'no']),
    scheduleType: z.enum(['single_day', 'multi_day']),
    purpose: z.enum(purposeValues, {
-      message: 'Please select a visit purpose',
+      message: 'validation.selectPurpose',
    }),
    visitors: z.array(invitationVisitorInputSchema).default([]),
-   visitorOrganization: z.string().optional(),
-   visitorCount: z.number().optional(),
+   visitorCount: z.coerce
+      .number()
+      .int('validation.visitorCountInt')
+      .min(1, 'validation.visitorCountMin')
+      .max(50, 'validation.visitorCountMax')
+      .default(1),
+   visitorOrganization: z
+      .string()
+      .trim()
+      .max(150, 'validation.organizationMax150')
+      .optional()
+      .transform((val) => (val?.trim() ? val.trim() : undefined)),
    visitDate: z.date().optional(),
    startDate: z.date().optional(),
    endDate: z.date().optional(),
-   startTime: z.string().min(1, 'Start time is required'),
-   endTime: z.string().min(1, 'End time is required'),
+   startTime: z.string().min(1, 'validation.startTimeRequired'),
+   endTime: z.string().min(1, 'validation.endTimeRequired'),
    floor: z.enum(floorValues, {
-      message: 'Please select a floor',
+      message: 'validation.selectFloor',
    }),
    room: z
       .string()
       .trim()
-      .min(1, 'Room is required')
-      .max(100, 'Room must be 100 characters or fewer'),
+      .min(1, 'validation.roomRequired')
+      .max(100, 'validation.roomMax'),
 });
 
 export const hostInvitationSchema = baseInvitationSchema.superRefine(
@@ -101,7 +111,7 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
             ctx.addIssue({
                code: 'custom',
                path: ['visitors'],
-               message: 'At least one visitor is required',
+               message: 'validation.atLeastOneVisitor',
             });
          } else {
             data.visitors.forEach((visitor, index) => {
@@ -119,24 +129,11 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
       }
 
       if (data.knowsVisitorInfo === 'no') {
-         if (
-            data.visitorCount == null ||
-            !Number.isFinite(data.visitorCount) ||
-            data.visitorCount < 1
-         ) {
+         if (!data.visitorCount) {
             ctx.addIssue({
                code: 'custom',
                path: ['visitorCount'],
-               message: 'Enter at least 1 visitor',
-            });
-         }
-
-         const org = data.visitorOrganization?.trim();
-         if (!org) {
-            ctx.addIssue({
-               code: 'custom',
-               path: ['visitorOrganization'],
-               message: 'Organization is required for unknown visitors',
+               message: 'validation.visitorCountRequired',
             });
          }
       }
@@ -146,7 +143,7 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
             ctx.addIssue({
                code: 'custom',
                path: ['visitDate'],
-               message: 'Visit date is required',
+               message: 'validation.visitDateRequired',
             });
          }
       }
@@ -156,14 +153,14 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
             ctx.addIssue({
                code: 'custom',
                path: ['startDate'],
-               message: 'Start date is required',
+               message: 'validation.startDateRequired',
             });
          }
          if (!data.endDate) {
             ctx.addIssue({
                code: 'custom',
                path: ['endDate'],
-               message: 'End date is required',
+               message: 'validation.endDateRequired',
             });
          }
          if (
@@ -174,7 +171,7 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
             ctx.addIssue({
                code: 'custom',
                path: ['endDate'],
-               message: 'End date cannot be before start date',
+               message: 'validation.endDateBeforeStart',
             });
          }
       }
@@ -183,12 +180,12 @@ export const hostInvitationSchema = baseInvitationSchema.superRefine(
          ctx.addIssue({
             code: 'custom',
             path: ['endTime'],
-            message: 'End time cannot be before start time',
+            message: 'validation.endTimeBeforeStart',
          });
          ctx.addIssue({
             code: 'custom',
             path: ['startTime'],
-            message: 'Start time must be before end time',
+            message: 'validation.startBeforeEnd',
          });
       }
    },
@@ -212,8 +209,8 @@ export const hostInvitationDefaultValues = {
    scheduleType: 'single_day' as const,
    purpose: undefined as HostInvitationFormValues['purpose'] | undefined,
    visitors: [{ ...emptyInvitationVisitorValues }],
-   visitorOrganization: '',
    visitorCount: 1,
+   visitorOrganization: '',
    visitDate: undefined as Date | undefined,
    startDate: undefined as Date | undefined,
    endDate: undefined as Date | undefined,

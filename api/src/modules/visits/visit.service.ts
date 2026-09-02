@@ -27,7 +27,6 @@ import {
    findOrCreateVisitor,
    resolveVisitorForRegistration,
 } from '../visitors/visitor.service.js';
-import { createVisitInvitation } from './visit-invitation.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
 import type {
    ApproveVisitInput,
@@ -67,8 +66,8 @@ const toVisitPurpose = (purpose: string): VisitPurpose => {
 
 const formatHhMm = (value?: Date): string => {
    if (!value) return '09:00';
-   const hours = String(value.getHours()).padStart(2, '0');
-   const minutes = String(value.getMinutes()).padStart(2, '0');
+   const hours = String(value.getUTCHours()).padStart(2, '0');
+   const minutes = String(value.getUTCMinutes()).padStart(2, '0');
    return `${hours}:${minutes}`;
 };
 
@@ -78,7 +77,7 @@ const uniqueDates = (scheduleDates: ScheduleDateInput[]): Date[] => {
 
    for (const schedule of scheduleDates) {
       const day = new Date(schedule.date);
-      day.setHours(0, 0, 0, 0);
+      day.setUTCHours(0, 0, 0, 0);
       const key = day.toISOString().slice(0, 10);
       if (!seen.has(key)) {
          seen.add(key);
@@ -304,13 +303,7 @@ export const createVisit = async (
       await seedExpectedAttendances(visit.id);
    }
 
-   let registrationInvitation;
-
-   if (isHostInvitation) {
-      if (isUnknownVisitorInvitation) {
-         registrationInvitation = await createVisitInvitation(visit.id);
-      }
-   } else {
+   if (!isHostInvitation) {
       await notifyVisitSubmitted(visit);
    }
 
@@ -322,7 +315,6 @@ export const createVisit = async (
 
    return {
       visit: fullVisit,
-      registrationInvitation,
    };
 };
 
@@ -618,12 +610,6 @@ export const formatVisitDetail = (visit: VisitDetail) => {
       organization: visit.organization ?? undefined,
       registeredCount,
       remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
-      registration: visit.invitation
-         ? {
-              expiresAt: visit.invitation.expiresAt ?? undefined,
-              isRevoked: !!visit.invitation.revokedAt,
-           }
-         : undefined,
       host: visit.hostEmployee
          ? {
               id: String(visit.hostEmployee.id),

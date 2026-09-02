@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -237,23 +238,25 @@ type PanelProps = {
 };
 
 export function GeneralPanel({ icon, form, onChange }: PanelProps) {
+   const { t } = useTranslation();
+
    return (
       <div className="space-y-6">
          <PanelHeader
             icon={icon}
-            title="General"
-            description="Organization identity and default display preferences."
+            title={t('settings.general')}
+            description={t('settings.generalHint')}
          />
 
-         <SettingsSection title="Organization">
+         <SettingsSection title={t('settings.section.organization')}>
             <SettingsCard>
                <FormFieldBlock>
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-org-name">
-                        Organization Name
+                        {t('settings.orgName')}
                      </FieldLabel>
                      <FieldDescription>
-                        Displayed across the app and on visitor reports.
+                        {t('settings.orgNameHint')}
                      </FieldDescription>
                      <Input
                         id="settings-org-name"
@@ -266,17 +269,17 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Defaults">
+         <SettingsSection title={t('settings.section.defaults')}>
             <SettingsCard>
                <FormFieldBlock>
                   <FieldGroup className="gap-5">
                      <div className="grid gap-5 sm:grid-cols-2">
                         <Field className="gap-1.5">
                            <FieldLabel htmlFor="settings-timezone">
-                              Timezone
+                              {t('settings.timezone')}
                            </FieldLabel>
                            <FieldDescription>
-                              Used for visit schedules and timestamps.
+                              {t('settings.timezoneHint')}
                            </FieldDescription>
                            <Select
                               value={form.timezone}
@@ -293,11 +296,11 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
                               <SelectContent>
                                  <SelectGroup>
                                     <SelectItem value="Africa/Addis_Ababa">
-                                       Africa/Addis Ababa (EAT)
+                                       {t('settings.tz.addis')}
                                     </SelectItem>
                                     <SelectItem value="UTC">UTC</SelectItem>
                                     <SelectItem value="Africa/Nairobi">
-                                       Africa/Nairobi (EAT)
+                                       {t('settings.tz.nairobi')}
                                     </SelectItem>
                                     <SelectItem value="Europe/London">
                                        Europe/London
@@ -309,10 +312,10 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
 
                         <Field className="gap-1.5">
                            <FieldLabel htmlFor="settings-default-duration">
-                              Default Visit Duration
+                              {t('settings.defaultDuration')}
                            </FieldLabel>
                            <FieldDescription>
-                              Suggested length when creating a new visit.
+                              {t('settings.defaultDurationHint')}
                            </FieldDescription>
                            <Select
                               value={form.defaultVisitDuration}
@@ -329,13 +332,13 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
                               <SelectContent>
                                  <SelectGroup>
                                     <SelectItem value="30">
-                                       30 minutes
+                                       {t('settings.duration.30m')}
                                     </SelectItem>
-                                    <SelectItem value="60">1 hour</SelectItem>
-                                    <SelectItem value="120">2 hours</SelectItem>
-                                    <SelectItem value="240">4 hours</SelectItem>
+                                    <SelectItem value="60">{t('settings.duration.1h')}</SelectItem>
+                                    <SelectItem value="120">{t('settings.duration.2h')}</SelectItem>
+                                    <SelectItem value="240">{t('settings.duration.4h')}</SelectItem>
                                     <SelectItem value="480">
-                                       Full day
+                                       {t('settings.duration.fullDay')}
                                     </SelectItem>
                                  </SelectGroup>
                               </SelectContent>
@@ -344,7 +347,7 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
 
                         <Field className="gap-1.5">
                            <FieldLabel htmlFor="settings-date-format">
-                              Date Format
+                              {t('settings.dateFormat')}
                            </FieldLabel>
                            <Select
                               value={form.dateFormat}
@@ -376,7 +379,7 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
 
                         <Field className="gap-1.5">
                            <FieldLabel htmlFor="settings-time-format">
-                              Time Format
+                              {t('settings.timeFormat')}
                            </FieldLabel>
                            <Select
                               value={form.timeFormat}
@@ -392,9 +395,9 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
                               </SelectTrigger>
                               <SelectContent>
                                  <SelectGroup>
-                                    <SelectItem value="24h">24-hour</SelectItem>
+                                    <SelectItem value="24h">{t('settings.time.24h')}</SelectItem>
                                     <SelectItem value="12h">
-                                       12-hour (AM/PM)
+                                       {t('settings.time.12h')}
                                     </SelectItem>
                                  </SelectGroup>
                               </SelectContent>
@@ -410,20 +413,22 @@ export function GeneralPanel({ icon, form, onChange }: PanelProps) {
 }
 
 export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
+   const { t } = useTranslation();
+
    return (
       <div className="space-y-6">
          <PanelHeader
             icon={icon}
-            title="Notifications"
-            description="Choose how visit events are delivered to staff and hosts."
+            title={t('settings.notifications')}
+            description={t('settings.notificationsHint')}
          />
 
-         <SettingsSection title="Delivery channels">
+         <SettingsSection title={t('settings.section.deliveryChannels')}>
             <SettingsCard>
                <SettingRow
                   id="settings-email-notifications"
-                  title="Email notifications"
-                  description="Send visit updates and approvals by email."
+                  title={t('settings.emailNotifications')}
+                  description={t('settings.emailNotificationsHint')}
                   checked={form.emailNotifications}
                   onCheckedChange={(checked) =>
                      onChange({ emailNotifications: checked })
@@ -431,8 +436,8 @@ export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-dashboard-notifications"
-                  title="Dashboard notifications"
-                  description="Show alerts in the header notification center."
+                  title={t('settings.dashboardNotifications')}
+                  description={t('settings.dashboardNotificationsHint')}
                   checked={form.dashboardNotifications}
                   onCheckedChange={(checked) =>
                      onChange({ dashboardNotifications: checked })
@@ -441,12 +446,12 @@ export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Visit events">
+         <SettingsSection title={t('settings.section.visitEvents')}>
             <SettingsCard>
                <SettingRow
                   id="settings-approval-reminders"
-                  title="Approval reminders"
-                  description="Remind hosts about pending visit requests."
+                  title={t('settings.approvalReminders')}
+                  description={t('settings.approvalRemindersHint')}
                   checked={form.approvalReminders}
                   onCheckedChange={(checked) =>
                      onChange({ approvalReminders: checked })
@@ -459,22 +464,22 @@ export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
                      }
                   >
                      <SelectTrigger className="h-9 w-full shadow-xs dark:bg-background">
-                        <SelectValue placeholder="Reminder interval" />
+                        <SelectValue placeholder={t('settings.reminderInterval')} />
                      </SelectTrigger>
                      <SelectContent>
                         <SelectGroup>
-                           <SelectItem value="30">Every 30 minutes</SelectItem>
-                           <SelectItem value="60">Every hour</SelectItem>
-                           <SelectItem value="120">Every 2 hours</SelectItem>
-                           <SelectItem value="240">Every 4 hours</SelectItem>
+                           <SelectItem value="30">{t('settings.every.30m')}</SelectItem>
+                           <SelectItem value="60">{t('settings.every.1h')}</SelectItem>
+                           <SelectItem value="120">{t('settings.every.2h')}</SelectItem>
+                           <SelectItem value="240">{t('settings.every.4h')}</SelectItem>
                         </SelectGroup>
                      </SelectContent>
                   </Select>
                </SettingRow>
                <SettingRow
                   id="settings-decision-alerts"
-                  title="Visit decision alerts"
-                  description="Notify when a visit is approved, rejected, or cancelled."
+                  title={t('settings.decisionAlerts')}
+                  description={t('settings.decisionAlertsHint')}
                   checked={form.visitDecisionAlerts}
                   onCheckedChange={(checked) =>
                      onChange({ visitDecisionAlerts: checked })
@@ -482,8 +487,8 @@ export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-checkin-alerts"
-                  title="Check-in & checkout alerts"
-                  description="Notify hosts when visitors arrive or leave."
+                  title={t('settings.checkInAlerts')}
+                  description={t('settings.checkInAlertsHint')}
                   checked={form.checkInOutAlerts}
                   onCheckedChange={(checked) =>
                      onChange({ checkInOutAlerts: checked })
@@ -496,20 +501,22 @@ export function NotificationsPanel({ icon, form, onChange }: PanelProps) {
 }
 
 export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
+   const { t } = useTranslation();
+
    return (
       <div className="space-y-6">
          <PanelHeader
             icon={icon}
-            title="Visit Management"
-            description="Approval rules, duration limits, and overdue monitoring."
+            title={t('settings.visitManagement')}
+            description={t('settings.visitManagementHint')}
          />
 
-         <SettingsSection title="Access rules">
+         <SettingsSection title={t('settings.section.accessRules')}>
             <SettingsCard>
                <SettingRow
                   id="settings-require-approval"
-                  title="Require host approval"
-                  description="Scheduled visits must be approved before check-in."
+                  title={t('settings.requireApproval')}
+                  description={t('settings.requireApprovalHint')}
                   checked={form.requireHostApproval}
                   onCheckedChange={(checked) =>
                      onChange({ requireHostApproval: checked })
@@ -517,8 +524,8 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-allow-walkins"
-                  title="Allow walk-in visits"
-                  description="Front desk can register visitors without a prior request."
+                  title={t('settings.allowWalkIns')}
+                  description={t('settings.allowWalkInsHint')}
                   checked={form.allowWalkIns}
                   onCheckedChange={(checked) =>
                      onChange({ allowWalkIns: checked })
@@ -527,15 +534,15 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Duration">
+         <SettingsSection title={t('settings.section.duration')}>
             <SettingsCard>
                <FormFieldBlock className="border-b border-border/60">
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-allowed-duration">
-                        Allowed visit duration
+                        {t('settings.allowedDuration')}
                      </FieldLabel>
                      <FieldDescription>
-                        Maximum time a visitor may stay for a single-day visit.
+                        {t('settings.allowedDurationHint')}
                      </FieldDescription>
                      <Select
                         value={form.allowedVisitDuration}
@@ -551,10 +558,10 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
                         </SelectTrigger>
                         <SelectContent>
                            <SelectGroup>
-                              <SelectItem value="120">2 hours</SelectItem>
-                              <SelectItem value="240">4 hours</SelectItem>
-                              <SelectItem value="480">8 hours</SelectItem>
-                              <SelectItem value="720">12 hours</SelectItem>
+                              <SelectItem value="120">{t('settings.duration.2h')}</SelectItem>
+                              <SelectItem value="240">{t('settings.duration.4h')}</SelectItem>
+                              <SelectItem value="480">{t('settings.duration.8h')}</SelectItem>
+                              <SelectItem value="720">{t('settings.duration.12h')}</SelectItem>
                            </SelectGroup>
                         </SelectContent>
                      </Select>
@@ -562,8 +569,8 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
                </FormFieldBlock>
                <SettingRow
                   id="settings-multi-day"
-                  title="Allow multi-day visits"
-                  description="Visitors can be scheduled across consecutive days."
+                  title={t('settings.allowMultiDay')}
+                  description={t('settings.allowMultiDayHint')}
                   checked={form.allowMultiDayVisits}
                   onCheckedChange={(checked) =>
                      onChange({ allowMultiDayVisits: checked })
@@ -576,14 +583,14 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
                      }
                   >
                      <SelectTrigger className="h-9 w-full shadow-xs dark:bg-background">
-                        <SelectValue placeholder="Maximum days" />
+                        <SelectValue placeholder={t('settings.maxDays')} />
                      </SelectTrigger>
                      <SelectContent>
                         <SelectGroup>
-                           <SelectItem value="2">Up to 2 days</SelectItem>
-                           <SelectItem value="3">Up to 3 days</SelectItem>
-                           <SelectItem value="5">Up to 5 days</SelectItem>
-                           <SelectItem value="7">Up to 7 days</SelectItem>
+                           <SelectItem value="2">{t('settings.upTo.2d')}</SelectItem>
+                           <SelectItem value="3">{t('settings.upTo.3d')}</SelectItem>
+                           <SelectItem value="5">{t('settings.upTo.5d')}</SelectItem>
+                           <SelectItem value="7">{t('settings.upTo.7d')}</SelectItem>
                         </SelectGroup>
                      </SelectContent>
                   </Select>
@@ -591,12 +598,12 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Monitoring">
+         <SettingsSection title={t('settings.section.monitoring')}>
             <SettingsCard>
                <SettingRow
                   id="settings-overdue"
-                  title="Overdue visit detection"
-                  description="Flag active visits that exceed the allowed duration."
+                  title={t('settings.overdueDetection')}
+                  description={t('settings.overdueDetectionHint')}
                   checked={form.overdueDetection}
                   onCheckedChange={(checked) =>
                      onChange({ overdueDetection: checked })
@@ -609,14 +616,14 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
                      }
                   >
                      <SelectTrigger className="h-9 w-full shadow-xs dark:bg-background">
-                        <SelectValue placeholder="Overdue after" />
+                        <SelectValue placeholder={t('settings.overdueAfter')} />
                      </SelectTrigger>
                      <SelectContent>
                         <SelectGroup>
-                           <SelectItem value="30">After 30 minutes</SelectItem>
-                           <SelectItem value="60">After 1 hour</SelectItem>
-                           <SelectItem value="120">After 2 hours</SelectItem>
-                           <SelectItem value="240">After 4 hours</SelectItem>
+                           <SelectItem value="30">{t('settings.after.30m')}</SelectItem>
+                           <SelectItem value="60">{t('settings.after.1h')}</SelectItem>
+                           <SelectItem value="120">{t('settings.after.2h')}</SelectItem>
+                           <SelectItem value="240">{t('settings.after.4h')}</SelectItem>
                         </SelectGroup>
                      </SelectContent>
                   </Select>
@@ -628,25 +635,27 @@ export function VisitManagementPanel({ icon, form, onChange }: PanelProps) {
 }
 
 export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
+   const { t } = useTranslation();
+
    const preview = `${form.badgePrefix || '—'}-001`;
 
    return (
       <div className="space-y-6">
          <PanelHeader
             icon={icon}
-            title="Badge Management"
-            description="Badge assignment rules and lost or deactivated badge handling."
+            title={t('settings.badgeManagement')}
+            description={t('settings.badgeManagementHint')}
          />
 
-         <SettingsSection title="Formatting">
+         <SettingsSection title={t('settings.section.formatting')}>
             <SettingsCard>
                <FormFieldBlock>
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-badge-prefix">
-                        Badge prefix
+                        {t('settings.badgePrefix')}
                      </FieldLabel>
                      <FieldDescription>
-                        Prefix used when formatting visitor badge numbers.
+                        {t('settings.badgePrefixHint')}
                      </FieldDescription>
                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <Input
@@ -672,12 +681,12 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Assignment">
+         <SettingsSection title={t('settings.section.assignment')}>
             <SettingsCard>
                <SettingRow
                   id="settings-require-badge"
-                  title="Require badge at check-in"
-                  description="Visitors must be assigned an available badge before entry."
+                  title={t('settings.requireBadge')}
+                  description={t('settings.requireBadgeHint')}
                   checked={form.requireBadgeOnCheckIn}
                   onCheckedChange={(checked) =>
                      onChange({ requireBadgeOnCheckIn: checked })
@@ -685,8 +694,8 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-auto-assign"
-                  title="Auto-assign next available badge"
-                  description="Suggest the next free badge when checking a visitor in."
+                  title={t('settings.autoAssignBadge')}
+                  description={t('settings.autoAssignBadgeHint')}
                   checked={form.autoAssignBadge}
                   onCheckedChange={(checked) =>
                      onChange({ autoAssignBadge: checked })
@@ -694,8 +703,8 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-release-badge"
-                  title="Release badge on checkout"
-                  description="Return badges to the available pool after checkout."
+                  title={t('settings.releaseBadge')}
+                  description={t('settings.releaseBadgeHint')}
                   checked={form.releaseBadgeOnCheckout}
                   onCheckedChange={(checked) =>
                      onChange({ releaseBadgeOnCheckout: checked })
@@ -704,12 +713,12 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Lost & deactivated">
+         <SettingsSection title={t('settings.section.lostDeactivated')}>
             <SettingsCard>
                <SettingRow
                   id="settings-deactivate-lost"
-                  title="Deactivate lost badges"
-                  description="Mark reported lost badges as unavailable for reuse."
+                  title={t('settings.deactivateLost')}
+                  description={t('settings.deactivateLostHint')}
                   checked={form.deactivateLostBadges}
                   onCheckedChange={(checked) =>
                      onChange({ deactivateLostBadges: checked })
@@ -717,8 +726,8 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-block-deactivated"
-                  title="Block deactivated badges"
-                  description="Prevent check-in or checkout with lost or disabled badges."
+                  title={t('settings.blockDeactivated')}
+                  description={t('settings.blockDeactivatedHint')}
                   checked={form.blockDeactivatedBadges}
                   onCheckedChange={(checked) =>
                      onChange({ blockDeactivatedBadges: checked })
@@ -731,23 +740,25 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
 }
 
 export function SecurityPanel({ icon, form, onChange }: PanelProps) {
+   const { t } = useTranslation();
+
    return (
       <div className="space-y-6">
          <PanelHeader
             icon={icon}
-            title="Security"
-            description="Session controls, authentication, and visit code security."
+            title={t('settings.security')}
+            description={t('settings.securityHint')}
          />
 
-         <SettingsSection title="Sessions & authentication">
+         <SettingsSection title={t('settings.section.sessions')}>
             <SettingsCard>
                <FormFieldBlock className="border-b border-border/60">
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-session-timeout">
-                        Session timeout
+                        {t('settings.sessionTimeout')}
                      </FieldLabel>
                      <FieldDescription>
-                        Sign users out after a period of inactivity.
+                        {t('settings.sessionTimeoutHint')}
                      </FieldDescription>
                      <Select
                         value={form.sessionTimeout}
@@ -763,10 +774,10 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                         </SelectTrigger>
                         <SelectContent>
                            <SelectGroup>
-                              <SelectItem value="60">1 hour</SelectItem>
-                              <SelectItem value="240">4 hours</SelectItem>
-                              <SelectItem value="480">8 hours</SelectItem>
-                              <SelectItem value="1440">24 hours</SelectItem>
+                              <SelectItem value="60">{t('settings.duration.1h')}</SelectItem>
+                              <SelectItem value="240">{t('settings.duration.4h')}</SelectItem>
+                              <SelectItem value="480">{t('settings.duration.8h')}</SelectItem>
+                              <SelectItem value="1440">{t('settings.duration.24h')}</SelectItem>
                            </SelectGroup>
                         </SelectContent>
                      </Select>
@@ -774,8 +785,8 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                </FormFieldBlock>
                <SettingRow
                   id="settings-password-change"
-                  title="Require password change on first login"
-                  description="New or reset accounts must set a new password."
+                  title={t('settings.requirePasswordChange')}
+                  description={t('settings.requirePasswordChangeHint')}
                   checked={form.requirePasswordChange}
                   onCheckedChange={(checked) =>
                      onChange({ requirePasswordChange: checked })
@@ -783,8 +794,8 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                />
                <SettingRow
                   id="settings-2fa"
-                  title="Allow optional two-factor authentication"
-                  description="Let users enable an extra verification step at sign-in."
+                  title={t('settings.twoFactor')}
+                  description={t('settings.twoFactorHint')}
                   checked={form.twoFactorOptional}
                   onCheckedChange={(checked) =>
                      onChange({ twoFactorOptional: checked })
@@ -793,15 +804,15 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title="Visit codes">
+         <SettingsSection title={t('settings.section.visitCodes')}>
             <SettingsCard>
                <FormFieldBlock className="border-b border-border/60">
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-qr-expiry">
-                        QR / visit code expiry
+                        {t('settings.qrExpiry')}
                      </FieldLabel>
                      <FieldDescription>
-                        How long invitation or self-service codes remain valid.
+                        {t('settings.qrExpiryHint')}
                      </FieldDescription>
                      <Select
                         value={form.qrCodeExpiry}
@@ -817,10 +828,10 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                         </SelectTrigger>
                         <SelectContent>
                            <SelectGroup>
-                              <SelectItem value="4">4 hours</SelectItem>
-                              <SelectItem value="12">12 hours</SelectItem>
-                              <SelectItem value="24">24 hours</SelectItem>
-                              <SelectItem value="72">3 days</SelectItem>
+                              <SelectItem value="4">{t('settings.duration.4h')}</SelectItem>
+                              <SelectItem value="12">{t('settings.duration.12h')}</SelectItem>
+                              <SelectItem value="24">{t('settings.duration.24h')}</SelectItem>
+                              <SelectItem value="72">{t('settings.duration.3d')}</SelectItem>
                            </SelectGroup>
                         </SelectContent>
                      </Select>
@@ -828,8 +839,8 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                </FormFieldBlock>
                <SettingRow
                   id="settings-single-use-codes"
-                  title="Single-use visit codes"
-                  description="Invalidate QR and access codes after the first successful check-in."
+                  title={t('settings.singleUseCodes')}
+                  description={t('settings.singleUseCodesHint')}
                   checked={form.singleUseVisitCodes}
                   onCheckedChange={(checked) =>
                      onChange({ singleUseVisitCodes: checked })

@@ -52,6 +52,28 @@ export function useLogin() {
    });
 }
 
+export function useDevelopmentSsoLogin() {
+   const { setUser } = useAuthStore();
+   const router = useRouter();
+
+   return useMutation({
+      mutationFn: async () => {
+         const { data } = await authService.developmentSsoLogin();
+         return data.data;
+      },
+      onSuccess: ({ user }) => {
+         setUser(user);
+         router.push('/host');
+      },
+      onError: (error: AxiosError<ApiErrorResponse>) => {
+         toast.error(
+            error.response?.data?.message ??
+               'SSO login failed. Please try again.',
+         );
+      },
+   });
+}
+
 export function useLogout() {
    const { clearAuth } = useAuthStore();
    const router = useRouter();

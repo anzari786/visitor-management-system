@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
    ssoCallback,
+   developmentSsoLogin,
    localLogin,
    changePassword,
    completePasswordSetupHandler,
@@ -36,6 +37,7 @@ router.post(
 );
 
 // Company SSO (including host employees with linked User accounts)
+router.post('/dev-sso-login', developmentSsoLogin);
 router.post('/sso/callback', validate(ssoCallbackSchema), ssoCallback);
 
 router.post('/logout', requireAuth, logout);

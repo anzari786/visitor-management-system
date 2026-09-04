@@ -20,6 +20,10 @@ export const authService = {
       return api.post<ApiResponse<LoginData>>(`${BASE}/login`, payload);
    },
 
+   developmentSsoLogin() {
+      return api.post<ApiResponse<LoginData>>(`${BASE}/dev-sso-login`);
+   },
+
    logout() {
       return api.post<ApiResponse<null>>(`${BASE}/logout`);
    },

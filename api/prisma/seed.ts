@@ -303,6 +303,42 @@ async function main() {
       floor: '2nd Floor', room: 'Training Room', createdById: hostUsers[2].id, decidedById: manager.id,
    });
    await createVisit({
+      code: 'ATI-2026-0011', source: VisitSource.PUBLIC, groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY, status: VisitStatus.PENDING_APPROVAL,
+      purpose: VisitPurpose.MEETING, hostIndex: 2, visitorIndexes: [0], dates: [tomorrow],
+      floor: '2nd Floor', room: 'Procurement Room', createdById: reception.id,
+   });
+   await createVisit({
+      code: 'ATI-2026-0012', source: VisitSource.RECEPTION, groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.MULTI_DAY, status: VisitStatus.PENDING_APPROVAL,
+      purpose: VisitPurpose.OFFICIAL_VISIT, hostIndex: 2, visitorIndexes: [2, 3], dates: [dayAfter, addDays(today, 3)],
+      floor: '2nd Floor', room: 'Board Room', createdById: reception.id,
+   });
+   await createVisit({
+      code: 'ATI-2026-0013', source: VisitSource.PUBLIC, groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY, status: VisitStatus.PENDING_APPROVAL,
+      purpose: VisitPurpose.DELIVERY, hostIndex: 2, visitorIndexes: [6], dates: [addDays(today, 4)],
+      floor: 'Ground Floor', room: 'Reception Lobby', createdById: reception.id,
+   });
+   await createVisit({
+      code: 'ATI-2026-0014', source: VisitSource.HOST_INVITATION, groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY, status: VisitStatus.APPROVED,
+      purpose: VisitPurpose.INTERVIEW, hostIndex: 2, visitorIndexes: [7], dates: [addDays(today, 3)],
+      floor: '2nd Floor', room: 'Interview Room', createdById: hostUsers[2].id, decidedById: manager.id,
+   });
+   await createVisit({
+      code: 'ATI-2026-0015', source: VisitSource.HOST_INVITATION, groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.MULTI_DAY, status: VisitStatus.RESCHEDULED,
+      purpose: VisitPurpose.MEETING, hostIndex: 2, visitorIndexes: [8, 9], dates: [addDays(today, 5), addDays(today, 6)],
+      floor: '2nd Floor', room: 'Procurement Room', createdById: hostUsers[2].id, decidedById: manager.id,
+   });
+   await createVisit({
+      code: 'ATI-2026-0016', source: VisitSource.RECEPTION, groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY, status: VisitStatus.APPROVED,
+      purpose: VisitPurpose.OFFICIAL_VISIT, hostIndex: 2, visitorIndexes: [10], dates: [addDays(today, 7)],
+      floor: '2nd Floor', room: 'Training Room', createdById: reception.id, decidedById: manager.id,
+   });
+   await createVisit({
       code: 'ATI-2026-0010', source: VisitSource.PUBLIC, groupType: VisitorGroupType.SINGLE,
       durationType: VisitDurationType.SINGLE_DAY, status: VisitStatus.CANCELLED,
       purpose: VisitPurpose.MEETING, hostIndex: 4, visitorIndexes: [10], dates: [tomorrow],

@@ -1,4 +1,7 @@
 import type { Request, Response } from 'express';
+import { AuthProvider } from '../../generated/prisma/client.js';
+import { env } from '../../config/env.js';
+import { prisma } from '../../config/prisma.js';
 
 import { NotFoundError } from '../../lib/errors.js';
 
@@ -122,6 +125,40 @@ export const ssoCallback = async (req: Request, res: Response) => {
 
    return loginResponse(res, user);
 
+};
+
+/** Development-only SSO shortcut for testing a seeded employee host. */
+export const developmentSsoLogin = async (req: Request, res: Response) => {
+   if (!env.DEV_BYPASS_AUTH) {
+      return res.status(404).json({ success: false, message: 'Not found' });
+   }
+
+   const seededUser = await prisma.user.findFirst({
+      where: {
+         authProvider: AuthProvider.SSO,
+         externalSubject: 'seed-sso-host-3',
+         isActive: true,
+      },
+      select: { id: true },
+   });
+
+   const user = seededUser ? await getAuthUserById(seededUser.id) : null;
+
+   if (!user) {
+      return res.status(404).json({
+         success: false,
+         message: 'Seeded SSO host not found',
+      });
+   }
+
+   const sessionUser = buildSessionUser(user);
+   await establishUserSession(
+      req,
+      sessionUser.userId,
+      sessionUser.roleCodes,
+   );
+
+   return loginResponse(res, user);
 };
 
 

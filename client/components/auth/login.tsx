@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useLogin } from '@/hooks/use-auth';
+import { useDevelopmentSsoLogin, useLogin } from '@/hooks/use-auth';
 import {
    loginSchema,
    type LoginFormValues,
@@ -19,12 +19,14 @@ import { useForm } from 'react-hook-form';
 import { Separator } from '../ui/separator';
 import LanguageDropdown from '@/components/shared/language-dropdown';
 import { useTranslation, type TranslationKey } from '@/lib/i18n';
+import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
 export default function Login() {
    const { t } = useTranslation();
    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
    const { mutate: login, isPending } = useLogin();
+   const { mutate: developmentSsoLogin } = useDevelopmentSsoLogin();
 
    const {
       register,
@@ -175,7 +177,13 @@ export default function Login() {
                <Button
                   className="w-full rounded-xl"
                   size="lg"
+                  type="button"
                   variant="outline"
+                  onClick={() => {
+                     if (isDevelopmentAuthBypassEnabled) {
+                        developmentSsoLogin();
+                     }
+                  }}
                >
                   {t('auth.login.sso')}
                </Button>

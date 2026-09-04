@@ -22,31 +22,7 @@ import { RescheduleConfirmedDialog } from './reschedule-confirmed-dialog';
 import { UpcomingVisits } from './upcoming-visits';
 import type { VisitUpdateDetailsValue } from './visit-update-details';
 import { useTranslation } from '@/lib/i18n';
-
-function SpinnerEllipsis() {
-   return (
-      <>
-         <style>{`
-            .spinner-ellipsis-dot {
-               animation: spinner-ellipsis 1s ease-in-out infinite;
-            }
-            @keyframes spinner-ellipsis {
-               0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
-               40% { transform: scale(1); opacity: 1; }
-            }
-         `}</style>
-         <div className="flex items-center gap-1.5 text-muted-foreground">
-            {[0, 0.2, 0.4].map((delay, i) => (
-               <span
-                  key={i}
-                  className="size-2 rounded-full bg-current spinner-ellipsis-dot"
-                  style={{ animationDelay: `${delay}s` }}
-               />
-            ))}
-         </div>
-      </>
-   );
-}
+import SpinnerBars from '../shared/spinner-bars';
 
 function ListState({
    loading,
@@ -62,8 +38,10 @@ function ListState({
    if (loading) {
       return (
          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
-            <SpinnerEllipsis />
-            <p className="text-sm font-medium text-foreground">{loadingLabel}</p>
+            <SpinnerBars />
+            <p className="text-sm font-medium text-foreground">
+               {loadingLabel}
+            </p>
          </div>
       );
    }

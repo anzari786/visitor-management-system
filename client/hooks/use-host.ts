@@ -48,10 +48,6 @@ function normalizeMeetingType(value?: string): string {
       OFFICIALVISIT: 'Official Visit',
       MAINTENANCE: 'Maintenance',
       OTHER: 'Other',
-      SITE_VISIT: 'Site Visit',
-      AUDIT: 'Audit',
-      TRAINING: 'Training',
-      VENDOR_REVIEW: 'Vendor Review',
    };
 
    return mapping[normalized.toUpperCase()] ?? normalized;
@@ -96,7 +92,9 @@ function mapVisitToHostCard(visit: any): HostVisit {
    const startTime = visit.startTime ?? visit.expectedStartTime;
    const endTime = visit.endTime ?? visit.expectedEndTime;
 
-   const startDateValue = parsedStartDate ? format(parseISO(parsedStartDate), 'd MMM yyyy') : '—';
+   const startDateValue = parsedStartDate
+      ? format(parseISO(parsedStartDate), 'd MMM yyyy')
+      : '—';
    const endDateValue = parsedEndDate
       ? format(parseISO(parsedEndDate), 'd MMM yyyy')
       : undefined;
@@ -208,4 +206,3 @@ export function useCancelHostVisit() {
       onSuccess: () => invalidateHostVisits(queryClient),
    });
 }
-

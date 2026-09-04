@@ -41,7 +41,7 @@ export async function requireAuth(
 ) {
    if (
       env.DEV_BYPASS_AUTH &&
-      (!req.session.userId || !req.session.roleCodes?.length)
+      !req.session.userId
    ) {
       try {
          if (await adoptDevSession(req)) return next();
@@ -52,7 +52,7 @@ export async function requireAuth(
 
    const userId = req.session.userId;
 
-   if (!userId || !req.session.roleCodes?.length) {
+   if (!userId) {
       return res.status(401).json({
          success: false,
          message: 'Unauthorized',

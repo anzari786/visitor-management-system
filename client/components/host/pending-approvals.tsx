@@ -86,8 +86,12 @@ const PendingApprovals = ({
          );
       }
       if (typeFilter.length > 0) {
+         const selectedMeetingTypes: string[] = VISIT_PURPOSE_OPTIONS.filter(
+            (type) => typeFilter.includes(type.value),
+         ).map((type) => type.label);
+
          result = result.filter((r) =>
-            typeFilter.includes(r.meetingType as VisitPurposeValue),
+            selectedMeetingTypes.includes(r.purpose ?? r.meetingType),
          );
       }
       return result;

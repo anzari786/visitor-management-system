@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
-import { Check, Loader2, Send } from 'lucide-react';
+import { CheckCircle2Icon, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
 import {
@@ -17,7 +17,10 @@ import {
 } from '@/lib/validations/host-invitation.schema';
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
-import { hostService, type HostInvitationCreated } from '@/services/host.service';
+import {
+   hostService,
+   type HostInvitationCreated,
+} from '@/services/host.service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -195,32 +198,28 @@ export function CreateInvitationDialog({
          <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent
                aria-describedby={undefined}
-               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+               className="sm:max-w-sm data-open:zoom-in-50! data-closed:zoom-out-50 duration-300 [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
             >
-               <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>{t('host.invite.created')}</DialogTitle>
-               </DialogHeader>
-
-               <div className="space-y-4 px-6 py-5">
-                  <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
-                     <div className="flex size-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                        <Check className="size-5" />
-                     </div>
-                     <p className="text-sm font-medium text-foreground">
+               <div className="flex flex-col items-center gap-4 py-2 text-center">
+                  <div className="flex size-16 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-500 dark:text-emerald-400">
+                     <CheckCircle2Icon size={32} strokeWidth={1.5} />
+                  </div>
+                  <DialogHeader className="items-center space-y-1.5">
+                     <DialogTitle className="text-lg">
+                        {t('host.invite.created')}
+                     </DialogTitle>
+                     <p className="text-sm text-muted-foreground">
                         {t('host.invite.createdBody')}
                      </p>
-                  </div>
-               </div>
-
-               <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+                  </DialogHeader>
                   <Button
                      type="button"
-                     className="cursor-pointer"
+                     className="w-full cursor-pointer hover:bg-primary/80"
                      onClick={() => handleOpenChange(false)}
                   >
                      {t('common.done')}
                   </Button>
-               </DialogFooter>
+               </div>
             </DialogContent>
          </Dialog>
       );
@@ -253,9 +252,7 @@ export function CreateInvitationDialog({
                      />
 
                      <Field>
-                        <FieldLabel>
-                           {t('host.invite.knowVisitors')}
-                        </FieldLabel>
+                        <FieldLabel>{t('host.invite.knowVisitors')}</FieldLabel>
                         <Tabs
                            value={knowsVisitorInfo}
                            onValueChange={handleKnowsVisitorChange}
@@ -364,7 +361,11 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.purpose
                                     }
                                  >
-                                    <SelectValue placeholder={t('host.invite.selectPurpose')} />
+                                    <SelectValue
+                                       placeholder={t(
+                                          'host.invite.selectPurpose',
+                                       )}
+                                    />
                                  </SelectTrigger>
                                  <SelectContent>
                                     {VISIT_PURPOSE_OPTIONS.map((opt) => (

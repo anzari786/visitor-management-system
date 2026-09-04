@@ -78,13 +78,6 @@ export function ChangePasswordDialog({
             className="sm:max-w-md data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-300"
          >
             <form onSubmit={onSubmit} className="flex flex-col gap-4">
-               <div className="flex items-center gap-2">
-                  <KeyRound size={16} className="text-primary" />
-                  <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                     {t('profile.security')}
-                  </span>
-               </div>
-
                <DialogHeader>
                   <DialogTitle>{t('profile.changePassword')}</DialogTitle>
                   <DialogDescription>

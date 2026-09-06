@@ -4,7 +4,6 @@ import { UserRole } from '@/types/user.types';
 import {
    Briefcase,
    ClipboardList,
-   Inbox,
    LayoutGrid,
    LucideIcon,
    Settings,
@@ -53,14 +52,6 @@ export const navigation: NavigationItem[] = [
       titleKey: 'nav.visits',
       icon: ClipboardList,
       href: '/visits',
-      group: 'Workspace',
-      roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
-   },
-   {
-      title: 'Visit Requests',
-      titleKey: 'nav.visitRequests',
-      icon: Inbox,
-      href: '/visit-requests',
       group: 'Workspace',
       roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
    },

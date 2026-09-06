@@ -78,9 +78,7 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
                {...form.register(`visitors.${index}.email`)}
             />
             {index === 0 && (
-               <FieldDescription>
-                  {t('selfService.emailHint')}
-               </FieldDescription>
+               <FieldDescription>{t('selfService.emailHint')}</FieldDescription>
             )}
             <FieldError>{errors?.email?.message}</FieldError>
          </Field>
@@ -121,9 +119,7 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
                placeholder={t('selfService.orgPlaceholder')}
                {...form.register(`visitors.${index}.organization`)}
             />
-            <FieldDescription>
-               {t('selfService.orgHint')}
-            </FieldDescription>
+            <FieldDescription>{t('selfService.orgHint')}</FieldDescription>
             <FieldError>{errors?.organization?.message}</FieldError>
          </Field>
       </FieldGroup>
@@ -192,7 +188,7 @@ export function VisitorsStep({ form }: { form: FormType }) {
                            type="button"
                            variant="ghost"
                            size="sm"
-                           className="cursor-pointer text-muted-foreground hover:text-destructive"
+                           className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                            onClick={() => remove(index)}
                         >
                            <Trash2 className="size-4" />

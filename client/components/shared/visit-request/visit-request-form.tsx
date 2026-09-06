@@ -70,6 +70,7 @@ type VisitRequestFormProps = {
       values: VisitRequestFormValues,
    ) => Promise<SubmitVisitRequestResponse>;
    isSubmitting: boolean;
+   className?: string;
    submitLabel?: string;
    successTitle?: string;
    successDescription?: string;
@@ -79,6 +80,7 @@ type VisitRequestFormProps = {
 export default function VisitRequestForm({
    submitAction,
    isSubmitting,
+   className,
    submitLabel,
    successTitle,
    successDescription,
@@ -163,7 +165,12 @@ export default function VisitRequestForm({
 
    return (
       <>
-         <div className="mx-auto w-full max-w-3xl space-y-8 rounded-xl border border-border bg-background p-6 shadow-xs md:p-8">
+         <div
+            className={cn(
+               'mx-auto w-full max-w-3xl space-y-8 rounded-xl border border-border bg-background p-6 shadow-xs md:p-8',
+               className,
+            )}
+         >
             <div className="relative flex w-full items-center justify-between">
                <div
                   className="absolute h-0.5 bg-border"

@@ -70,7 +70,7 @@ export function UsersContent() {
             <Button
                size="sm"
                onClick={() => setOpen(true)}
-               className="gap-2 sm:gap-3 h-8 sm:h-9 text-xs sm:text-sm bg-linear-to-b from-foreground to-foreground/90 text-background"
+               className="gap-2 sm:gap-3 h-8 sm:h-9 text-xs sm:text-sm bg-linear-to-b from-primary to-primary/90 text-background cursor-pointer"
             >
                <Plus className="size-3 sm:size-4" />
                <span className="hidden sm:inline">{t('users.create')}</span>

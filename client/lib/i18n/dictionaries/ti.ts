@@ -301,6 +301,7 @@ export const ti: Dictionary = {
    'users.toast.deactivated': '{name} ተዘሪጉ',
    'users.col.name': 'ሽም',
    'users.col.username': 'ሽም ተጠቃማይ',
+   'users.username.sso': 'SSO Account',
    'users.col.role': 'ተራ',
    'users.col.accountType': 'ዓይነት ኣካውንት',
    'users.col.lastActivity': 'ናይ መወዳእታ ንጥፈት',

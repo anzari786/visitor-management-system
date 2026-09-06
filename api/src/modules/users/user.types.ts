@@ -50,6 +50,7 @@ export const userSummarySelect = {
    firstName: true,
    lastName: true,
    email: true,
+   username: true,
    isActive: true,
    passwordHash: true,
    createdAt: true,

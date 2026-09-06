@@ -301,6 +301,7 @@ export const am: Dictionary = {
    'users.toast.deactivated': '{name} ተሰናክሏል',
    'users.col.name': 'ስም',
    'users.col.username': 'የተጠቃሚ ስም',
+   'users.username.sso': 'SSO Account',
    'users.col.role': 'ሚና',
    'users.col.accountType': 'የመለያ አይነት',
    'users.col.lastActivity': 'የመጨረሻ እንቅስቃሴ',

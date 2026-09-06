@@ -305,6 +305,7 @@ export const en = {
    'users.toast.deactivated': '{name} has been deactivated',
    'users.col.name': 'Name',
    'users.col.username': 'Username',
+   'users.username.sso': 'SSO Account',
    'users.col.role': 'Role',
    'users.col.accountType': 'Account Type',
    'users.col.lastActivity': 'Last activity',

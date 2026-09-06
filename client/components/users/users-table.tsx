@@ -63,7 +63,9 @@ const getColumns = (
       header: t('users.col.username'),
       cell: ({ row }) => (
          <span className="text-sm text-muted-foreground font-mono tracking-wide">
-            {row.original.username}
+            {row.original.employee
+               ? t('users.username.sso')
+               : row.original.username}
          </span>
       ),
    },

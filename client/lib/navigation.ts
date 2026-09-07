@@ -2,7 +2,6 @@ import type { NavItem } from '@/components/layout/nav-main';
 import type { TranslationKey } from '@/lib/i18n';
 import { UserRole } from '@/types/user.types';
 import {
-   Briefcase,
    ClipboardList,
    LayoutGrid,
    LucideIcon,
@@ -53,14 +52,6 @@ export const navigation: NavigationItem[] = [
       icon: ClipboardList,
       href: '/visits',
       group: 'Workspace',
-      roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
-   },
-   {
-      title: 'Departments',
-      titleKey: 'nav.departments',
-      icon: Briefcase,
-      href: '/departments',
-      group: 'Administration',
       roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
    },
    {

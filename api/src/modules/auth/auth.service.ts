@@ -390,6 +390,10 @@ export const formatAuthUser = (user: AuthUserWithRelations) => ({
 
            position: user.employee.position ?? undefined,
 
+           defaultFloor: user.employee.defaultFloor ?? undefined,
+
+           defaultRoom: user.employee.defaultRoom ?? undefined,
+
         }
 
       : undefined,

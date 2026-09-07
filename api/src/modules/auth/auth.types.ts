@@ -52,6 +52,10 @@ export const authUserSelect = {
 
          position: true,
 
+         defaultFloor: true,
+
+         defaultRoom: true,
+
       },
 
    },

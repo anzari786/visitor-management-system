@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
 import { Check, Copy, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
+import type { FloorOption } from '@/constants/visit-location';
 import {
    emptyInvitationVisitorValues,
    hostInvitationDefaultValues,
@@ -99,7 +100,33 @@ export function CreateInvitationDialog({
       shouldFocusError: true,
    });
 
-   const knowsVisitorInfo = form.watch('knowsVisitorInfo');
+   useEffect(() => {
+      if (!open) return;
+
+      const loadHostDefaults = async () => {
+         try {
+            const { data: meResponse } = await authService.getMe();
+            const employee = meResponse.data.employee;
+
+            if (employee?.defaultFloor) {
+               form.setValue(
+                  'floor',
+                  employee.defaultFloor as FloorOption,
+               );
+            }
+
+            if (employee?.defaultRoom) {
+               form.setValue('room', employee.defaultRoom);
+            }
+         } catch {
+            // Keep the location fields empty if the host defaults cannot be loaded.
+         }
+      };
+
+      loadHostDefaults();
+   }, [open, form]);
+
+      const knowsVisitorInfo = form.watch('knowsVisitorInfo');
    const scheduleType = form.watch('scheduleType');
    const visitorCount = form.watch('visitorCount');
    const startDate = form.watch('startDate');
@@ -121,7 +148,6 @@ export function CreateInvitationDialog({
          form.clearErrors(['visitorCount', 'visitorOrganization']);
          form.setValue('visitorCount', 1);
          form.setValue('visitorOrganization', '');
-         const visitors = form.getValues('visitors');
          if (!visitors?.length) {
             form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
          }

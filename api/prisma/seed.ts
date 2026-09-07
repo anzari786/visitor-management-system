@@ -144,6 +144,8 @@ async function main() {
                      .replace(/[^a-z0-9.@]/g, ''),
                   phone: `+251 9${faker.string.numeric(8)}`,
                   position: faker.person.jobTitle(),
+                  defaultFloor: i === 0 ? '1st Floor' : '2nd Floor',
+                  defaultRoom: i === 0 ? 'Conference Room A' : 'Board Room',
                   departmentName: dept.name,
                   departmentCode: dept.shortName,
                   isActive: true,

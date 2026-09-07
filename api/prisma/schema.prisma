@@ -222,6 +222,10 @@ model Employee {
   phone     String?
   position  String?
 
+  /// Default office location used when a host creates an invitation.
+  defaultFloor String?
+  defaultRoom  String?
+
   /// Department comes from HR sync — stored as values, not a separate table.
   departmentName String
   departmentCode String?

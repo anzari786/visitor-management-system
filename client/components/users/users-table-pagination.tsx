@@ -17,6 +17,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import SpinnerBars from '@/components/shared/spinner-bars';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
@@ -179,31 +180,37 @@ export function UsersTablePagination({
          </div>
 
          <div className="flex flex-col items-center gap-3">
-            <Pagination className="mx-0 w-auto">
-               <PaginationContent className="gap-1 rounded-2xl border bg-background/80 p-2">
-                  <PaginationItem>
-                     <PaginationPrevious
-                        text=""
-                        onClick={() => goToPage(page - 1)}
-                        disabled={!canPrev || isFetching}
-                        className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
-                     />
-                  </PaginationItem>
+            {isFetching ? (
+               <div className="flex h-14 items-center justify-center px-6 text-primary">
+                  <SpinnerBars />
+               </div>
+            ) : (
+               <Pagination className="mx-0 w-auto">
+                  <PaginationContent className="gap-1 rounded-2xl border bg-background/80 p-2">
+                     <PaginationItem>
+                        <PaginationPrevious
+                           text=""
+                           onClick={() => goToPage(page - 1)}
+                           disabled={!canPrev || isFetching}
+                           className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
+                        />
+                     </PaginationItem>
 
-                  <div className="mx-2 flex items-center gap-1.5">
-                     {renderPageButtons()}
-                  </div>
+                     <div className="mx-2 flex items-center gap-1.5">
+                        {renderPageButtons()}
+                     </div>
 
-                  <PaginationItem>
-                     <PaginationNext
-                        text=""
-                        onClick={() => goToPage(page + 1)}
-                        disabled={!canNext || isFetching}
-                        className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
-                     />
-                  </PaginationItem>
-               </PaginationContent>
-            </Pagination>
+                     <PaginationItem>
+                        <PaginationNext
+                           text=""
+                           onClick={() => goToPage(page + 1)}
+                           disabled={!canNext || isFetching}
+                           className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
+                        />
+                     </PaginationItem>
+                  </PaginationContent>
+               </Pagination>
+            )}
 
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase opacity-70">
                <span

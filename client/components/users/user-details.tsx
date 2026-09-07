@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import {
    CalendarDays,
    Clock3,
+   Building2,
    Hash,
    KeyRound,
    Pencil,
@@ -133,8 +134,15 @@ function UserDetailsBody({ user }: { user: User }) {
                   icon={Hash}
                   label={t('users.col.username')}
                   value={
-                     <span className="font-mono text-xs">{user.username}</span>
+                     <span className="font-mono text-xs">
+                        {isSso ? t('users.username.sso') : user.username}
+                     </span>
                   }
+               />
+               <DetailRow
+                  icon={Building2}
+                  label={t('common.department')}
+                  value={user.employee?.departmentName}
                />
                <DetailRow
                   icon={Phone}

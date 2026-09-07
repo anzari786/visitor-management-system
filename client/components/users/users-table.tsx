@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import SpinnerBars from '@/components/shared/spinner-bars';
 import {
    Table,
@@ -66,6 +67,16 @@ const getColumns = (
             {row.original.employee
                ? t('users.username.sso')
                : row.original.username}
+         </span>
+      ),
+   },
+   {
+      id: 'department',
+      header: t('common.department'),
+      cell: ({ row }) => (
+         <span className="text-sm text-muted-foreground">
+            {row.original.employee?.departmentName?.trim() ||
+               t('host.update.notAssigned')}
          </span>
       ),
    },
@@ -158,7 +169,7 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
    const roleFilter =
       (searchParams.get('role') as User['role'] | 'all') || 'all';
 
-   const { data, isLoading, isError, isFetching } = useUsers({
+   const { data, isLoading, isError, isFetching, refetch } = useUsers({
       page,
       pageSize,
       search,
@@ -233,9 +244,23 @@ export function UsersTable({ showFilters = true }: UsersTableProps) {
                         <TableRow className="hover:bg-transparent">
                            <TableCell
                               colSpan={columns.length}
-                              className="h-40 px-4 text-center text-sm text-destructive"
+                              className="h-40 px-4 text-center"
                            >
-                              {t('users.loadError')}
+                              <div className="flex flex-col items-center gap-2">
+                                 <p className="text-sm font-medium text-destructive">
+                                    {t('users.loadError')}
+                                 </p>
+                                 <Button
+                                    type="button"
+                                    variant="link"
+                                    size="sm"
+                                    onClick={() => void refetch()}
+                                    disabled={isFetching}
+                                    className="h-auto p-0 text-sm font-medium"
+                                 >
+                                    {t('common.retry')}
+                                 </Button>
+                              </div>
                            </TableCell>
                         </TableRow>
                      ) : users.length ? (

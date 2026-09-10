@@ -1,9 +1,15 @@
 import { visitsService } from '@/services/visits.service';
+import {
+   visitAttendanceService,
+   type AttendanceDetail,
+   type CheckInRequest,
+} from '@/services/visit-attendance.service';
 import type { ApiErrorResponse } from '@/types/api.types';
 import type {
    BadgeLookupData,
    CheckInPayload,
    CheckInData,
+   RegisterVisitorPayload,
    CheckOutPayload,
    CheckOutData,
    Visit,
@@ -48,7 +54,10 @@ export function useVisits(params: VisitsParams) {
       queryKey: visitQueryKeys.list(params),
       queryFn: async () => {
          const { data } = await visitsService.getAll(params);
-         return data.data;
+         return {
+            visits: data.data,
+            pagination: data.pagination,
+         };
       },
       placeholderData: keepPreviousData,
    });
@@ -114,6 +123,39 @@ export function useCheckInVisit() {
    });
 }
 
+export function useCheckInAttendance() {
+   const queryClient = useQueryClient();
+
+   return useMutation<AttendanceDetail, ApiError, CheckInRequest>({
+      mutationFn: async (payload) => {
+         const { data } = await visitAttendanceService.checkIn(payload);
+         return data.data;
+      },
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: visitQueryKeys.lists() });
+         queryClient.invalidateQueries({
+            queryKey: visitQueryKeys.activeVisitorsCount(),
+         });
+         invalidateDownstream(queryClient);
+      },
+   });
+}
+
+export function useRegisterVisitor() {
+   const queryClient = useQueryClient();
+
+   return useMutation<unknown, ApiError, RegisterVisitorPayload>({
+      mutationFn: async (payload) => {
+         const { data } = await visitsService.registerVisitor(payload);
+         return data.data;
+      },
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: visitQueryKeys.lists() });
+         invalidateDownstream(queryClient);
+      },
+   });
+}
+
 export function useCheckOutVisit() {
    const queryClient = useQueryClient();
 
@@ -162,6 +204,24 @@ export function useCheckOutVisitById() {
    });
 }
 
+export function useCheckOutAttendance() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: async (attendanceId: string | number) => {
+         const { data } = await visitAttendanceService.checkOut(attendanceId);
+         return data.data;
+      },
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: visitQueryKeys.all });
+         queryClient.invalidateQueries({
+            queryKey: visitQueryKeys.activeVisitorsCount(),
+         });
+         invalidateDownstream(queryClient);
+      },
+   });
+}
+
 export function useCancelVisit() {
    const queryClient = useQueryClient();
 
@@ -179,6 +239,15 @@ export function useCancelVisit() {
             prev ? { ...prev, ...updated } : prev,
          );
          invalidateDownstream(queryClient);
+      },
+   });
+}
+
+export function useResendVisitApprovalEmail() {
+   return useMutation<Visit, ApiError, number>({
+      mutationFn: async (id) => {
+         const { data } = await visitsService.resendApprovalEmail(id);
+         return data.data;
       },
    });
 }

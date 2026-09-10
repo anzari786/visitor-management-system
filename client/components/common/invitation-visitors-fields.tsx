@@ -129,12 +129,14 @@ type InvitationVisitorsFieldsProps = {
    form: FormType;
    heading: string;
    description: string;
+   maxVisitors?: number;
 };
 
 export function InvitationVisitorsFields({
    form,
    heading,
    description,
+   maxVisitors,
 }: InvitationVisitorsFieldsProps) {
    const { t } = useTranslation();
    const { fields, append, remove } = useFieldArray({
@@ -156,6 +158,9 @@ export function InvitationVisitorsFields({
                variant="outline"
                size="sm"
                className="shrink-0 cursor-pointer"
+               disabled={
+                  maxVisitors !== undefined && fields.length >= maxVisitors
+               }
                onClick={() => append({ ...emptyInvitationVisitorValues })}
             >
                <Plus className="size-4" />
@@ -177,7 +182,7 @@ export function InvitationVisitorsFields({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="cursor-pointer text-muted-foreground hover:text-destructive"
+                        className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => remove(index)}
                      >
                         <Trash2 className="size-4" />

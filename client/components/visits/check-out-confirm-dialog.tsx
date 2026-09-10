@@ -1,6 +1,5 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
    Dialog,
@@ -9,18 +8,15 @@ import {
    DialogHeader,
    DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 import {
    formatVisitDuration,
-   getCheckOutEligibleVisitors,
    getRelevantVisitDay,
    getVisitCheckInReference,
    getVisitorAttendanceStatusForDay,
 } from '@/lib/visit-attendance';
 import type { ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { format } from 'date-fns';
-import { Clock3, LogOut, ScanLine, Search } from 'lucide-react';
+import { Clock3, LogOut } from 'lucide-react';
 import * as React from 'react';
 import { VisitorAttendanceBadge } from './managed-visit-status-badge';
 import { useTranslation } from '@/lib/i18n';
@@ -33,20 +29,8 @@ type CheckOutConfirmDialogProps = {
    visitors?: ManagedVisitor[];
    /** @deprecated Prefer `visitors`. Kept for call sites still passing names. */
    visitorNames?: string[];
-   /** When true, emphasize badge find/scan entry (opened from Scan Badge). */
-   scanMode?: boolean;
    onConfirm: () => void | Promise<void>;
-   /** Optional lookup for temporary badge find / scan demo. */
-   onLookupBadge?: (badge: string) => ManagedVisit | null;
-   /** Open the shared QR scanner for badge lookup. */
-   onScanBadgeRequest?: () => void;
 };
-
-function getDisplayBadge(visitors: ManagedVisitor[] = []) {
-   const token = visitors.find((visitor) => visitor.badgeToken)?.badgeToken;
-   if (token) return token;
-   return '';
-}
 
 function resolveVisitors(
    visit: ManagedVisit | null,
@@ -73,39 +57,18 @@ export function CheckOutConfirmDialog({
    visit: visitProp,
    visitors: visitorsProp,
    visitorNames,
-   scanMode = false,
    onConfirm,
-   onLookupBadge,
-   onScanBadgeRequest,
 }: CheckOutConfirmDialogProps) {
    const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = React.useState(false);
-   const [badgeInput, setBadgeInput] = React.useState('');
-   const [resolvedVisit, setResolvedVisit] =
-      React.useState<ManagedVisit | null>(null);
 
    React.useEffect(() => {
       if (!open) {
-         setBadgeInput('');
-         setResolvedVisit(null);
          setIsSubmitting(false);
-         return;
       }
-      if (visitProp) {
-         setResolvedVisit(visitProp);
-         const initialVisitors = resolveVisitors(
-            visitProp,
-            visitorsProp,
-            visitorNames,
-         );
-         setBadgeInput(getDisplayBadge(initialVisitors));
-      } else {
-         setResolvedVisit(null);
-         setBadgeInput('');
-      }
-   }, [open, visitProp, visitorsProp, visitorNames]);
+   }, [open]);
 
-   const visit = resolvedVisit;
+   const visit = visitProp;
    const selectedVisitors = resolveVisitors(visit, visitorsProp, visitorNames);
    const attendanceDay = visit ? getRelevantVisitDay(visit) : null;
    const checkInAt = visit
@@ -119,29 +82,6 @@ export function CheckOutConfirmDialog({
       selectedVisitors.length === 1
          ? (selectedVisitors[0]?.name ?? t('checkOut.visitorFallback'))
          : t('visits.visitorsCount', { count: selectedVisitors.length });
-
-   const handleFind = () => {
-      const found = onLookupBadge?.(badgeInput.trim());
-      if (found) {
-         setResolvedVisit(found);
-         setBadgeInput(getDisplayBadge(getCheckOutEligibleVisitors(found)));
-         return;
-      }
-      setResolvedVisit(null);
-   };
-
-   const handleScanBadge = () => {
-      if (onScanBadgeRequest) {
-         onOpenChange(false);
-         onScanBadgeRequest();
-         return;
-      }
-      const found = onLookupBadge?.(badgeInput.trim() || 'SCAN');
-      if (found) {
-         setResolvedVisit(found);
-         setBadgeInput(getDisplayBadge(getCheckOutEligibleVisitors(found)));
-      }
-   };
 
    const handleConfirm = async () => {
       if (isSubmitting || !visit) return;
@@ -169,51 +109,6 @@ export function CheckOutConfirmDialog({
                </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-               <div className="flex gap-2">
-                  <Input
-                     value={badgeInput}
-                     onChange={(e) => setBadgeInput(e.target.value)}
-                     placeholder={t('checkOut.badgePlaceholder')}
-                     className="h-10"
-                     onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                           e.preventDefault();
-                           handleFind();
-                        }
-                     }}
-                  />
-                  <div className="group shrink-0">
-                     <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-lg group-hover:-translate-y-1 transition-transform duration-200 cursor-pointer"
-                        onClick={handleFind}
-                     >
-                        <Search size={16} />
-                        {t('checkOut.find')}
-                     </Button>
-                  </div>
-               </div>
-
-               <div className="relative flex items-center justify-center">
-                  <div className="absolute inset-x-0 h-px bg-border" />
-                  <span className="relative bg-background px-3 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                     {t('checkOut.or')}
-                  </span>
-               </div>
-
-               <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full gap-2"
-                  onClick={handleScanBadge}
-               >
-                  <ScanLine className="size-4" />
-                  {t('checkOut.scanQr')}
-               </Button>
-            </div>
-
             {visit ? (
                <div className="space-y-4">
                   <div className="overflow-hidden rounded-xl border bg-card">
@@ -222,9 +117,6 @@ export function CheckOutConfirmDialog({
                            {visit.id} ·{' '}
                            {t('findVisit.hostPrefix', { name: visit.host })}
                         </p>
-                        <Badge className="shrink-0 border-0 bg-emerald-400/15 text-emerald-700 dark:text-emerald-300">
-                           {t('checkOut.badgeToken')}
-                        </Badge>
                      </div>
                      <ul className="divide-y">
                         {selectedVisitors.map((visitor) => {
@@ -268,7 +160,6 @@ export function CheckOutConfirmDialog({
                                  </div>
                                  <VisitorAttendanceBadge
                                     status={dayStatus}
-                                    visitStatus={visit.status}
                                  />
                               </li>
                            );
@@ -301,12 +192,7 @@ export function CheckOutConfirmDialog({
                   </div>
                </div>
             ) : (
-               <div
-                  className={cn(
-                     'rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground',
-                     scanMode && 'bg-muted/20',
-                  )}
-               >
+               <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
                   {t('checkOut.emptyState')}
                </div>
             )}

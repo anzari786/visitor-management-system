@@ -10,7 +10,7 @@ import {
    rescheduleVisitHandler,
    cancelVisitHandler,
    registerVisitorAtVisit,
-   getVisitRegistrationProgressHandler,
+   resendVisitApprovalEmailHandler,
 } from './visit.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/permission.middleware.js';
@@ -54,11 +54,11 @@ router.post(
 router.get('/', requireAuth, validate(listVisitsSchema), getVisits);
 router.get('/:id', requireAuth, validate(visitIdParamSchema), getVisit);
 
-router.get(
-   '/:id/registration-progress',
+router.post(
+   '/:id/resend-approval-email',
    requireAuth,
    validate(visitIdParamSchema),
-   getVisitRegistrationProgressHandler,
+   resendVisitApprovalEmailHandler,
 );
 
 router.post(

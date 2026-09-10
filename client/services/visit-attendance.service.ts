@@ -2,7 +2,7 @@ import { api } from '@/lib/axios';
 import type { ApiResponse } from '@/types/api.types';
 import type { BadgePrintJob } from '@/types/print-job.types';
 
-const BASE = '/visit-attendance';
+const BASE = '/v1/visit-attendance';
 
 export type CheckInRequest = {
    visitParticipantId: number;
@@ -56,12 +56,6 @@ export const visitAttendanceService = {
       return api.post<ApiResponse<AttendanceDetail>>(
          `${BASE}/${attendanceId}/check-out`,
       );
-   },
-
-   lookupVisit(code: string, date?: string) {
-      return api.get<ApiResponse<unknown>>(`${BASE}/lookup/visit`, {
-         params: { code: code.trim(), date },
-      });
    },
 
    lookupBadge(code: string) {

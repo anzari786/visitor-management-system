@@ -4,6 +4,7 @@ import {
    format,
    isAfter,
    isBefore,
+   isSameDay,
    parseISO,
    startOfDay,
 } from 'date-fns';
@@ -14,30 +15,18 @@ import type {
    VisitorAttendanceStatus,
    VisitorDayAttendance,
 } from '@/types/visit.types';
+import { AttendanceStatus } from '@/lib/attendance-status';
 
-/** Default attendance labels for visits that are past approval. */
+/** Attendance labels keyed by the database AttendanceStatus enum. */
 export const ATTENDANCE_STATUS_LABELS: Record<
    VisitorAttendanceStatus,
    string
 > = {
-   pending: 'Not Checked In',
-   checked_in: 'Checked In',
-   checked_out: 'Checked Out',
+   [AttendanceStatus.EXPECTED]: 'Expected',
+   [AttendanceStatus.CHECKED_IN]: 'Checked In',
+   [AttendanceStatus.CHECKED_OUT]: 'Checked Out',
+   [AttendanceStatus.NO_SHOW]: 'No Show',
 };
-
-/**
- * Visitor badge label for the details sheet.
- * "Pending" is reserved for requested / awaiting-approval visits only.
- */
-export function getVisitorAttendanceLabel(
-   status: VisitorAttendanceStatus,
-   visitStatus: ManagedVisitStatus,
-): string {
-   if (status === 'pending' && visitStatus === 'requested') {
-      return 'Pending';
-   }
-   return ATTENDANCE_STATUS_LABELS[status];
-}
 
 export function isGroupVisit(visit: ManagedVisit) {
    return visit.visitors.length > 1;
@@ -121,7 +110,7 @@ export function getVisitorDayAttendance(
 ): VisitorDayAttendance {
    const existing = visitor.attendanceByDate?.[date];
    if (existing) return existing;
-   return { date, status: 'pending' };
+   return { date, status: AttendanceStatus.EXPECTED };
 }
 
 export function getVisitorAttendanceStatusForDay(
@@ -182,17 +171,19 @@ export function getCheckInEligibleVisitors(
    now: Date = new Date(),
 ) {
    // Includes approved, partially_checked_in, partially_checked_out, etc.
-   // Remaining not-checked-in guests stay eligible while the schedule window is open.
+   // Remaining not-checked-in guests stay eligible throughout today's schedule day.
    if (!canAttemptCheckIn(visit.status)) {
       return [];
    }
-   if (!isVisitAttendanceWindowOpen(visit, now)) return [];
 
-   const day = getActiveVisitDay(visit, now);
+   const day = getVisitScheduleDates(visit).find((date) =>
+      isSameDay(parseISO(date), now),
+   );
    if (!day) return [];
 
    return visit.visitors.filter(
-      (v) => getVisitorAttendanceStatusForDay(v, day) === 'pending',
+      (v) =>
+         getVisitorAttendanceStatusForDay(v, day) === AttendanceStatus.EXPECTED,
    );
 }
 
@@ -213,7 +204,8 @@ export function getCheckOutEligibleVisitors(
    const day = getActiveVisitDay(visit, now) ?? getRelevantVisitDay(visit, now);
 
    return visit.visitors.filter(
-      (v) => getVisitorAttendanceStatusForDay(v, day) === 'checked_in',
+      (v) =>
+         getVisitorAttendanceStatusForDay(v, day) === AttendanceStatus.CHECKED_IN,
    );
 }
 
@@ -249,13 +241,13 @@ function deriveAttendanceStatus(
    }
 
    const checkedIn = visitors.filter(
-      (v) => v.attendanceStatus === 'checked_in',
+      (v) => v.attendanceStatus === AttendanceStatus.CHECKED_IN,
    ).length;
    const checkedOut = visitors.filter(
-      (v) => v.attendanceStatus === 'checked_out',
+      (v) => v.attendanceStatus === AttendanceStatus.CHECKED_OUT,
    ).length;
    const pending = visitors.filter(
-      (v) => v.attendanceStatus === 'pending',
+      (v) => v.attendanceStatus === AttendanceStatus.EXPECTED,
    ).length;
    const total = visitors.length;
 
@@ -275,19 +267,12 @@ export function applyVisitorAttendance(
    visitorIds: string[],
    nextAttendance: Extract<
       VisitorAttendanceStatus,
-      'checked_in' | 'checked_out'
+      typeof AttendanceStatus.CHECKED_IN | typeof AttendanceStatus.CHECKED_OUT
    >,
    now: Date = new Date(),
 ): ManagedVisit {
    const day =
       getActiveVisitDay(visit, now) ?? getRelevantVisitDay(visit, now);
-
-   if (
-      nextAttendance === 'checked_in' &&
-      !isVisitAttendanceWindowOpen(visit, now)
-   ) {
-      return visit;
-   }
 
    const idSet = new Set(visitorIds);
    const nowIso = now.toISOString();
@@ -299,10 +284,16 @@ export function applyVisitorAttendance(
 
       const current = getVisitorAttendanceStatusForDay(visitor, day);
 
-      if (nextAttendance === 'checked_in' && current !== 'pending') {
+      if (
+         nextAttendance === AttendanceStatus.CHECKED_IN &&
+         current !== AttendanceStatus.EXPECTED
+      ) {
          return withSyncedCurrentAttendance(visitor, day);
       }
-      if (nextAttendance === 'checked_out' && current !== 'checked_in') {
+      if (
+         nextAttendance === AttendanceStatus.CHECKED_OUT &&
+         current !== AttendanceStatus.CHECKED_IN
+      ) {
          return withSyncedCurrentAttendance(visitor, day);
       }
 
@@ -311,7 +302,7 @@ export function applyVisitorAttendance(
          date: day,
          status: nextAttendance,
          checkedInAt:
-            nextAttendance === 'checked_in'
+            nextAttendance === AttendanceStatus.CHECKED_IN
                ? nowIso
                : previousDay.checkedInAt,
       };
@@ -319,7 +310,7 @@ export function applyVisitorAttendance(
       return withSyncedCurrentAttendance(
          {
             ...visitor,
-            ...(nextAttendance === 'checked_in'
+            ...(nextAttendance === AttendanceStatus.CHECKED_IN
                ? {
                     badgeToken:
                        visitor.badgeToken ??
@@ -360,7 +351,10 @@ export function getVisitCheckInReference(
 
    const checkedInVisitor = candidates.find((v) => {
       const dayStatus = getVisitorDayAttendance(v, day);
-      return dayStatus.status === 'checked_in' && dayStatus.checkedInAt;
+      return (
+         dayStatus.status === AttendanceStatus.CHECKED_IN &&
+         dayStatus.checkedInAt
+      );
    });
 
    if (checkedInVisitor) {
@@ -388,7 +382,12 @@ export function checkInAllEligible(
    now: Date = new Date(),
 ): ManagedVisit {
    const ids = getCheckInEligibleVisitors(visit, now).map((v) => v.id);
-   return applyVisitorAttendance(visit, ids, 'checked_in', now);
+   return applyVisitorAttendance(
+      visit,
+      ids,
+      AttendanceStatus.CHECKED_IN,
+      now,
+   );
 }
 
 export function checkOutAllEligible(
@@ -396,7 +395,12 @@ export function checkOutAllEligible(
    now: Date = new Date(),
 ): ManagedVisit {
    const ids = getCheckOutEligibleVisitors(visit, now).map((v) => v.id);
-   return applyVisitorAttendance(visit, ids, 'checked_out', now);
+   return applyVisitorAttendance(
+      visit,
+      ids,
+      AttendanceStatus.CHECKED_OUT,
+      now,
+   );
 }
 
 export function getVisitorInitials(name: string) {

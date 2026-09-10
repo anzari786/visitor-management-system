@@ -12,6 +12,7 @@ interface VisitRowActionsProps {
    onCheckIn: (visit: ManagedVisit) => void;
    onCheckOut: (visit: ManagedVisit) => void;
    onCancel: (visit: ManagedVisit) => void;
+   onRegister: (visit: ManagedVisit) => void;
    onOpenAttendance: (
       visit: ManagedVisit,
       mode: 'check_in' | 'check_out',
@@ -24,6 +25,7 @@ export function VisitRowActions({
    onCheckIn,
    onCheckOut,
    onCancel,
+   onRegister,
    onOpenAttendance,
 }: VisitRowActionsProps) {
    const { t } = useTranslation();
@@ -35,6 +37,7 @@ export function VisitRowActions({
          onCheckIn={onCheckIn}
          onCheckOut={onCheckOut}
          onCancel={onCancel}
+         onRegister={onRegister}
          onOpenAttendance={onOpenAttendance}
          align="end"
          trigger={

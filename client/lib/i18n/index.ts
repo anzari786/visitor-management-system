@@ -26,5 +26,4 @@ export {
    USER_ROLE_KEYS,
    VISIT_PURPOSE_KEYS,
    VISIT_TYPE_KEYS,
-   getVisitorAttendanceLabelKey,
 } from './labels';

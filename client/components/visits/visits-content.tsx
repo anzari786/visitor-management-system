@@ -8,7 +8,6 @@ import { WalkInVisitRequestForm } from '@/components/walk-in/walk-in-visit-reque
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { VisitsTable } from '@/components/visits/visits-table';
-import { VisitsTableSkeleton } from '@/components/visits/visits-table-skeleton';
 import { useTranslation } from '@/lib/i18n';
 
 export function VisitsContent() {
@@ -29,13 +28,13 @@ export function VisitsContent() {
             </Button>
          }
       >
-         <Suspense fallback={<VisitsTableSkeleton rows={10} />}>
+         <Suspense fallback={null}>
             <VisitsTable />
          </Suspense>
          <Dialog open={walkInOpen} onOpenChange={setWalkInOpen}>
             <DialogContent
                showCloseButton={false}
-               className="max-h-[90vh] overflow-y-auto scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:max-w-4xl"
+               className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-4xl"
             >
                <DialogTitle className="sr-only">
                   {t('visits.walkIn')}

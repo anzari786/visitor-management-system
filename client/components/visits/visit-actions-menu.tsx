@@ -24,14 +24,22 @@ import {
    canCheckOut,
    isGroupVisit,
 } from '@/lib/visit-attendance';
-import { sendPendingApprovalReminderEmail } from '@/services/visit-notification.service';
-import type { ManagedVisit } from '@/types/visit.types';
 import {
+   useCheckOutAttendance,
+   useCancelVisit,
+   useResendVisitApprovalEmail,
+} from '@/hooks/use-visits';
+import type { ManagedVisit } from '@/types/visit.types';
+import { isAfter, isToday, parseISO } from 'date-fns';
+import { AxiosError } from 'axios';
+import {
+   ClipboardPenLine,
    Eye,
    Loader2,
    LogIn,
    LogOut,
    Mail,
+   Pencil,
    XCircle,
    XIcon,
 } from 'lucide-react';
@@ -57,6 +65,7 @@ interface VisitActionsMenuProps {
    onCheckIn?: (visit: ManagedVisit) => void;
    onCheckOut?: (visit: ManagedVisit) => void;
    onCancel?: (visit: ManagedVisit) => void;
+   onRegister?: (visit: ManagedVisit) => void;
    onOpenAttendance?: (
       visit: ManagedVisit,
       mode: 'check_in' | 'check_out',
@@ -71,19 +80,28 @@ export function VisitActionsMenu({
    onCheckIn,
    onCheckOut,
    onCancel,
+   onRegister,
    onOpenAttendance,
 }: VisitActionsMenuProps) {
    const { t } = useTranslation();
    const [checkOutOpen, setCheckOutOpen] = React.useState(false);
    const [successOpen, setSuccessOpen] = React.useState(false);
    const [cancelOpen, setCancelOpen] = React.useState(false);
-   const [isResending, setIsResending] = React.useState(false);
+   const { mutateAsync: checkOutAttendance } = useCheckOutAttendance();
+   const { mutateAsync: cancelVisit, isPending: isCancelling } =
+      useCancelVisit();
+   const { mutateAsync: resendApprovalEmail, isPending: isResending } =
+      useResendVisitApprovalEmail();
 
    const group = isGroupVisit(visit);
    const showCheckIn = canCheckIn(visit);
    const showCheckOut = canCheckOut(visit);
    const showCancel = canCancel(visit.status);
    const showResendApproval = visit.status === 'requested';
+   const registrationDate = parseISO(visit.endDate ?? visit.startDate);
+   const showRegister =
+      visit.source === 'HOST_INVITATION' &&
+      (isToday(registrationDate) || isAfter(registrationDate, new Date()));
 
    const requestCheckIn = () => {
       onCheckIn?.(visit);
@@ -97,25 +115,62 @@ export function VisitActionsMenu({
       setCheckOutOpen(true);
    };
 
-   const handleCheckOutConfirm = () => {
-      onCheckOut?.(visit);
-      setSuccessOpen(true);
+   const handleCheckOutConfirm = async () => {
+      const attendanceId = primaryVisitor?.attendanceId;
+      if (!attendanceId) {
+         toast.error(t('visitActions.toast.tryAgain'));
+         return;
+      }
+
+      try {
+         await checkOutAttendance(attendanceId);
+         onCheckOut?.(visit);
+         setSuccessOpen(true);
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? (error.response?.data?.message as string | undefined)
+               : error instanceof Error
+                 ? error.message
+                 : undefined;
+         toast.error(message ?? t('visitActions.toast.tryAgain'));
+      }
    };
 
-   const handleCancel = () => {
-      onCancel?.(visit);
-      toast.success(t('visitActions.toast.cancelled', { id: visit.id }));
-      setCancelOpen(false);
+   const handleCancel = async () => {
+      if (isCancelling) return;
+
+      const visitId = visit.backendId ?? Number(visit.id);
+      if (!Number.isFinite(visitId)) {
+         toast.error(t('visitActions.toast.tryAgain'));
+         return;
+      }
+
+      try {
+         await cancelVisit(visitId);
+         onCancel?.(visit);
+         toast.success(t('visitActions.toast.cancelled', { id: visit.id }));
+         setCancelOpen(false);
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? (error.response?.data?.message as string | undefined)
+               : error instanceof Error
+                 ? error.message
+                 : undefined;
+         toast.error(message ?? t('visitActions.toast.tryAgain'));
+      }
    };
 
    const handleResendApprovalEmail = async () => {
       if (isResending) return;
-      setIsResending(true);
       try {
-         await sendPendingApprovalReminderEmail({
-            visitorName: visit.visitorName,
-            visitSummary: `${visit.id} · ${visit.meetingType}`,
-         });
+         const visitId = visit.backendId ?? Number(visit.id);
+         if (!Number.isInteger(visitId) || visitId <= 0) {
+            throw new Error('The selected visit has no valid backend id.');
+         }
+
+         await resendApprovalEmail(visitId);
          toast.success(t('visitActions.toast.emailResent'), {
             description: t('visitActions.toast.emailResentBody', {
                name: visit.visitorName,
@@ -125,8 +180,6 @@ export function VisitActionsMenu({
          toast.error(t('visitActions.toast.emailFailed'), {
             description: t('visitActions.toast.tryAgain'),
          });
-      } finally {
-         setIsResending(false);
       }
    };
 
@@ -146,6 +199,13 @@ export function VisitActionsMenu({
                   <Eye className="size-4" />
                   {t('visitActions.view')}
                </DropdownMenuItem>
+
+               {showRegister && (
+                  <DropdownMenuItem onClick={() => onRegister?.(visit)}>
+                     <Pencil className="size-4" />
+                     {t('visitActions.register')}
+                  </DropdownMenuItem>
+               )}
 
                {showCheckIn && (
                   <DropdownMenuItem onClick={requestCheckIn}>
@@ -212,7 +272,9 @@ export function VisitActionsMenu({
 
          <Dialog
             open={cancelOpen}
-            onOpenChange={(open) => !open && setCancelOpen(false)}
+            onOpenChange={(open) => {
+               if (!isCancelling) setCancelOpen(open);
+            }}
          >
             <DialogContent
                showCloseButton={false}
@@ -245,16 +307,17 @@ export function VisitActionsMenu({
                         </Button>
                      </DialogClose>
 
-                     <DialogClose asChild>
-                        <Button
-                           variant="destructive"
-                           size="sm"
-                           className="flex-1 cursor-pointer"
-                           onClick={handleCancel}
-                        >
-                           {t('visitActions.cancelVisit')}
-                        </Button>
-                     </DialogClose>
+                     <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1 cursor-pointer"
+                        onClick={handleCancel}
+                        disabled={isCancelling}
+                     >
+                        {isCancelling
+                           ? t('visitActions.sending')
+                           : t('visitActions.cancelVisit')}
+                     </Button>
                   </div>
                </div>
             </DialogContent>

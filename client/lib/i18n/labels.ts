@@ -16,6 +16,7 @@ import type {
    VisitorAttendanceStatus,
 } from '@/types/visit.types';
 import type { UserRole } from '@/types/user.types';
+import { AttendanceStatus } from '@/lib/attendance-status';
 import type { TranslationKey } from './dictionaries';
 
 export const USER_ROLE_KEYS: Record<UserRole, TranslationKey> = {
@@ -29,9 +30,10 @@ export const MANAGED_VISIT_STATUS_KEYS: Record<
    ManagedVisitStatus,
    TranslationKey
 > = {
-   requested: 'visitStatus.requested',
+   requested: 'status.pending',
    approved: 'visitStatus.approved',
    rejected: 'visitStatus.rejected',
+   expired: 'status.expired',
    rescheduled: 'visitStatus.rescheduled',
    partially_checked_in: 'visitStatus.partiallyCheckedIn',
    checked_in: 'visitStatus.checkedIn',
@@ -44,21 +46,11 @@ export const ATTENDANCE_STATUS_KEYS: Record<
    VisitorAttendanceStatus,
    TranslationKey
 > = {
-   pending: 'attendance.notCheckedIn',
-   checked_in: 'attendance.checkedIn',
-   checked_out: 'attendance.checkedOut',
+   [AttendanceStatus.EXPECTED]: 'attendance.expected',
+   [AttendanceStatus.CHECKED_IN]: 'attendance.checkedIn',
+   [AttendanceStatus.CHECKED_OUT]: 'attendance.checkedOut',
+   [AttendanceStatus.NO_SHOW]: 'attendance.noShow',
 };
-
-/** "Pending" is reserved for visits still awaiting approval. */
-export function getVisitorAttendanceLabelKey(
-   status: VisitorAttendanceStatus,
-   visitStatus: ManagedVisitStatus,
-): TranslationKey {
-   if (status === 'pending' && visitStatus === 'requested') {
-      return 'attendance.pending';
-   }
-   return ATTENDANCE_STATUS_KEYS[status];
-}
 
 export const VISIT_TYPE_KEYS: Record<VisitTypeValue, TranslationKey> = {
    visit: 'visitType.visit',

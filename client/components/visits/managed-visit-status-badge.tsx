@@ -8,64 +8,91 @@ import type {
 import {
    ATTENDANCE_STATUS_KEYS,
    MANAGED_VISIT_STATUS_KEYS,
-   getVisitorAttendanceLabelKey,
    useTranslation,
 } from '@/lib/i18n';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
+import type { VariantProps } from 'class-variance-authority';
+import { AttendanceStatus } from '@/lib/attendance-status';
+
+type StatusBadgeVariant = NonNullable<
+   VariantProps<typeof badgeVariants>['variant']
+>;
 
 const statusStyles: Record<
    ManagedVisitStatus,
-   { bg: string; text: string; border: string; dot: string }
+   {
+      variant: StatusBadgeVariant;
+      bg: string;
+      text: string;
+      border: string;
+      dot: string;
+   }
 > = {
    requested: {
+      variant: 'secondary',
       bg: 'bg-slate-100 dark:bg-slate-800/60',
       text: 'text-slate-700 dark:text-slate-200',
       border: 'border-slate-200/80 dark:border-slate-700',
       dot: 'bg-slate-500',
    },
    approved: {
+      variant: 'outline',
       bg: 'bg-emerald-400/15 dark:bg-emerald-400/10',
       text: 'text-emerald-700 dark:text-emerald-300',
       border: 'border-emerald-400/25',
       dot: 'bg-emerald-500',
    },
    rejected: {
+      variant: 'destructive',
       bg: 'bg-red-400/15 dark:bg-red-400/10',
       text: 'text-red-700 dark:text-red-300',
       border: 'border-red-400/25',
       dot: 'bg-red-500',
    },
+   expired: {
+      variant: 'secondary',
+      bg: 'bg-slate-400/15 dark:bg-slate-400/10',
+      text: 'text-slate-700 dark:text-slate-300',
+      border: 'border-slate-400/25',
+      dot: 'bg-slate-500',
+   },
    rescheduled: {
+      variant: 'outline',
       bg: 'bg-violet-400/15 dark:bg-violet-400/10',
       text: 'text-violet-700 dark:text-violet-300',
       border: 'border-violet-400/25',
       dot: 'bg-violet-500',
    },
    partially_checked_in: {
+      variant: 'outline',
       bg: 'bg-amber-400/15 dark:bg-amber-400/10',
       text: 'text-amber-800 dark:text-amber-300',
       border: 'border-amber-400/30',
       dot: 'bg-amber-500',
    },
    checked_in: {
+      variant: 'outline',
       bg: 'bg-sky-400/15 dark:bg-sky-400/10',
       text: 'text-sky-700 dark:text-sky-300',
       border: 'border-sky-400/25',
       dot: 'bg-sky-500',
    },
    partially_checked_out: {
+      variant: 'outline',
       bg: 'bg-orange-400/15 dark:bg-orange-400/10',
       text: 'text-orange-800 dark:text-orange-300',
       border: 'border-orange-400/30',
       dot: 'bg-orange-500',
    },
    checked_out: {
+      variant: 'outline',
       bg: 'bg-blue-400/15 dark:bg-blue-400/10',
       text: 'text-blue-700 dark:text-blue-300',
       border: 'border-blue-400/25',
       dot: 'bg-blue-500',
    },
    cancelled: {
+      variant: 'destructive',
       bg: 'bg-rose-400/15 dark:bg-rose-400/10',
       text: 'text-rose-700 dark:text-rose-300',
       border: 'border-rose-400/25',
@@ -77,20 +104,25 @@ const attendanceStyles: Record<
    VisitorAttendanceStatus,
    { bg: string; text: string; border: string }
 > = {
-   pending: {
+   [AttendanceStatus.EXPECTED]: {
       bg: 'bg-slate-400/15 dark:bg-slate-400/10',
       text: 'text-slate-600 dark:text-slate-300',
       border: 'border-slate-400/20',
    },
-   checked_in: {
+   [AttendanceStatus.CHECKED_IN]: {
       bg: 'bg-teal-400/15 dark:bg-teal-400/10',
       text: 'text-teal-700 dark:text-teal-300',
       border: 'border-teal-400/25',
    },
-   checked_out: {
+   [AttendanceStatus.CHECKED_OUT]: {
       bg: 'bg-indigo-400/15 dark:bg-indigo-400/10',
       text: 'text-indigo-700 dark:text-indigo-300',
       border: 'border-indigo-400/25',
+   },
+   [AttendanceStatus.NO_SHOW]: {
+      bg: 'bg-red-400/15 dark:bg-red-400/10',
+      text: 'text-red-700 dark:text-red-300',
+      border: 'border-red-400/25',
    },
 };
 
@@ -98,11 +130,13 @@ const avatarToneByAttendance: Record<
    VisitorAttendanceStatus,
    string
 > = {
-   pending: 'bg-slate-100 text-slate-600 ring-slate-200/80 dark:bg-slate-800/50 dark:text-slate-300 dark:ring-slate-700',
-   checked_in:
+   [AttendanceStatus.EXPECTED]: 'bg-slate-100 text-slate-600 ring-slate-200/80 dark:bg-slate-800/50 dark:text-slate-300 dark:ring-slate-700',
+   [AttendanceStatus.CHECKED_IN]:
       'bg-teal-50 text-teal-700 ring-teal-200/70 dark:bg-teal-950/40 dark:text-teal-300 dark:ring-teal-800/50',
-   checked_out:
+   [AttendanceStatus.CHECKED_OUT]:
       'bg-indigo-50 text-indigo-700 ring-indigo-200/70 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-800/50',
+   [AttendanceStatus.NO_SHOW]:
+      'bg-red-50 text-red-700 ring-red-200/70 dark:bg-red-950/40 dark:text-red-300 ring-red-800/50',
 };
 
 export function ManagedVisitStatusBadge({
@@ -117,9 +151,9 @@ export function ManagedVisitStatusBadge({
 
    return (
       <Badge
-         variant="outline"
+         variant={styles.variant}
          className={cn(
-            'h-6 gap-1.5 rounded-md border-0 px-2 py-0 font-medium whitespace-nowrap',
+            'h-6 gap-1.5 rounded-md px-2 py-0 font-medium whitespace-nowrap',
             styles.bg,
             styles.text,
             className,
@@ -133,19 +167,12 @@ export function ManagedVisitStatusBadge({
 
 export function VisitorAttendanceBadge({
    status,
-   visitStatus,
 }: {
    status: VisitorAttendanceStatus;
-   /** When provided, "Pending" is only shown for requested visits. */
-   visitStatus?: ManagedVisitStatus;
 }) {
    const { t } = useTranslation();
    const styles = attendanceStyles[status];
-   const label = t(
-      visitStatus
-         ? getVisitorAttendanceLabelKey(status, visitStatus)
-         : ATTENDANCE_STATUS_KEYS[status],
-   );
+   const label = t(ATTENDANCE_STATUS_KEYS[status]);
 
    return (
       <Badge

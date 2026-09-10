@@ -1,15 +1,17 @@
 import { ID_TYPE_OPTIONS } from '@/constants/visit';
 import type { MeetingTypeValue } from '@/constants/meeting-types';
+import type { VisitSourceValue } from '@/constants/visit-sources';
 import type { VisitTypeValue } from '@/constants/visit-types';
 import type { Department } from './department.types';
 import type { PrintJobStatus } from './print-job.types';
+import type { AttendanceStatusValue } from '@/lib/attendance-status';
 
 export type IdTypeValue = (typeof ID_TYPE_OPTIONS)[number]['value'];
 
 /** Legacy check-in session status (walk-in / badge flow). */
 export type VisitStatus = 'active' | 'overstay' | 'completed' | 'cancelled';
 
-export type VisitorAttendanceStatus = 'pending' | 'checked_in' | 'checked_out';
+export type VisitorAttendanceStatus = AttendanceStatusValue;
 
 /**
  * Visit request lifecycle status.
@@ -21,6 +23,7 @@ export type ManagedVisitStatus =
    | 'requested'
    | 'approved'
    | 'rejected'
+   | 'expired'
    | 'rescheduled'
    | 'partially_checked_in'
    | 'checked_in'
@@ -93,11 +96,8 @@ export type ManagedVisitor = {
 export type ManagedVisit = {
    /** Public visit identifier sent to the visitor by email (e.g. VMS-2026-0042). */
    id: string;
-   /**
-    * Opaque QR token encoded in the visitor approval email.
-    * Prefer scanning this over the human-readable visit id.
-    */
-   qrToken?: string;
+   /** Numeric backend visit id used by authenticated visit mutations. */
+   backendId?: number;
    /** Primary visitor display name (first guest / group lead). */
    visitorName: string;
    visitors: ManagedVisitor[];
@@ -105,6 +105,7 @@ export type ManagedVisit = {
    organization?: string;
    host: string;
    department: string;
+   source: VisitSourceValue;
    visitType: VisitTypeValue;
    meetingType: MeetingTypeValue;
    /** ISO date string (yyyy-MM-dd) */
@@ -132,9 +133,56 @@ export type VisitsParams = {
    page: number;
    pageSize: number;
    search?: string;
-   status?: VisitStatus | 'all';
+   status?: string | string[] | 'all';
+   source?: string | string[] | 'all';
    dateFilter?: DateFilter;
    departmentId?: string;
+};
+
+export type BackendVisitSummary = {
+   id: string;
+   visitCode: string;
+   source: string;
+   groupType: string;
+   durationType: string;
+   status: string;
+   purpose: string;
+   floor?: string;
+   room?: string;
+   startDate: string;
+   endDate?: string | null;
+   startTime: string;
+   endTime: string;
+   expectedVisitorCount: number;
+   organization?: string;
+   registeredCount: number;
+   host?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      departmentName?: string | null;
+   };
+   visitorNames: string[];
+   visitorDetails?: Array<{
+      participantId: string;
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      attendances: Array<{
+         id: string;
+         status: string;
+         checkInAt?: string;
+         checkOutAt?: string;
+         visitDayId: string;
+         date: string;
+      }>;
+   }>;
+   scheduleDates: string[];
+   scheduleDays?: Array<{
+      id: string;
+      date: string;
+   }>;
+   createdAt: string;
 };
 
 export type ManagedVisitsParams = {
@@ -163,6 +211,15 @@ export type CheckInPayload = {
    host: string;
    department?: string | null;
    badgeNumber: number;
+};
+
+export type RegisterVisitorPayload = {
+   visitId: number;
+   firstName: string;
+   lastName: string;
+   phone: string;
+   email?: string;
+   organization?: string;
 };
 
 export type CheckInData = {

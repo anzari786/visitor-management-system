@@ -34,93 +34,23 @@ const CHECK_IN_ELIGIBLE_VISIT_STATUSES: VisitStatus[] = [
    'PARTIALLY_CHECKED_IN',
    'CHECKED_IN',
    'PARTIALLY_CHECKED_OUT',
+   'CHECKED_OUT',
 ];
 
-const startOfDay = (date: Date): Date => {
+const startOfLocalDay = (date: Date): Date => {
    const copy = new Date(date);
    copy.setHours(0, 0, 0, 0);
    return copy;
 };
 
-const sameCalendarDay = (a: Date, b: Date) =>
-   startOfDay(a).getTime() === startOfDay(b).getTime();
+const calendarDate = (date: Date) =>
+   `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 
-const visitLookupSelect = {
-   id: true,
-   visitCode: true,
-   source: true,
-   groupType: true,
-   durationType: true,
-   status: true,
-   purpose: true,
-   floor: true,
-   room: true,
-   startDate: true,
-   endDate: true,
-   startTime: true,
-   endTime: true,
-   expectedVisitorCount: true,
-   organization: true,
-   hostNameSnapshot: true,
-   departmentNameSnapshot: true,
-   hostEmployee: {
-      select: {
-         id: true,
-         firstName: true,
-         lastName: true,
-         email: true,
-         departmentName: true,
-      },
-   },
-   days: {
-      select: {
-         id: true,
-         date: true,
-         attendances: {
-            select: {
-               id: true,
-               status: true,
-               checkInAt: true,
-               checkOutAt: true,
-               badgeToken: true,
-               badgePrintedAt: true,
-               participantId: true,
-               printJobs: {
-                  select: {
-                     id: true,
-                     status: true,
-                     errorMessage: true,
-                  },
-                  orderBy: { requestedAt: 'desc' as const },
-                  take: 1,
-               },
-            },
-         },
-      },
-      orderBy: { date: 'asc' as const },
-   },
-   participants: {
-      select: {
-         id: true,
-         visitor: {
-            select: {
-               id: true,
-               firstName: true,
-               lastName: true,
-               phone: true,
-               email: true,
-               organization: true,
-               idType: true,
-               idNumber: true,
-            },
-         },
-      },
-   },
-} satisfies Prisma.VisitSelect;
+const localCalendarDate = (date: Date) =>
+   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-type VisitLookupRecord = Prisma.VisitGetPayload<{
-   select: typeof visitLookupSelect;
-}>;
+const sameCalendarDay = (scheduledDate: Date, now: Date) =>
+   calendarDate(scheduledDate) === localCalendarDate(now);
 
 const assertTransition = (
    current: AttendanceStatus,
@@ -174,16 +104,12 @@ export const listAttendances = async (filters: ListAttendanceFilters) => {
          participant: { visitId: filters.visitId },
       }),
       ...(filters.status && { status: filters.status }),
-      ...(filters.date && {
-         visitDay: { date: startOfDay(filters.date) },
-      }),
       ...(filters.search && {
          participant: {
             visitor: {
                OR: [
                   { firstName: { contains: filters.search } },
                   { lastName: { contains: filters.search } },
-                  { phone: { contains: filters.search } },
                ],
             },
          },
@@ -203,105 +129,6 @@ export const listAttendances = async (filters: ListAttendanceFilters) => {
    return {
       attendances,
       meta: buildPaginationMeta(filters, total),
-   };
-};
-
-export const listDailyAttendances = async (
-   pagination: PaginationParams,
-   date?: Date,
-) => {
-   return listAttendances({ ...pagination, date: date ?? new Date() });
-};
-
-/**
- * Resolves a visit from its  human-readable visit code.
- * Returns check-in eligibility and per-visitor attendance for the target day
- * (defaults to today). Does not perform check-in.
- */
-export const findVisitForCheckIn = async (code: string, date?: Date) => {
-   const token = code.trim();
-   const visit = await prisma.visit.findFirst({
-      where: { visitCode: token },
-      select: visitLookupSelect,
-   });
-
-   if (!visit) {
-      throw new NotFoundError('Visit not found for the provided code');
-   }
-
-   const targetDate = startOfDay(date ?? new Date());
-   const visitDay =
-      visit.days.find((day) => sameCalendarDay(day.date, targetDate)) ?? null;
-
-   const eligibleForCheckIn =
-      CHECK_IN_ELIGIBLE_VISIT_STATUSES.includes(visit.status) &&
-      visitDay !== null;
-
-   const attendanceByParticipant = new Map(
-      (visitDay?.attendances ?? []).map((row) => [row.participantId, row]),
-   );
-
-   const visitors = visit.participants.map((participant) => {
-      const attendance = attendanceByParticipant.get(participant.id) ?? null;
-      const canCheckIn =
-         eligibleForCheckIn &&
-         (attendance === null || attendance.status === 'EXPECTED');
-      const printJob = attendance ? latestPrintJob(attendance) : null;
-
-      return {
-         participantId: String(participant.id),
-         visitor: {
-            id: String(participant.visitor.id),
-            firstName: participant.visitor.firstName,
-            lastName: participant.visitor.lastName,
-            phone: participant.visitor.phone ?? undefined,
-            email: participant.visitor.email ?? undefined,
-            organization: participant.visitor.organization ?? undefined,
-            idType: participant.visitor.idType ?? undefined,
-            idNumber: participant.visitor.idNumber ?? undefined,
-         },
-         attendance: attendance
-            ? {
-                 id: String(attendance.id),
-                 status: attendance.status,
-                 checkInAt: attendance.checkInAt ?? undefined,
-                 checkOutAt: attendance.checkOutAt ?? undefined,
-                 badgePrintedAt: attendance.badgePrintedAt ?? undefined,
-                 printJob: printJob
-                    ? {
-                         id: String(printJob.id),
-                         status: printJob.status,
-                         errorMessage: printJob.errorMessage ?? undefined,
-                      }
-                    : undefined,
-              }
-            : {
-                 id: undefined,
-                 status: 'EXPECTED' as const,
-                 checkInAt: undefined,
-                 checkOutAt: undefined,
-                 badgePrintedAt: undefined,
-                 printJob: undefined,
-              },
-         canCheckIn,
-      };
-   });
-
-   return {
-      visit: formatVisitLookup(visit),
-      visitDay: visitDay
-         ? { id: String(visitDay.id), date: visitDay.date }
-         : null,
-      eligibleForCheckIn,
-      expectedVisitorCount: visit.expectedVisitorCount,
-      registeredCount: visit.participants.length,
-      organization: visit.organization ?? undefined,
-      reason: !CHECK_IN_ELIGIBLE_VISIT_STATUSES.includes(visit.status)
-         ? `Visit is not eligible for check-in (status: ${visit.status})`
-         : !visitDay
-           ? 'No visit day scheduled for the selected date'
-           : undefined,
-      visitors,
    };
 };
 
@@ -354,37 +181,6 @@ export const findVisitorForCheckOut = async (code: string) => {
    };
 };
 
-const formatVisitLookup = (visit: VisitLookupRecord) => ({
-   id: String(visit.id),
-   visitCode: visit.visitCode,
-   source: visit.source,
-   groupType: visit.groupType,
-   durationType: visit.durationType,
-   status: visit.status,
-   purpose: visit.purpose,
-   floor: visit.floor ?? undefined,
-   room: visit.room ?? undefined,
-   startDate: visit.startDate,
-   endDate: visit.endDate,
-   startTime: visit.startTime,
-   endTime: visit.endTime,
-   hostName: visit.hostNameSnapshot ?? undefined,
-   departmentName: visit.departmentNameSnapshot ?? undefined,
-   host: visit.hostEmployee
-      ? {
-           id: String(visit.hostEmployee.id),
-           firstName: visit.hostEmployee.firstName,
-           lastName: visit.hostEmployee.lastName,
-           email: visit.hostEmployee.email,
-           departmentName: visit.hostEmployee.departmentName,
-        }
-      : undefined,
-   days: visit.days.map((day) => ({
-      id: String(day.id),
-      date: day.date,
-   })),
-});
-
 /**
  * Checks a visitor in for a given visit day, then queues a thermal badge
  * print job. Printer failures never roll back a successful check-in.
@@ -412,6 +208,10 @@ export const checkInVisitor = async (
 
    if (!visitDay || visitDay.visitId !== participant.visitId) {
       throw new NotFoundError('Visit day not found for this visit');
+   }
+
+   if (!sameCalendarDay(visitDay.date, new Date())) {
+      throw new BadRequestError('Visit is not scheduled for today');
    }
 
    let attendance = await prisma.visitAttendance.findUnique({

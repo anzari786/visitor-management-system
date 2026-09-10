@@ -1,14 +1,14 @@
 import {
    Prisma,
    type RoleName,
-   type VisitDurationType,
    type VisitPurpose,
-   type VisitorGroupType,
+   type VisitSource,
    type VisitStatus,
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import {
    BadRequestError,
+   ConflictError,
    ForbiddenError,
    NotFoundError,
 } from '../../lib/errors.js';
@@ -22,22 +22,35 @@ import {
    notifyVisitRejected,
    notifyVisitRescheduled,
    notifyVisitSubmitted,
+   notifyVisitorRegistered,
 } from '../../services/visit-notifications.service.js';
 import {
    findOrCreateVisitor,
    resolveVisitorForRegistration,
 } from '../visitors/visitor.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
+import { visitorSelect } from '../visitors/visitor.types.js';
 import type {
    ApproveVisitInput,
    CreateVisitInput,
    CreateVisitMeta,
    CreateVisitResult,
    RescheduleVisitInput,
+   RegisterVisitorInput,
+   RegistrationResult,
    ScheduleDateInput,
    VisitDetail,
    VisitSummary,
+   VisitTransactionClient,
 } from './visit.types.js';
+
+const REGISTRATION_ELIGIBLE_STATUSES = new Set([
+   'APPROVED',
+   'RESCHEDULED',
+   'PARTIALLY_CHECKED_IN',
+   'CHECKED_IN',
+   'PARTIALLY_CHECKED_OUT',
+]);
 
 const HOST_DECISION_ROLES: RoleName[] = ['MANAGER', 'ADMIN', 'RECEPTION'];
 const HOST_MODIFY_ROLES: RoleName[] = [
@@ -170,6 +183,168 @@ const seedExpectedAttendances = async (visitId: number) => {
       ),
       skipDuplicates: true,
    });
+};
+
+export const seedAttendancesForParticipant = async (
+   participantId: number,
+   visitId: number,
+   db: VisitTransactionClient = prisma,
+) => {
+   const days = await db.visitDay.findMany({
+      where: { visitId },
+      select: { id: true },
+   });
+
+   if (!days.length) return;
+
+   await db.visitAttendance.createMany({
+      data: days.map((day) => ({
+         participantId,
+         visitDayId: day.id,
+         status: 'EXPECTED' as const,
+      })),
+      skipDuplicates: true,
+   });
+};
+
+const assertVisitEligibleForRegistration = (visit: {
+   status: string;
+   source: string;
+}) => {
+   if (!REGISTRATION_ELIGIBLE_STATUSES.has(visit.status)) {
+      throw new BadRequestError(
+         `Visit is not open for registration (status: ${visit.status})`,
+         'VISIT_NOT_ELIGIBLE',
+      );
+   }
+
+   if (visit.source !== 'HOST_INVITATION') {
+      throw new BadRequestError(
+         'Only host invitations support visitor registration',
+         'INVALID_VISIT_SOURCE',
+      );
+   }
+};
+
+const resolveRegisteredVisitor = async (
+   input: RegisterVisitorInput,
+   db: VisitTransactionClient,
+) => {
+   const firstName = input.firstName.trim();
+   const lastName = input.lastName.trim();
+   const email = input.email?.trim() || undefined;
+   const phone = input.phone.trim();
+   const organization = input.organization?.trim() || undefined;
+
+   const existing = await db.visitor.findFirst({
+      where: {
+         OR: [
+            ...(email ? [{ email }] : []),
+            ...(phone ? [{ phone }] : []),
+            { firstName, lastName },
+         ],
+      },
+      select: visitorSelect,
+   });
+
+   if (!existing) {
+      return db.visitor.create({
+         data: { firstName, lastName, email, phone, organization },
+         select: visitorSelect,
+      });
+   }
+
+   const hasMissingInformation =
+      !existing.email || !existing.phone || !existing.organization;
+
+   if (!hasMissingInformation) return existing;
+
+   return db.visitor.update({
+      where: { id: existing.id },
+      data: {
+         firstName,
+         lastName,
+         email: email ?? existing.email,
+         phone: phone || existing.phone,
+         organization: organization ?? existing.organization,
+      },
+      select: visitorSelect,
+   });
+};
+
+export const registerVisitorForVisit = async (
+   visitId: number,
+   input: RegisterVisitorInput,
+): Promise<RegistrationResult> => {
+   const result = await prisma.$transaction(
+      async (tx) => {
+         await tx.$executeRaw`SELECT id FROM visits WHERE id = ${visitId} FOR UPDATE`;
+
+         const visit = await tx.visit.findUnique({
+            where: { id: visitId },
+            select: {
+               id: true,
+               status: true,
+               source: true,
+               expectedVisitorCount: true,
+               _count: { select: { participants: true } },
+            },
+         });
+
+         if (!visit) throw new NotFoundError('Visit not found');
+         assertVisitEligibleForRegistration(visit);
+
+         if (visit._count.participants >= visit.expectedVisitorCount) {
+            throw new ConflictError(
+               'Registration capacity has been reached for this visit',
+               'REGISTRATION_FULL',
+            );
+         }
+
+         const visitor = await resolveRegisteredVisitor(input, tx);
+         const existingParticipant = await tx.visitParticipant.findUnique({
+            where: { visitId_visitorId: { visitId, visitorId: visitor.id } },
+         });
+
+         if (existingParticipant) {
+            await seedAttendancesForParticipant(
+               existingParticipant.id,
+               visitId,
+               tx,
+            );
+            return {
+               participantId: existingParticipant.id,
+               visitorId: visitor.id,
+               visitId,
+            };
+         }
+
+         const participant = await tx.visitParticipant.create({
+            data: { visitId, visitorId: visitor.id },
+         });
+         await seedAttendancesForParticipant(participant.id, visitId, tx);
+
+         return {
+            participantId: participant.id,
+            visitorId: visitor.id,
+            visitId,
+         };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+   );
+
+   const visit = await prisma.visit.findUnique({
+      where: { id: visitId },
+      select: visitDetailSelect,
+   });
+   if (visit) {
+      await notifyVisitorRegistered(visit, {
+         firstName: input.firstName,
+         lastName: input.lastName,
+      });
+   }
+
+   return result;
 };
 
 const resolveVisitorRecords = async (
@@ -319,21 +494,23 @@ export const createVisit = async (
 };
 
 interface ListVisitsFilters extends PaginationParams {
-   status?: VisitStatus;
-   hostEmployeeId?: number;
-   durationType?: VisitDurationType;
-   groupType?: VisitorGroupType;
+   status?: VisitStatus | VisitStatus[];
+   source?: VisitSource | VisitSource[];
    search?: string;
-   dateFrom?: Date;
-   dateTo?: Date;
 }
 
 export const listVisits = async (filters: ListVisitsFilters) => {
    const where: Prisma.VisitWhereInput = {
-      ...(filters.status && { status: filters.status }),
-      ...(filters.hostEmployeeId && { hostEmployeeId: filters.hostEmployeeId }),
-      ...(filters.durationType && { durationType: filters.durationType }),
-      ...(filters.groupType && { groupType: filters.groupType }),
+      ...(filters.status && {
+         status: Array.isArray(filters.status)
+         ? { in: filters.status }
+         : filters.status,
+      }),
+      ...(filters.source && {
+         source: Array.isArray(filters.source)
+         ? { in: filters.source }
+         : filters.source,
+      }),
       ...(filters.search && {
          OR: [
             { visitCode: { contains: filters.search } },
@@ -344,24 +521,12 @@ export const listVisits = async (filters: ListVisitsFilters) => {
                         OR: [
                            { firstName: { contains: filters.search } },
                            { lastName: { contains: filters.search } },
-                           { phone: { contains: filters.search } },
-                           { email: { contains: filters.search } },
                         ],
                      },
                   },
                },
             },
          ],
-      }),
-      ...((filters.dateFrom || filters.dateTo) && {
-         days: {
-            some: {
-               date: {
-                  ...(filters.dateFrom && { gte: filters.dateFrom }),
-                  ...(filters.dateTo && { lte: filters.dateTo }),
-               },
-            },
-         },
       }),
    };
 
@@ -390,6 +555,26 @@ export const getVisitById = async (id: number): Promise<VisitDetail> => {
    if (!visit) {
       throw new NotFoundError('Visit not found');
    }
+
+   return visit;
+};
+
+export const resendVisitApprovalEmail = async (
+   id: number,
+   actorId: number,
+   actorRoles: RoleName[],
+): Promise<VisitDetail> => {
+   const visit = await getVisitById(id);
+
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      actorId,
+      actorRoles,
+      HOST_MODIFY_ROLES,
+   );
+
+   assertTransition(visit.status, ['PENDING_APPROVAL']);
+   await notifyVisitSubmitted(visit);
 
    return visit;
 };
@@ -688,6 +873,24 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       (participant) =>
          `${participant.visitor.firstName} ${participant.visitor.lastName}`,
    ),
+   visitorDetails: visit.participants.map((participant) => ({
+      participantId: String(participant.id),
+      firstName: participant.visitor.firstName,
+      lastName: participant.visitor.lastName,
+      phone: participant.visitor.phone ?? undefined,
+      attendances: participant.attendances.map((attendance) => ({
+         id: String(attendance.id),
+         status: attendance.status,
+         checkInAt: attendance.checkInAt ?? undefined,
+         checkOutAt: attendance.checkOutAt ?? undefined,
+         visitDayId: String(attendance.visitDay.id),
+         date: attendance.visitDay.date,
+      })),
+   })),
    scheduleDates: visit.days.map((day) => day.date),
+   scheduleDays: visit.days.map((day) => ({
+      id: String(day.id),
+      date: day.date,
+   })),
    createdAt: visit.createdAt,
 });

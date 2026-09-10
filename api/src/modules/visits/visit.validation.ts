@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const groupTypeSchema = z.enum(['SINGLE', 'GROUP']);
 const durationTypeSchema = z.enum(['SINGLE_DAY', 'MULTI_DAY']);
+const visitSourceSchema = z.enum(['PUBLIC', 'RECEPTION', 'HOST_INVITATION']);
 
 const identificationTypeSchema = z.enum([
    'NATIONAL_ID',
@@ -24,6 +25,7 @@ const visitStatusSchema = z.enum([
    'PENDING_APPROVAL',
    'APPROVED',
    'REJECTED',
+   'EXPIRED',
    'RESCHEDULED',
    'CANCELLED',
    'PARTIALLY_CHECKED_IN',
@@ -36,8 +38,14 @@ const visitorInputSchema = z.object({
    firstName: z.string().trim().min(1).max(100),
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
-   email: z.string().trim().email().optional(),
-   organization: z.string().trim().min(1).max(150).optional(),
+   email: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().email().optional(),
+   ),
+   organization: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).max(150).optional(),
+   ),
    idType: identificationTypeSchema.optional(),
    idNumber: z.string().trim().min(1).max(50).optional(),
 });
@@ -174,8 +182,6 @@ const registerVisitorBodySchema = z.object({
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
    organization: z.string().trim().min(1).max(150).optional(),
-   idType: identificationTypeSchema,
-   idNumber: z.string().trim().min(1).max(50),
 });
 
 /** Public self-service visitor request — same shape as the walk-in path. */
@@ -202,13 +208,11 @@ export const registerVisitorAtVisitSchema = z.object({
 
 export const listVisitsSchema = z.object({
    query: z.object({
-      status: visitStatusSchema.optional(),
-      hostEmployeeId: z.coerce.number().int().positive().optional(),
-      durationType: durationTypeSchema.optional(),
-      groupType: groupTypeSchema.optional(),
+      status: z.union([visitStatusSchema, z.array(visitStatusSchema)]).optional(),
+      source: z
+         .union([visitSourceSchema, z.array(visitSourceSchema)])
+         .optional(),
       search: z.string().trim().min(1).optional(),
-      dateFrom: z.coerce.date().optional(),
-      dateTo: z.coerce.date().optional(),
       page: z.coerce.number().int().positive().optional().default(1),
       limit: z.coerce.number().int().positive().max(100).optional().default(20),
    }),

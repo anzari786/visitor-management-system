@@ -27,7 +27,7 @@ export function VisitApprovedEmail({
          </EmailParagraph>
          <VisitDetailsCard details={details} />
          <EmailParagraph>
-            Present visit code {details.visitCode} (or your QR code) at reception
+            Present visit code {details.visitCode} at reception
             for check-in.
          </EmailParagraph>
       </EmailLayout>

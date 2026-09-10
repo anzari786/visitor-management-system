@@ -152,6 +152,8 @@ export function CheckInDialog({
    const [activeVerifyVisitorId, setActiveVerifyVisitorId] = React.useState<
       string | null
    >(null);
+   const verificationSignatures = React.useRef(new Map<string, string>());
+   const verificationInFlight = React.useRef(new Set<string>());
    const verifyForm = useForm<VerificationFormValues>({
       resolver: zodResolver(verificationSchema),
       defaultValues: { verifications: [] },
@@ -176,10 +178,14 @@ export function CheckInDialog({
          setVerifiedIds({});
          replaceVerifications([]);
          setActiveVerifyVisitorId(null);
+         verificationSignatures.current.clear();
+         verificationInFlight.current.clear();
          return;
       }
 
       setVerifiedIds({});
+      verificationSignatures.current.clear();
+      verificationInFlight.current.clear();
       replaceVerifications(
          visitors.map((visitor) => ({
             visitorId: visitor.id,
@@ -193,6 +199,11 @@ export function CheckInDialog({
    const verifiedVisitors = visitors.filter((v) => verifiedIds[v.id]);
    const hasVerified = verifiedVisitors.length > 0;
    const canEnterStep2 = hasVerified;
+   const verificationValues = verifyForm.watch('verifications');
+   const hasVerificationInput = verificationValues.some(
+      (verification) =>
+         Boolean(verification.idType) || Boolean(verification.idNumber.trim()),
+   );
    const isLastStep = activeStepIdx === CHECK_IN_STEPS.length - 1;
 
    const activeVerificationTargetId = React.useMemo(() => {
@@ -264,9 +275,21 @@ export function CheckInDialog({
       );
       if (index === -1) return;
 
+      const values = verifyForm.getValues(`verifications.${index}`);
+      const signature = `${values.idType}:${values.idNumber.trim()}`;
+      if (
+         verificationSignatures.current.get(visitorId) === signature ||
+         verificationInFlight.current.has(visitorId)
+      ) {
+         return;
+      }
+
+      verificationInFlight.current.add(visitorId);
       const valid = await verifyForm.trigger(`verifications.${index}`);
+      verificationInFlight.current.delete(visitorId);
       if (!valid) return;
 
+      verificationSignatures.current.set(visitorId, signature);
       setVerifiedIds((prev) => ({ ...prev, [visitorId]: true }));
       toast.success(t('checkIn.toast.identityVerified'));
    };
@@ -277,6 +300,7 @@ export function CheckInDialog({
          delete next[visitorId];
          return next;
       });
+      verificationSignatures.current.delete(visitorId);
       if (activeStepIdx > 0) {
          setActiveStepIdx(0);
       }
@@ -455,22 +479,7 @@ export function CheckInDialog({
                                                          <CheckCircle2 className="size-3.5" />
                                                          {t('checkIn.verified')}
                                                       </Badge>
-                                                   ) : (
-                                                      <Button
-                                                         type="button"
-                                                         variant="outline"
-                                                         size="sm"
-                                                         className="rounded-lg cursor-pointer"
-                                                         onClick={() =>
-                                                            verifyVisitor(
-                                                               visitor.id,
-                                                            )
-                                                         }
-                                                      >
-                                                         <BadgeCheck className="size-4" />
-                                                         {t('checkIn.step1.title')}
-                                                      </Button>
-                                                   )}
+                                                   ) : null}
                                                 </div>
 
                                                 {verified ? (
@@ -534,6 +543,11 @@ export function CheckInDialog({
                                                                         aria-invalid={
                                                                            !!fieldErrors?.idType
                                                                         }
+                                                                          onBlur={() =>
+                                                                             void verifyVisitor(
+                                                                                visitor.id,
+                                                                             )
+                                                                          }
                                                                      >
                                                                         <SelectValue
                                                                            placeholder={t(
@@ -610,6 +624,11 @@ export function CheckInDialog({
                                                                         className="pr-9"
                                                                         onFocus={() =>
                                                                            setActiveVerifyVisitorId(
+                                                                              visitor.id,
+                                                                           )
+                                                                        }
+                                                                        onBlur={() =>
+                                                                           void verifyVisitor(
                                                                               visitor.id,
                                                                            )
                                                                         }
@@ -837,7 +856,7 @@ export function CheckInDialog({
                                  type="button"
                                  className="cursor-pointer gap-2 hover:bg-primary/90"
                                  onClick={handleNext}
-                                 disabled={!canEnterStep2}
+                                 disabled={!hasVerificationInput}
                               >
                                  {t('common.continue')}
                                  <ChevronRight className="size-4" />

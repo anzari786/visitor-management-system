@@ -14,13 +14,9 @@ import {
    formatVisitDetail,
    formatVisitSummary,
    assertVisitActorAccess,
-} from './visit.service.js';
-import {
-   formatRegistrationProgress,
-   formatRegistrationResult,
-   getVisitRegistrationProgress,
    registerVisitorForVisit,
-} from './visit-registration.service.js';
+   resendVisitApprovalEmail,
+} from './visit.service.js';
 import type {
    createVisitRequestSchema,
    createWalkInVisitSchema,
@@ -78,7 +74,6 @@ const assertCanCreateInvitation = async (
       'You can only create invitations for yourself, or need a staff role',
    );
 };
-
 /** Public — no session exists yet at this point in the flow. */
 export const submitVisitorRequest = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateVisitRequestBody;
@@ -91,7 +86,6 @@ export const submitVisitorRequest = async (req: Request, res: Response) => {
       data: formatVisitDetail(visit),
    });
 };
-
 export const submitWalkInVisit = async (req: Request, res: Response) => {
    const input = req.validatedBody as CreateWalkInVisitBody;
 
@@ -132,24 +126,16 @@ export const submitHostInvitation = async (req: Request, res: Response) => {
 export const getVisits = async (req: Request, res: Response) => {
    const {
       status,
-      hostEmployeeId,
-      durationType,
-      groupType,
+      source,
       search,
-      dateFrom,
-      dateTo,
       page,
       limit,
    } = req.validatedQuery as ListVisitsQuery;
 
    const { visits, meta } = await listVisits({
       status,
-      hostEmployeeId,
-      durationType,
-      groupType,
+      source,
       search,
-      dateFrom,
-      dateTo,
       page,
       limit,
    });
@@ -168,6 +154,25 @@ export const getVisit = async (req: Request, res: Response) => {
 
    return res.status(200).json({
       success: true,
+      data: formatVisitDetail(visit),
+   });
+};
+
+export const resendVisitApprovalEmailHandler = async (
+   req: Request,
+   res: Response,
+) => {
+   const { id } = req.validatedParams as VisitIdParams;
+
+   const visit = await resendVisitApprovalEmail(
+      id,
+      req.session.userId!,
+      sessionRoles(req),
+   );
+
+   return res.status(200).json({
+      success: true,
+      message: 'Visit approval email resent successfully',
       data: formatVisitDetail(visit),
    });
 };
@@ -263,30 +268,10 @@ export const registerVisitorAtVisit = async (req: Request, res: Response) => {
    return res.status(201).json({
       success: true,
       message: 'Visitor registered successfully',
-      data: formatRegistrationResult(result),
-   });
-};
-
-/** Host/staff views registration progress for an invitation visit. */
-export const getVisitRegistrationProgressHandler = async (
-   req: Request,
-   res: Response,
-) => {
-   const { id } = req.validatedParams as VisitIdParams;
-
-   const visit = await getVisitById(id);
-
-   await assertVisitActorAccess(
-      visit.hostEmployee?.id ?? null,
-      req.session.userId!,
-      sessionRoles(req),
-      HOST_VIEW_ROLES,
-   );
-
-   const progress = await getVisitRegistrationProgress(id);
-
-   return res.status(200).json({
-      success: true,
-      data: formatRegistrationProgress(progress),
+      data: {
+         participantId: String(result.participantId),
+         visitorId: String(result.visitorId),
+         visitId: String(result.visitId),
+      },
    });
 };

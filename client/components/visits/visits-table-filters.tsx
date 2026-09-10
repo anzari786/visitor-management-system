@@ -11,13 +11,13 @@ import {
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-   VISIT_TYPE_OPTIONS,
-   type VisitTypeValue,
-} from '@/constants/visit-types';
-import { VISIT_TYPE_KEYS, useTranslation, type TranslationKey } from '@/lib/i18n';
+   VISIT_SOURCE_OPTIONS,
+   type VisitSourceValue,
+} from '@/constants/visit-sources';
+import { VISIT_STATUS_FILTER_OPTIONS } from '@/constants/visit-status';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { ManagedVisitStatus } from '@/types/visit.types';
-import { Footprints, MailPlus, ScanLine, Search } from 'lucide-react';
+import { ScanLine, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
@@ -25,24 +25,31 @@ import { ScanDialog } from './scan-dialog';
 
 type StatusFilterValue =
    | 'all'
-   | 'pending'
-   | 'approved'
-   | 'rejected'
-   | 'rescheduled'
-   | 'checked_in'
-   | 'checked_out';
+   | (typeof VISIT_STATUS_FILTER_OPTIONS)[number]['value'];
+
+const STATUS_FILTER_LABELS: Record<
+   Exclude<StatusFilterValue, 'all'>,
+   TranslationKey
+> = {
+   requested: 'status.pending',
+   approved: 'status.approved',
+   rejected: 'status.rejected',
+   expired: 'status.expired',
+   rescheduled: 'status.rescheduled',
+   cancelled: 'status.cancelled',
+   checked_in: 'status.checkedIn',
+   checked_out: 'status.checkedOut',
+};
 
 const STATUS_FILTER_OPTIONS: {
    value: StatusFilterValue;
    labelKey: TranslationKey;
 }[] = [
    { value: 'all', labelKey: 'common.all' },
-   { value: 'pending', labelKey: 'status.pending' },
-   { value: 'approved', labelKey: 'status.approved' },
-   { value: 'rejected', labelKey: 'status.rejected' },
-   { value: 'rescheduled', labelKey: 'status.rescheduled' },
-   { value: 'checked_in', labelKey: 'status.checkedIn' },
-   { value: 'checked_out', labelKey: 'status.checkedOut' },
+   ...VISIT_STATUS_FILTER_OPTIONS.map(({ value }) => ({
+      value,
+      labelKey: STATUS_FILTER_LABELS[value],
+   })),
 ];
 
 const TOGGLE_OPTIONS = STATUS_FILTER_OPTIONS.map((opt) => ({
@@ -51,33 +58,12 @@ const TOGGLE_OPTIONS = STATUS_FILTER_OPTIONS.map((opt) => ({
    value: opt.value,
 }));
 
-const VISIT_TYPE_ICONS: Record<
-   VisitTypeValue,
-   React.ComponentType<{ size?: number; className?: string }>
-> = {
-   visit: Footprints,
-   invitation: MailPlus,
-};
-
-export const STATUS_FILTER_GROUPS: Record<
-   Exclude<StatusFilterValue, 'all'>,
-   ManagedVisitStatus[]
-> = {
-   pending: ['requested'],
-   approved: ['approved'],
-   rejected: ['rejected', 'cancelled'],
-   rescheduled: ['rescheduled'],
-   checked_in: ['checked_in', 'partially_checked_in'],
-   checked_out: ['checked_out', 'partially_checked_out'],
-};
 type VisitsTableFiltersProps = {
    onScanBadge?: () => void;
-   onFindVisit?: () => void;
 };
 
 export function VisitsTableFilters({
    onScanBadge,
-   onFindVisit,
 }: VisitsTableFiltersProps) {
    const { t } = useTranslation();
    const router = useRouter();
@@ -88,8 +74,8 @@ export function VisitsTableFilters({
    const search = searchParams.get('search') ?? '';
    const statusFilter =
       (searchParams.get('status') as StatusFilterValue) || 'all';
-   const visitTypeFilter =
-      (searchParams.get('visitType') as VisitTypeValue | 'all') || 'all';
+   const visitSourceFilter =
+      (searchParams.get('source') as VisitSourceValue | 'all') || 'all';
 
    const activeToggleKey = `status:${statusFilter}`;
 
@@ -133,17 +119,19 @@ export function VisitsTableFilters({
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [debouncedSearch]);
 
-   const hasActiveFilters =
-      Boolean(search) || statusFilter !== 'all' || visitTypeFilter !== 'all';
+   const hasActiveFilters = Array.from(searchParams.keys()).some(
+      (key) => key !== 'page' && key !== 'pageSize',
+   );
 
    const clearAllFilters = () => {
       setSearchInput('');
-      updateParams({
-         search: null,
-         status: null,
-         visitType: null,
-         page: 1,
-      });
+      lastPushedSearch.current = '';
+
+      const params = new URLSearchParams();
+      const pageSize = searchParams.get('pageSize');
+      if (pageSize) params.set('pageSize', pageSize);
+      params.set('page', '1');
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
    };
 
    return (
@@ -161,23 +149,15 @@ export function VisitsTableFilters({
                </div>
 
                <Select
-                  value={visitTypeFilter}
+                  value={visitSourceFilter}
                   onValueChange={(value) =>
-                     updateParams({ visitType: value, page: 1 })
+                     updateParams({ source: value, page: 1 })
                   }
                >
                   <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
                      <div className="flex items-center gap-2">
-                        {visitTypeFilter !== 'all' &&
-                           (() => {
-                              const Icon =
-                                 VISIT_TYPE_ICONS[
-                                    visitTypeFilter as VisitTypeValue
-                                 ];
-                              return Icon ? <Icon size={16} /> : null;
-                           })()}
                         <SelectValue
-                           placeholder={t('visits.filters.visitType')}
+                           placeholder={t('visits.filters.visitSource')}
                         />
                      </div>
                   </SelectTrigger>
@@ -186,13 +166,13 @@ export function VisitsTableFilters({
                      className="data-[state=open]:slide-in-from-bottom-8 data-[state=open]:zoom-in-100 duration-400"
                   >
                      <SelectItem value="all">
-                        {t('visits.filters.allVisitTypes')}
+                        {t('visits.filters.allVisitSources')}
                      </SelectItem>
-                     {VISIT_TYPE_OPTIONS.map((type) => {
+                     {VISIT_SOURCE_OPTIONS.map((source) => {
                         return (
-                           <SelectItem key={type.value} value={type.value}>
+                           <SelectItem key={source.value} value={source.value}>
                               <span className="truncate">
-                                 {t(VISIT_TYPE_KEYS[type.value])}
+                                 {t(source.labelKey)}
                               </span>
                            </SelectItem>
                         );
@@ -238,6 +218,18 @@ export function VisitsTableFilters({
                      })}
                   </ToggleGroup>
                </div>
+
+               {hasActiveFilters && (
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     className="h-9 gap-1.5 self-start text-muted-foreground"
+                     onClick={clearAllFilters}
+                  >
+                     <X className="size-3.5" />
+                     {t('common.clear')}
+                  </Button>
+               )}
             </div>
 
             <Button
@@ -253,7 +245,6 @@ export function VisitsTableFilters({
          <ScanDialog
             open={scanOpen}
             onOpenChange={setScanOpen}
-            onFindVisit={onFindVisit}
             onScanBadge={onScanBadge}
          />
       </>

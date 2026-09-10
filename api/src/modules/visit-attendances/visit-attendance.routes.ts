@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import {
    getAttendances,
-   getDailyAttendances,
    getAttendance,
-   lookupVisitForCheckIn,
    lookupVisitorForCheckOut,
    postCheckIn,
    postCheckOut,
@@ -17,9 +15,7 @@ import { validate } from '../../middleware/validate.middleware.js';
 import {
    checkInSchema,
    listAttendancesSchema,
-   dailyAttendanceSchema,
    attendanceIdParamSchema,
-   lookupVisitByCodeSchema,
    lookupBadgeByCodeSchema,
 } from './visit-attendance.validation.js';
 
@@ -29,21 +25,6 @@ const deskStaff = requireRole('GUARD', 'RECEPTION', 'ADMIN');
 
 // Static segments declared before ':id' so they aren't swallowed by it.
 router.get('/', requireAuth, validate(listAttendancesSchema), getAttendances);
-router.get(
-   '/daily',
-   requireAuth,
-   validate(dailyAttendanceSchema),
-   getDailyAttendances,
-);
-
-// code lookups (find → verify → then call check-in / check-out)
-router.get(
-   '/lookup/visit',
-   requireAuth,
-   deskStaff,
-   validate(lookupVisitByCodeSchema),
-   lookupVisitForCheckIn,
-);
 
 /** Printed badge token lookup (path kept as /lookup/badge for desk scanners). */
 router.get(

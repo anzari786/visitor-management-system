@@ -20,8 +20,10 @@ import {
 import type { VisitorFormValues } from '@/lib/validations/visit-request.schema';
 import type { ManagedVisit } from '@/types/visit.types';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { isAfter, isToday, parseISO, startOfToday } from 'date-fns';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { useTranslation } from '@/lib/i18n';
 
 interface VisitorInformationDialogProps {
@@ -29,6 +31,9 @@ interface VisitorInformationDialogProps {
    onOpenChange: (open: boolean) => void;
    visit: ManagedVisit | null;
    onComplete: (visitors: VisitorFormValues[]) => void;
+   onRegisterComplete: (
+      visitors: VisitorFormValues[],
+   ) => void | Promise<void>;
 }
 
 function getVisitorValues(
@@ -70,8 +75,14 @@ export function VisitorInformationDialog({
    onOpenChange,
    visit,
    onComplete,
+   onRegisterComplete,
 }: VisitorInformationDialogProps) {
    const { t } = useTranslation();
+   const [isSubmitting, setIsSubmitting] = React.useState(false);
+   const isFutureVisit = visit
+      ? isAfter(parseISO(visit.startDate), startOfToday()) &&
+        !isToday(parseISO(visit.startDate))
+      : false;
    const form = useForm<
       HostInvitationFormInput,
       unknown,
@@ -107,13 +118,25 @@ export function VisitorInformationDialog({
       });
    };
 
-   const handleSubmit = form.handleSubmit((data) => {
+   const handleSubmit = form.handleSubmit(async (data) => {
       const visitors = data.visitors.map((visitor) => ({
          ...visitor,
          organization: visitor.organization,
       }));
 
-      onComplete(visitors);
+      setIsSubmitting(true);
+      try {
+         await onRegisterComplete(visitors);
+         if (!isFutureVisit) onComplete(visitors);
+      } catch (error) {
+         toast.error(
+            error instanceof Error
+               ? error.message
+               : t('visitorInfo.submitFailed'),
+         );
+      } finally {
+         setIsSubmitting(false);
+      }
    }, onInvalid);
 
    return (
@@ -131,11 +154,12 @@ export function VisitorInformationDialog({
                noValidate
                className="flex min-h-0 flex-1 flex-col"
             >
-               <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+               <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5 scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                   <InvitationVisitorsFields
                      form={form}
                      heading={t('visitorInfo.heading')}
                      description={t('visitorInfo.description')}
+                     maxVisitors={visit?.visitorCount}
                   />
                </div>
 
@@ -144,13 +168,22 @@ export function VisitorInformationDialog({
                      type="button"
                      variant="outline"
                      className="cursor-pointer"
+                     disabled={isSubmitting}
                      onClick={() => handleOpenChange(false)}
                   >
                      {t('common.cancel')}
                   </Button>
 
-                  <Button type="submit" className="cursor-pointer gap-2">
-                     {t('visitorInfo.continue')}
+                  <Button
+                     type="submit"
+                     className="cursor-pointer gap-2"
+                     disabled={isSubmitting}
+                  >
+                     {t(
+                        isFutureVisit
+                           ? 'visitorInfo.register'
+                           : 'visitorInfo.continue',
+                     )}
                   </Button>
                </DialogFooter>
             </form>

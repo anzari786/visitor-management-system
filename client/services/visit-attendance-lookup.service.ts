@@ -1,26 +1,13 @@
 import { api } from '@/lib/axios';
 import {
-   canCheckIn,
    canCheckOut,
-   getCheckInEligibleVisitors,
    getCheckOutEligibleVisitors,
 } from '@/lib/visit-attendance';
 import type { ApiResponse } from '@/types/api.types';
 import type { ManagedVisit, ManagedVisitor } from '@/types/visit.types';
 import { AxiosError } from 'axios';
 
-/**
- * Lookup contracts mirror visit-attendance QR endpoints:
- * GET /visit-attendance/lookup/visit?code=
- * GET /visit-attendance/lookup/badge?code=
- */
-
-export type VisitCheckInLookupResult = {
-   visit: ManagedVisit;
-   eligibleVisitors: ManagedVisitor[];
-   eligibleForCheckIn: boolean;
-   reason?: string;
-};
+/** Lookup contract for the printed badge used during check-out. */
 
 export type BadgeCheckOutLookupResult = {
    visit: ManagedVisit;
@@ -29,31 +16,6 @@ export type BadgeCheckOutLookupResult = {
    attendanceId?: string;
    eligibleForCheckOut: boolean;
    reason?: string;
-};
-
-type ApiVisitLookup = {
-   visit: {
-      id: string;
-      visitCode: string;
-      status: string;
-      purpose?: string;
-   };
-   eligibleForCheckIn: boolean;
-   reason?: string;
-   visitors: Array<{
-      participantId: string;
-      canCheckIn: boolean;
-      visitor: {
-         id: string;
-         firstName: string;
-         lastName: string;
-         phone?: string;
-         email?: string;
-         organization?: string;
-         idType?: string;
-         idNumber?: string;
-      };
-   }>;
 };
 
 type ApiBadgeLookup = {
@@ -72,51 +34,11 @@ type ApiBadgeLookup = {
    };
 };
 
-function normalizeVisitCode(code: string) {
-   return code.trim().toUpperCase();
-}
-
 function isRouteMissing(error: unknown) {
    if (!(error instanceof AxiosError)) return false;
    const status = error.response?.status;
    // Unimplemented route or gateway miss — fall back to mock desk data.
    return status === 404 || status === 501 || status === 502 || !error.response;
-}
-
-function mockLookupVisitForCheckIn(
-   code: string,
-   visits: ManagedVisit[],
-): VisitCheckInLookupResult {
-   const normalized = normalizeVisitCode(code);
-   const visit =
-      visits.find((item) => {
-         const id = item.id.toUpperCase();
-         const token = item.qrToken?.toUpperCase();
-         return (
-            id === normalized ||
-            token === normalized ||
-            token === code.trim() ||
-            `QR-${id}` === normalized
-         );
-      }) ?? null;
-
-   if (!visit) {
-      throw new Error('Visit not found for the scanned QR code');
-   }
-
-   const eligibleVisitors = getCheckInEligibleVisitors(visit);
-   const eligibleForCheckIn = canCheckIn(visit);
-
-   return {
-      visit,
-      eligibleVisitors,
-      eligibleForCheckIn,
-      reason: eligibleForCheckIn
-         ? undefined
-         : eligibleVisitors.length === 0
-           ? 'No visitors are eligible for check-in on this visit right now'
-           : 'Visit is not eligible for check-in',
-   };
 }
 
 function mockLookupBadgeForCheckOut(
@@ -155,57 +77,7 @@ function mockLookupBadgeForCheckOut(
    };
 }
 
-function mapApiVisitLookup(
-   payload: ApiVisitLookup,
-   fallbackVisits: ManagedVisit[],
-): VisitCheckInLookupResult {
-   const existing =
-      fallbackVisits.find(
-         (visit) =>
-            visit.id === payload.visit.visitCode ||
-            visit.id === payload.visit.id,
-      ) ?? null;
-
-   if (existing) {
-      const eligibleVisitors = getCheckInEligibleVisitors(existing);
-      return {
-         visit: existing,
-         eligibleVisitors,
-         eligibleForCheckIn: payload.eligibleForCheckIn && canCheckIn(existing),
-         reason: payload.reason,
-      };
-   }
-
-   throw new Error(
-      'Visit found by QR, but it is not loaded in the desk visit list yet',
-   );
-}
-
 export const visitAttendanceLookupService = {
-   async lookupVisitForCheckIn(
-      code: string,
-      visits: ManagedVisit[],
-   ): Promise<VisitCheckInLookupResult> {
-      try {
-         const { data } = await api.get<ApiResponse<ApiVisitLookup>>(
-            '/visit-attendance/lookup/visit',
-            { params: { code: code.trim() } },
-         );
-         return mapApiVisitLookup(data.data, visits);
-      } catch (error) {
-         if (isRouteMissing(error)) {
-            return mockLookupVisitForCheckIn(code, visits);
-         }
-         if (error instanceof AxiosError) {
-            throw new Error(
-               error.response?.data?.message ??
-                  'Unable to look up visit from QR code',
-            );
-         }
-         throw error;
-      }
-   },
-
    async lookupBadgeForCheckOut(
       code: string,
       visits: ManagedVisit[],

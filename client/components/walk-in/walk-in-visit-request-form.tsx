@@ -9,7 +9,7 @@ export function WalkInVisitRequestForm() {
 
    return (
       <VisitRequestForm
-         className="max-w-none space-y-6 rounded-none border-0 bg-transparent p-0 shadow-none md:p-0"
+         className="h-full max-w-none space-y-6 rounded-none border-0 bg-transparent p-0 shadow-none md:p-0"
          submitAction={async (values) =>
             submitWalkInVisit.mutateAsync(toSubmitVisitRequestPayload(values))
          }

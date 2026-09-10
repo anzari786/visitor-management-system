@@ -167,11 +167,11 @@ export default function VisitRequestForm({
       <>
          <div
             className={cn(
-               'mx-auto w-full max-w-3xl space-y-8 rounded-xl border border-border bg-background p-6 shadow-xs md:p-8',
+               'mx-auto flex min-h-0 w-full max-w-3xl flex-col space-y-8 rounded-xl border border-border bg-background p-6 shadow-xs md:p-8',
                className,
             )}
          >
-            <div className="relative flex w-full items-center justify-between">
+            <div className="sticky top-0 z-10 relative flex w-full shrink-0 items-center justify-between bg-background">
                <div
                   className="absolute h-0.5 bg-border"
                   style={{ left: '16.67%', right: '16.67%', top: '18px' }}
@@ -245,9 +245,9 @@ export default function VisitRequestForm({
                })}
             </div>
 
-            <hr className="border-border/50" />
+            <hr className="shrink-0 border-border/50" />
 
-            <div className="min-h-32">
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-none [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                <AnimatePresence mode="wait">
                   <motion.div
                      key={activeStep}
@@ -268,7 +268,7 @@ export default function VisitRequestForm({
                </AnimatePresence>
             </div>
 
-            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky bottom-0 z-10 flex shrink-0 flex-col-reverse gap-3 bg-background pt-2 sm:flex-row sm:items-center sm:justify-between">
                <Button
                   type="button"
                   variant="outline"

@@ -4,10 +4,8 @@ import { type ReactElement } from 'react';
 import {
    DropdownMenu,
    DropdownMenuContent,
-   DropdownMenuLabel,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
-   DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LOCALES, LOCALE_META, useTranslation, type Locale } from '@/lib/i18n';
@@ -19,7 +17,7 @@ type Props = {
 };
 
 const itemClass =
-   'cursor-pointer gap-2 pl-2 text-sm data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground [&>span]:hidden';
+   'cursor-pointer gap-2 pl-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground [&>span:first-child]:hidden';
 
 export default function LanguageDropdown({
    trigger,
@@ -32,16 +30,14 @@ export default function LanguageDropdown({
       <DropdownMenu defaultOpen={defaultOpen}>
          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
 
-         <DropdownMenuContent className="w-52" align={align}>
-            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-               {t('header.language')}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
+         <DropdownMenuContent
+            className="w-50 max-w-[calc(100vw-1rem)] border-border bg-popover text-popover-foreground"
+            align={align}
+         >
             <DropdownMenuRadioGroup
                value={locale}
                onValueChange={(value) => setLocale(value as Locale)}
-               className="flex flex-col gap-1"
+               className="flex flex-col gap-2"
             >
                {LOCALES.map((value) => (
                   <DropdownMenuRadioItem
@@ -49,17 +45,9 @@ export default function LanguageDropdown({
                      value={value}
                      className={itemClass}
                   >
-                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-muted text-[10px] font-semibold uppercase">
-                        {value}
-                     </span>
-                     <span className="flex min-w-0 flex-col leading-tight">
-                        <span className="truncate">
-                           {LOCALE_META[value].label}
-                        </span>
-                        <span className="truncate text-xs text-muted-foreground">
-                           {LOCALE_META[value].englishLabel}
-                        </span>
-                     </span>
+                     <div className="min-w-0 truncate">
+                        {`${LOCALE_META[value].label} (${LOCALE_META[value].englishLabel})`}
+                     </div>
                   </DropdownMenuRadioItem>
                ))}
             </DropdownMenuRadioGroup>

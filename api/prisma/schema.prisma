@@ -321,6 +321,7 @@ model Visit {
   notifications Notification[]
 
   @@index([status])
+  @@index([status, endDate])
   @@index([source])
   @@index([hostEmployeeId])
   @@index([departmentNameSnapshot])

@@ -44,7 +44,6 @@ export const updateProfileSchema = z.object({
          lastName: z.string().trim().min(1).max(100).optional(),
          username: z.string().trim().min(3).max(50).optional(),
          phone: z.string().trim().min(7).max(30).nullable().optional(),
-         avatar: z.string().trim().max(2048).nullable().optional(),
       })
       .strict()
       .refine((body) => Object.keys(body).length > 0, {

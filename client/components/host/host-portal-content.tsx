@@ -23,6 +23,7 @@ import { UpcomingVisits } from './upcoming-visits';
 import type { VisitUpdateDetailsValue } from './visit-update-details';
 import { useTranslation } from '@/lib/i18n';
 import SpinnerBars from '../shared/spinner-bars';
+import { toUtcWallClockDate } from '@/lib/map-host-invitation';
 
 function ListState({
    loading,
@@ -38,7 +39,7 @@ function ListState({
    if (loading) {
       return (
          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card px-4 py-12 text-center">
-            <SpinnerBars />
+            <SpinnerBars className="text-primary" />
             <p className="text-sm font-medium text-foreground">
                {loadingLabel}
             </p>
@@ -74,13 +75,9 @@ function toReschedulePayload(value: VisitUpdateDetailsValue) {
 
    return {
       scheduleDates: dates.map((date) => ({
-         date,
-         expectedStartTime: new Date(
-            `${date.toISOString().slice(0, 10)}T${value.startTime}`,
-         ),
-         expectedEndTime: new Date(
-            `${date.toISOString().slice(0, 10)}T${value.endTime}`,
-         ),
+         date: toUtcWallClockDate(date),
+         expectedStartTime: toUtcWallClockDate(date, value.startTime),
+         expectedEndTime: toUtcWallClockDate(date, value.endTime),
       })),
       floor: value.floor,
       room: value.room,

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ReactElement } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -47,7 +46,6 @@ export default function ProfileDropdown({
       ? `${user.firstName[0]}${user.lastName[0]}`
       : 'U';
    const subtitle = user?.username ?? '';
-   const avatarSrc = user?.avatar ?? undefined;
 
    return (
       <>
@@ -63,12 +61,9 @@ export default function ProfileDropdown({
                <DropdownMenuGroup>
                   <DropdownMenuLabel className="flex items-center gap-2.5 px-2.5 py-2 font-normal">
                      <div className="relative shrink-0">
-                        <Avatar className="size-9">
-                           {avatarSrc ? (
-                              <AvatarImage src={avatarSrc} alt={fullName} />
-                           ) : null}
-                           <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
+                        <span className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                           {initials}
+                        </span>
                         <span className="ring-card absolute right-0 bottom-0 size-2 rounded-full bg-green-600 ring-2" />
                      </div>
 

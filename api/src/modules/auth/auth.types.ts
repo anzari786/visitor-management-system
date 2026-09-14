@@ -26,8 +26,6 @@ export const authUserSelect = {
 
    phone: true,
 
-   avatar: true,
-
    username: true,
 
    isActive: true,

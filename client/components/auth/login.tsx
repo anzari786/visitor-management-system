@@ -53,7 +53,7 @@ export default function Login() {
    };
 
    return (
-      <Card className="w-full rounded-4xl border border-border bg-card/85 px-6 py-10 pt-14 shadow-2xs shadow-primary/10 backdrop-blur-xl">
+      <Card className="w-full rounded-4xl border border-border bg-card/85 px-6 py-10 shadow-2xs shadow-primary/10 backdrop-blur-xl">
          <div className="flex flex-col items-center space-y-8">
             <div className="flex w-full justify-end">
                <LanguageDropdown align="end" />
@@ -191,9 +191,7 @@ export default function Login() {
 
             {/* Footer Notice */}
             <div className="text-pretty text-center text-muted-foreground text-xs">
-               <p>
-                  {t('auth.login.footerOrg')}
-               </p>
+               <p>{t('auth.login.footerOrg')}</p>
                <p>{t('nav.brandSubtitle')}</p>
             </div>
          </div>

@@ -93,10 +93,10 @@ function mapVisitToHostCard(visit: any): HostVisit {
    const endTime = visit.endTime ?? visit.expectedEndTime;
 
    const startDateValue = parsedStartDate
-      ? format(parseISO(parsedStartDate), 'd MMM yyyy')
+      ? format(parseISO(String(parsedStartDate).slice(0, 10)), 'd MMM yyyy')
       : '—';
    const endDateValue = parsedEndDate
-      ? format(parseISO(parsedEndDate), 'd MMM yyyy')
+      ? format(parseISO(String(parsedEndDate).slice(0, 10)), 'd MMM yyyy')
       : undefined;
 
    return {

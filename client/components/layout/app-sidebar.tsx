@@ -1,6 +1,5 @@
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
    Sidebar,
    SidebarContent,
@@ -64,7 +63,6 @@ function SidebarBrand() {
 function NavUser({ user }: { user: User }) {
    const { isMobile } = useSidebar();
    const fullName = getUserFullName(user);
-   const avatarSrc = user.avatar ?? undefined;
 
    return (
       <SidebarMenu>
@@ -78,15 +76,10 @@ function NavUser({ user }: { user: User }) {
                      size="lg"
                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                   >
-                     <Avatar className="size-8 rounded-full">
-                        {avatarSrc ? (
-                           <AvatarImage src={avatarSrc} alt={fullName} />
-                        ) : null}
-                        <AvatarFallback className="rounded-full">
+                     <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                            {user.firstName[0]}
                            {user.lastName[0]}
-                        </AvatarFallback>
-                     </Avatar>
+                     </span>
                      <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                         <span className="truncate font-semibold">
                            {fullName}

@@ -195,7 +195,10 @@ export function CreateInvitationDialog({
 
    if (createdInvitation) {
       return (
-         <Dialog open={open} onOpenChange={handleOpenChange}>
+         <Dialog
+            open={open && !!createdInvitation}
+            onOpenChange={handleOpenChange}
+         >
             <DialogContent
                aria-describedby={undefined}
                className="sm:max-w-sm data-open:zoom-in-50! data-closed:zoom-out-50 duration-300 [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
@@ -226,7 +229,10 @@ export function CreateInvitationDialog({
    }
 
    return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog
+         open={open && !createdInvitation}
+         onOpenChange={handleOpenChange}
+      >
          <DialogContent
             aria-describedby={undefined}
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"

@@ -124,7 +124,7 @@ const SetPassword = () => {
    return (
       <>
          <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
-            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 pt-12 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 sm:pt-14">
+            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 sm:pt-14">
                <CardHeader className=" px-0 pb-1.5 text-center sm:pb-3">
                   <Image
                      src="/logo.png"

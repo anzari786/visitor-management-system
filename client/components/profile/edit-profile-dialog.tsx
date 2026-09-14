@@ -1,7 +1,6 @@
 'use client';
 
 import { ChangePasswordDialog } from '@/components/profile/change-password-dialog';
-import { ProfileAvatarPicker } from '@/components/profile/profile-avatar-picker';
 import { getUserFullName } from '@/lib/user';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { PROFILE_AVATARS } from '@/constants/profile-avatars';
 import {
    useCheckUsername,
    useCurrentUser,
@@ -59,12 +57,6 @@ export function EditProfileDialog() {
    const { theme, setTheme, resolvedTheme } = useTheme();
    const [passwordOpen, setPasswordOpen] = React.useState(false);
    const [themeMounted, setThemeMounted] = React.useState(false);
-   const [selectedAvatarId, setSelectedAvatarId] = React.useState<
-      string | null
-   >(null);
-   const [initialAvatarId, setInitialAvatarId] = React.useState<
-      string | null
-   >(null);
 
    React.useEffect(() => setThemeMounted(true), []);
 
@@ -86,16 +78,6 @@ export function EditProfileDialog() {
 
    React.useEffect(() => {
       if (open && user) {
-         const currentAvatar = user.avatar?.trim();
-         const avatarId =
-            currentAvatar && currentAvatar.length > 0
-               ?
-                    PROFILE_AVATARS.find(
-                       (avatar) => avatar.image === currentAvatar,
-                    )?.id ?? currentAvatar
-               : null;
-         setSelectedAvatarId(avatarId);
-         setInitialAvatarId(avatarId);
          reset({
             fullName: getUserFullName(user),
             username: user.username,
@@ -106,10 +88,8 @@ export function EditProfileDialog() {
 
    const usernameValue = watch('username');
    const phoneValue = watch('phone');
-   const fullNameValue = watch('fullName');
 
    const isUsernameDirty = !!dirtyFields.username;
-   const isAvatarDirty = selectedAvatarId !== initialAvatarId;
    const debouncedUsername = useDebounce(usernameValue, 500);
    const { data: usernameCheck, isFetching: checkingUsername } =
       useCheckUsername(debouncedUsername, open && isUsernameDirty);
@@ -128,10 +108,6 @@ export function EditProfileDialog() {
 
    const darkModeEnabled =
       themeMounted && (theme === 'dark' || resolvedTheme === 'dark');
-
-   const previewName =
-      fullNameValue?.trim() ||
-      (user ? getUserFullName(user) : t('header.userFallback'));
 
    if (isLoading && !user) {
       return (
@@ -173,18 +149,8 @@ export function EditProfileDialog() {
       if (usernameTaken) return;
 
       const { firstName, lastName } = splitFullName(values.fullName);
-      const nextAvatar =
-         selectedAvatarId && selectedAvatarId.trim().length > 0
-            ?
-                 PROFILE_AVATARS.find(
-                    (avatar) =>
-                       avatar.id === selectedAvatarId ||
-                       avatar.image === selectedAvatarId,
-                 )?.image ?? selectedAvatarId
-            : null;
-
       try {
-         if (isDirty || isAvatarDirty) {
+         if (isDirty) {
             await updateProfile({
                firstName,
                lastName,
@@ -193,9 +159,7 @@ export function EditProfileDialog() {
                   !values.phone || values.phone === '+251 '
                      ? undefined
                      : values.phone,
-               avatar: isAvatarDirty ? nextAvatar : undefined,
             });
-            setInitialAvatarId(selectedAvatarId);
          }
 
          toast.success(t('profile.toast.updated'));
@@ -211,7 +175,7 @@ export function EditProfileDialog() {
          <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent
                showCloseButton={false}
-               className="gap-0 overflow-hidden p-0 sm:max-w-4xl"
+               className="gap-0 overflow-hidden p-0 sm:max-w-5xl"
             >
                <DialogHeader className="border-b px-5 py-4 sm:px-6">
                   <DialogTitle className="text-base font-medium">
@@ -223,8 +187,8 @@ export function EditProfileDialog() {
                </DialogHeader>
 
                <form onSubmit={onSubmit}>
-                  <div className="flex min-h-[22rem] flex-col gap-6 px-5 py-7 sm:min-h-[26rem] sm:flex-row sm:px-6 sm:py-8">
-                     <div className="order-last w-full max-w-md border-border sm:order-first sm:border-e md:pe-10">
+                  <div className="flex min-h-[22rem] flex-col gap-6 px-5 py-7 sm:min-h-[26rem] sm:px-6 sm:py-8">
+                     <div className="w-full max-w-md">
                         <FieldGroup className="gap-4">
                            <Field className="gap-1.5">
                               <FieldLabel
@@ -347,14 +311,6 @@ export function EditProfileDialog() {
                         </div>
                      </div>
 
-                     <div className="flex-1">
-                        <ProfileAvatarPicker
-                           value={selectedAvatarId}
-                           onChange={setSelectedAvatarId}
-                           previewName={previewName}
-                           role={user.role}
-                        />
-                     </div>
                   </div>
 
                   <div className="flex flex-col gap-4 border-t bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -380,7 +336,7 @@ export function EditProfileDialog() {
                            type="submit"
                            className="h-9 flex-1 rounded-lg sm:flex-none"
                            disabled={
-                              (!isDirty && !isAvatarDirty) ||
+                              !isDirty ||
                               isSubmitting ||
                               checkingUsername ||
                               usernameTaken

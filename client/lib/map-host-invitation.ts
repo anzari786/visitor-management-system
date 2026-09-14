@@ -24,23 +24,38 @@ export interface CreateHostInvitationApiPayload {
    room: string;
 }
 
-const parseTimeOnDate = (date: Date, time: string): Date => {
+/**
+ * Visit dates and times are stored as UTC values representing local wall-clock
+ * components. Constructing these values with the local Date constructor would
+ * shift them when the payload is serialized to ISO.
+ */
+export const toUtcWallClockDate = (date: Date, time = '00:00'): Date => {
    const [hours, minutes] = time.split(':').map(Number);
-   const result = new Date(date);
-   result.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-   return result;
+   return new Date(
+      Date.UTC(
+         date.getFullYear(),
+         date.getMonth(),
+         date.getDate(),
+         hours ?? 0,
+         minutes ?? 0,
+      ),
+   );
 };
 
 const buildScheduleDates = (
    values: HostInvitationFormValues,
 ): CreateHostInvitationApiPayload['scheduleDates'] => {
    if (values.scheduleType === 'single_day' && values.visitDate) {
-      const date = startOfDay(values.visitDate);
+      const date = toUtcWallClockDate(startOfDay(values.visitDate));
+      const selectedDate = startOfDay(values.visitDate);
       return [
          {
             date,
-            expectedStartTime: parseTimeOnDate(date, values.startTime),
-            expectedEndTime: parseTimeOnDate(date, values.endTime),
+            expectedStartTime: toUtcWallClockDate(
+               selectedDate,
+               values.startTime,
+            ),
+            expectedEndTime: toUtcWallClockDate(selectedDate, values.endTime),
          },
       ];
    }
@@ -50,9 +65,9 @@ const buildScheduleDates = (
          start: startOfDay(values.startDate),
          end: startOfDay(values.endDate),
       }).map((date) => ({
-         date,
-         expectedStartTime: parseTimeOnDate(date, values.startTime),
-         expectedEndTime: parseTimeOnDate(date, values.endTime),
+         date: toUtcWallClockDate(date),
+         expectedStartTime: toUtcWallClockDate(date, values.startTime),
+         expectedEndTime: toUtcWallClockDate(date, values.endTime),
       }));
    }
 

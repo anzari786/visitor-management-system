@@ -202,7 +202,8 @@ export function CheckInDialog({
    const verificationValues = verifyForm.watch('verifications');
    const hasVerificationInput = verificationValues.some(
       (verification) =>
-         Boolean(verification.idType) || Boolean(verification.idNumber.trim()),
+         Boolean(verification.idType) ||
+         Boolean(verification.idNumber?.trim()),
    );
    const isLastStep = activeStepIdx === CHECK_IN_STEPS.length - 1;
 

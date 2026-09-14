@@ -304,7 +304,7 @@ export const logout = async (req: Request, res: Response) => {
 
 
 export const updateCurrentUser = async (req: Request, res: Response) => {
-   const { firstName, lastName, username, phone, avatar } =
+   const { firstName, lastName, username, phone } =
       req.validatedBody as UpdateProfileBody;
 
    const user = await updateCurrentUserProfile(req.session.userId!, {
@@ -312,7 +312,6 @@ export const updateCurrentUser = async (req: Request, res: Response) => {
       lastName,
       username,
       phone,
-      avatar,
    });
 
    return res.status(200).json({

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { BellRing, Globe, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
@@ -25,7 +24,6 @@ export default function Header() {
    const Icon = currentNavItem?.icon ?? LayoutGrid;
    const user = useAuthStore((state) => state.user);
    const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U';
-   const avatarSrc = user?.avatar ?? undefined;
 
    return (
       <header className="bg-card sticky top-0 z-50 border-b shrink-0">
@@ -86,19 +84,9 @@ export default function Header() {
                         className="size-7 rounded-full cursor-pointer"
                         suppressHydrationWarning
                      >
-                        <Avatar className="size-7 rounded-full">
-                           {avatarSrc ? (
-                              <AvatarImage
-                                 src={avatarSrc}
-                                 alt={
-                                    user
-                                       ? `${user.firstName} ${user.lastName}`
-                                       : t('header.userFallback')
-                                 }
-                              />
-                           ) : null}
-                           <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
+                        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                           {initials}
+                        </span>
                      </Button>
                   }
                />

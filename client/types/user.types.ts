@@ -11,7 +11,6 @@ export type User = {
    username: string;
    email?: string;
    phone?: string;
-   avatar?: string | null;
    role: UserRole;
    isActive: boolean;
    mustChangePassword: boolean; // true when admin creates/resets the account

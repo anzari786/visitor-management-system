@@ -64,7 +64,7 @@ function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
       {
          id: 'pending_approvals',
          title: 'Pending Approvals',
-         value: '2',
+         value: stats.pendingApprovals.toLocaleString(),
          change: '',
          changeValue: '',
          isPositive: true,
@@ -74,7 +74,7 @@ function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
 
 export function StatsCards() {
    const { t } = useTranslation();
-   const { data: stats, isPending, isError } = useVisitStats('today');
+   const { data: stats, isPending, isError } = useVisitStats('this_month');
 
    if (isPending) {
       return (

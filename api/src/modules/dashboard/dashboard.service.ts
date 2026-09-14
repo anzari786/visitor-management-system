@@ -81,24 +81,15 @@ function getRangeStart(days: number): Date {
    return subDays(startOfDay(new Date()), days);
 }
 
-/**
- * Visits that occur within a calendar window (single- and multi-day).
- * Uses VisitDay rows so multi-day visits are counted once if any day overlaps.
- */
+/** Visits that overlap a calendar window, counted once per visit. */
 function visitsOverlappingRange(
    range: DateRange | null,
 ): Prisma.VisitWhereInput {
    if (!range) return {};
 
    return {
-      days: {
-         some: {
-            date: {
-               gte: range.start,
-               lt: range.end,
-            },
-         },
-      },
+      startDate: { lt: range.end },
+      endDate: { gte: range.start },
    };
 }
 
@@ -250,7 +241,9 @@ function averageDurationMinutes(
 ): number {
    const valid = rows.filter(
       (row): row is { checkInAt: Date; checkOutAt: Date } =>
-         row.checkInAt != null && row.checkOutAt != null,
+         row.checkInAt != null &&
+         row.checkOutAt != null &&
+         row.checkOutAt > row.checkInAt,
    );
 
    if (!valid.length) return 0;
@@ -321,6 +314,25 @@ async function averageDurationInRange(
    return averageDurationMinutes(rows);
 }
 
+async function countCurrentlyInside(range: DateRange | null): Promise<number> {
+   return prisma.visitAttendance.count({
+      where: {
+         status: 'CHECKED_IN',
+         checkInAt: range
+            ? { gte: range.start, lt: range.end }
+            : { not: null },
+         checkOutAt: null,
+         visitDay: {
+            visit: {
+               status: {
+                  notIn: ['CANCELLED', 'REJECTED', 'EXPIRED'],
+               },
+            },
+         },
+      },
+   });
+}
+
 // ── Public service API ──────────────────────────────────────────────────────
 
 export async function getDashboardStats(
@@ -350,7 +362,7 @@ export async function getDashboardStats(
       previous
          ? prisma.visit.count({ where: visitsOverlappingRange(previous) })
          : Promise.resolve(0),
-      prisma.visitAttendance.count({ where: { status: 'CHECKED_IN' } }),
+      countCurrentlyInside(current),
       previous
          ? prisma.visitAttendance.count({
               where: {

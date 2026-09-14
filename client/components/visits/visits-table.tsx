@@ -41,6 +41,7 @@ import {
 } from '@tanstack/react-table';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { CalendarRange, CalendarSearch, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { FindVisitCheckInDialog } from './find-visit-check-in-dialog';
@@ -275,18 +276,30 @@ const getColumns = (
 
 interface VisitsTableProps {
    showFilters?: boolean;
+   variant?: 'full' | 'dashboard';
 }
 
-export function VisitsTable({ showFilters = true }: VisitsTableProps) {
+export function VisitsTable({
+   showFilters = true,
+   variant = 'full',
+}: VisitsTableProps) {
    const { t } = useTranslation();
    const queryClient = useQueryClient();
    const searchParams = useSearchParams();
-   const page = Number(searchParams.get('page')) || 1;
-   const pageSize = Number(searchParams.get('pageSize')) || DEFAULT_PAGE_SIZE;
-   const search = searchParams.get('search') || undefined;
-   const statusFilter = searchParams.get('status') || 'all';
-   const visitSourceFilter =
-      (searchParams.get('source') as VisitSourceValue | 'all') || 'all';
+   const isDashboard = variant === 'dashboard';
+   const page = isDashboard ? 1 : Number(searchParams.get('page')) || 1;
+   const pageSize = isDashboard
+      ? 8
+      : Number(searchParams.get('pageSize')) || DEFAULT_PAGE_SIZE;
+   const search = isDashboard
+      ? undefined
+      : searchParams.get('search') || undefined;
+   const statusFilter = isDashboard
+      ? 'all'
+      : searchParams.get('status') || 'all';
+   const visitSourceFilter = isDashboard
+      ? 'all'
+      : (searchParams.get('source') as VisitSourceValue | 'all') || 'all';
    const selectedStatus = VISIT_STATUS_FILTER_OPTIONS.find(
       (option) => option.value === statusFilter,
    );
@@ -358,16 +371,26 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    >(null);
 
    const backendVisits = React.useMemo(
-      () =>
-         visitsData?.visits.map((visit) => {
-            const mapped = mapBackendVisit(visit);
-            const synced = syncVisitAttendanceForDay(
-               mapped,
-               getRelevantVisitDay(mapped),
-            );
-            return { ...synced, status: mapped.status };
-         }) ?? [],
-      [visitsData],
+      () => {
+         const mappedVisits =
+            visitsData?.visits.map((visit) => {
+               const mapped = mapBackendVisit(visit);
+               const synced = syncVisitAttendanceForDay(
+                  mapped,
+                  getRelevantVisitDay(mapped),
+               );
+               return { ...synced, status: mapped.status };
+            }) ?? [];
+
+         if (!isDashboard) return mappedVisits;
+
+         return [...mappedVisits].sort((a, b) =>
+            `${b.startDate}T${b.startTime}`.localeCompare(
+               `${a.startDate}T${a.startTime}`,
+            ),
+         );
+      },
+      [isDashboard, visitsData],
    );
 
    React.useEffect(() => {
@@ -755,11 +778,23 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
    return (
       <>
          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-            {showFilters && (
+            {isDashboard ? (
+               <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-6">
+                  <h2 className="text-base font-semibold text-foreground">
+                     {t('dashboard.recentVisits')}
+                  </h2>
+                  <Link
+                     href="/visits"
+                     className="text-sm font-medium text-primary hover:underline"
+                  >
+                     {t('dashboard.viewAll')}
+                  </Link>
+               </div>
+            ) : showFilters ? (
                <VisitsTableFilters
                   onScanBadge={handleScanBadge}
                />
-            )}
+            ) : null}
 
             <div className="overflow-x-auto">
                <Table>
@@ -866,11 +901,13 @@ export function VisitsTable({ showFilters = true }: VisitsTableProps) {
                </Table>
             </div>
 
-            <VisitsTablePagination
-               total={total}
-               pageCount={pageCount}
-               isFetching={isFetching}
-            />
+            {!isDashboard && (
+               <VisitsTablePagination
+                  total={total}
+                  pageCount={pageCount}
+                  isFetching={isFetching}
+               />
+            )}
          </div>
 
          <VisitDetailsSheet

@@ -15,7 +15,7 @@ import {
 import { prisma } from '../src/config/prisma.js';
 import { generateQrToken } from '../src/services/qr.service.js';
 import bcrypt from 'bcrypt';
-import { addDays, format, startOfDay, subDays } from 'date-fns';
+import { addDays, format, startOfDay, subDays, subMonths } from 'date-fns';
 
 const DEFAULT_PASSWORD = 'Password123!';
 const ORG_NAME = 'Ethiopian Agricultural Transformation Institute';
@@ -377,6 +377,7 @@ async function main() {
       decidedById?: number;
       startTime?: string;
       endTime?: string;
+      createdAt?: Date;
    };
 
    const createVisit = async (input: VisitInput) => {
@@ -403,6 +404,7 @@ async function main() {
             endTime: input.endTime ?? '17:00',
             expectedVisitorCount: input.visitorIndexes.length,
             createdById: input.createdById,
+            createdAt: input.createdAt,
             decidedById: decided ? input.decidedById : undefined,
             decisionAt: decided ? new Date() : undefined,
             decisionNote:
@@ -762,6 +764,74 @@ async function main() {
       floor: '1st Floor',
       room: 'Finance Meeting Room',
       createdById: reception.id,
+   });
+
+   const twoMonthsAgo = subMonths(today, 2);
+   const oneMonthAgo = subMonths(today, 1);
+
+   await createVisit({
+      code: 'ATI-0022',
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.APPROVED,
+      purpose: VisitPurpose.MEETING,
+      hostIndex: 0,
+      visitorIndexes: [0],
+      dates: [addDays(twoMonthsAgo, 4)],
+      floor: '1st Floor',
+      room: 'Conference Room A',
+      createdById: reception.id,
+      decidedById: manager.id,
+      createdAt: new Date(twoMonthsAgo.getTime() + 9 * 60 * 60 * 1000),
+   });
+   await createVisit({
+      code: 'ATI-0023',
+      source: VisitSource.RECEPTION,
+      groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.EXPIRED,
+      purpose: VisitPurpose.OFFICIAL_VISIT,
+      hostIndex: 1,
+      visitorIndexes: [1, 2],
+      dates: [addDays(twoMonthsAgo, 11)],
+      floor: '2nd Floor',
+      room: 'Board Room',
+      createdById: reception.id,
+      decidedById: manager.id,
+      createdAt: new Date(twoMonthsAgo.getTime() + 11 * 60 * 60 * 1000),
+   });
+   await createVisit({
+      code: 'ATI-0024',
+      source: VisitSource.HOST_INVITATION,
+      groupType: VisitorGroupType.SINGLE,
+      durationType: VisitDurationType.SINGLE_DAY,
+      status: VisitStatus.REJECTED,
+      purpose: VisitPurpose.INTERVIEW,
+      hostIndex: 2,
+      visitorIndexes: [3],
+      dates: [addDays(oneMonthAgo, 6)],
+      floor: '2nd Floor',
+      room: 'Interview Room',
+      createdById: hostUsers[2].id,
+      decidedById: admin.id,
+      createdAt: new Date(oneMonthAgo.getTime() + 10 * 60 * 60 * 1000),
+   });
+   await createVisit({
+      code: 'ATI-0025',
+      source: VisitSource.PUBLIC,
+      groupType: VisitorGroupType.GROUP,
+      durationType: VisitDurationType.MULTI_DAY,
+      status: VisitStatus.APPROVED,
+      purpose: VisitPurpose.DELIVERY,
+      hostIndex: 3,
+      visitorIndexes: [4, 5],
+      dates: [addDays(oneMonthAgo, 14), addDays(oneMonthAgo, 15)],
+      floor: 'Ground Floor',
+      room: 'Reception Lobby',
+      createdById: reception.id,
+      decidedById: manager.id,
+      createdAt: new Date(oneMonthAgo.getTime() + 13 * 60 * 60 * 1000),
    });
 
    for (const visit of [

@@ -126,19 +126,6 @@ const attendanceStyles: Record<
    },
 };
 
-const avatarToneByAttendance: Record<
-   VisitorAttendanceStatus,
-   string
-> = {
-   [AttendanceStatus.EXPECTED]: 'bg-slate-100 text-slate-600 ring-slate-200/80 dark:bg-slate-800/50 dark:text-slate-300 dark:ring-slate-700',
-   [AttendanceStatus.CHECKED_IN]:
-      'bg-teal-50 text-teal-700 ring-teal-200/70 dark:bg-teal-950/40 dark:text-teal-300 dark:ring-teal-800/50',
-   [AttendanceStatus.CHECKED_OUT]:
-      'bg-indigo-50 text-indigo-700 ring-indigo-200/70 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-800/50',
-   [AttendanceStatus.NO_SHOW]:
-      'bg-red-50 text-red-700 ring-red-200/70 dark:bg-red-950/40 dark:text-red-300 ring-red-800/50',
-};
-
 export function ManagedVisitStatusBadge({
    status,
    className,
@@ -185,10 +172,6 @@ export function VisitorAttendanceBadge({
          {label}
       </Badge>
    );
-}
-
-export function visitorAvatarTone(status: VisitorAttendanceStatus) {
-   return avatarToneByAttendance[status];
 }
 
 export {

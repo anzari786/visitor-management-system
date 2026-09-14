@@ -223,7 +223,6 @@ export const updateCurrentUserProfile = async (
       lastName?: string;
       username?: string;
       phone?: string | null;
-      avatar?: string | null;
    },
 ): Promise<AuthUserWithRelations> => {
    const data: {
@@ -231,7 +230,6 @@ export const updateCurrentUserProfile = async (
       lastName?: string;
       username?: string;
       phone?: string | null;
-      avatar?: string | null;
    } = {};
 
    if (input.firstName !== undefined) {
@@ -265,10 +263,6 @@ export const updateCurrentUserProfile = async (
       data.phone = input.phone?.trim() || null;
    }
 
-   if (input.avatar !== undefined) {
-      data.avatar = input.avatar?.trim() || null;
-   }
-
    return prisma.user.update({
       where: { id: userId },
       data,
@@ -288,8 +282,6 @@ export const formatAuthUser = (user: AuthUserWithRelations) => ({
    email: user.email ?? undefined,
 
    phone: user.phone ?? undefined,
-
-   avatar: user.avatar ?? undefined,
 
    username: user.username ?? undefined,
 

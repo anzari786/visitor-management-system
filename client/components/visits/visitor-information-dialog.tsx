@@ -21,6 +21,7 @@ import type { VisitorFormValues } from '@/lib/validations/visit-request.schema';
 import type { ManagedVisit } from '@/types/visit.types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isAfter, isToday, parseISO, startOfToday } from 'date-fns';
+import { Loader2 } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -179,6 +180,9 @@ export function VisitorInformationDialog({
                      className="cursor-pointer gap-2"
                      disabled={isSubmitting}
                   >
+                     {isSubmitting && (
+                        <Loader2 className="size-4 animate-spin" />
+                     )}
                      {t(
                         isFutureVisit
                            ? 'visitorInfo.register'

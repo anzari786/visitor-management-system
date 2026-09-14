@@ -39,7 +39,7 @@ export function DashboardContent() {
             <VisitGrowthChart />
             <MeetingTypeChart />
          </div>
-         <VisitsTable />
+         <VisitsTable variant="dashboard" />
       </Content>
    );
 }

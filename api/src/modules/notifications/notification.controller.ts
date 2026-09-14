@@ -17,13 +17,13 @@ type ListNotificationsQuery = z.infer<typeof listNotificationsSchema>['query'];
 type NotificationIdParams = z.infer<typeof notificationIdParamSchema>['params'];
 
 export const getNotifications = async (req: Request, res: Response) => {
-   const { isRead, type, channel, page, limit } =
+   const { type, channel, page, limit } =
       req.validatedQuery as ListNotificationsQuery;
 
    const { notifications, meta } = await listMyNotifications(
       req.session.userId!,
       {
-         isRead: isRead === undefined ? undefined : isRead === 'true',
+         isRead: false,
          type,
          channel,
          page,
@@ -47,17 +47,6 @@ export const getUnreadNotificationCount = async (
    return res.status(200).json({
       success: true,
       data: { unreadCount },
-   });
-};
-
-export const getNotification = async (req: Request, res: Response) => {
-   const { id } = req.validatedParams as NotificationIdParams;
-
-   const notification = await getMyNotificationById(req.session.userId!, id);
-
-   return res.status(200).json({
-      success: true,
-      data: formatNotification(notification),
    });
 };
 

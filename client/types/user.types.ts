@@ -37,6 +37,8 @@ export type UserApiRecord = {
    username?: string;
    isActive: boolean;
    passwordSetupPending?: boolean;
+   checkIns?: number;
+   checkOuts?: number;
    lastLoginAt?: string;
    createdAt: string;
    updatedAt?: string;

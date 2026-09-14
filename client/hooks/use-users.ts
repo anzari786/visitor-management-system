@@ -36,8 +36,8 @@ function normalizeUser(user: UserApiRecord): User {
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
-      checkIns: 0,
-      checkOuts: 0,
+      checkIns: user.checkIns ?? 0,
+      checkOuts: user.checkOuts ?? 0,
       employee: user.employee,
    };
 }

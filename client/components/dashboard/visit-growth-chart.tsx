@@ -13,7 +13,12 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useVisitGrowth } from '@/hooks/use-dashboard';
-import { AlertCircle, MoreHorizontal, TrendingUp } from 'lucide-react';
+import { useTranslation } from '@/lib/i18n';
+import type {
+   GrowthPeriod,
+   VisitGrowthDataPoint,
+} from '@/types/dashboard.types';
+import { MoreHorizontal, TrendingUp } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
 import {
@@ -29,12 +34,7 @@ import {
    XAxis,
    YAxis,
 } from 'recharts';
-import type {
-   VisitGrowthDataPoint,
-   GrowthPeriod,
-} from '@/types/dashboard.types';
 import { Skeleton } from '../ui/skeleton';
-import { useTranslation } from '@/lib/i18n';
 
 type ChartType = 'line' | 'area' | 'bar';
 
@@ -277,7 +277,6 @@ export function VisitGrowthChart() {
    if (isError) {
       return (
          <div className="bg-card rounded-xl border flex-1 flex flex-col items-center justify-center gap-2 p-6 text-sm text-destructive">
-            <AlertCircle className="h-6 w-6" />
             <span>{t('dashboard.growth.loadError')}</span>
          </div>
       );

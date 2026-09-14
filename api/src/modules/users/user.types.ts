@@ -36,6 +36,12 @@ export const userDetailSelect = {
       },
       orderBy: { assignedAt: 'asc' },
    },
+   _count: {
+      select: {
+         attendancesCheckedIn: true,
+         attendancesCheckedOut: true,
+      },
+   },
 } satisfies Prisma.UserSelect;
 
 export type UserDetail = Prisma.UserGetPayload<{
@@ -92,6 +98,7 @@ export type CreateUserInput =
 export interface UpdateUserInput {
    firstName?: string;
    lastName?: string;
+   username?: string;
    email?: string | null;
    phone?: string | null;
    isActive?: boolean;

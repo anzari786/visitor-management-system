@@ -466,7 +466,7 @@ export const updateUser = async (
 
       const disallowedFields = (
 
-         ['firstName', 'lastName', 'email', 'phone'] as const
+         ['firstName', 'lastName', 'username', 'email', 'phone'] as const
 
       ).filter((field) => input[field] !== undefined);
 
@@ -486,6 +486,10 @@ export const updateUser = async (
 
    }
 
+   if (input.username !== undefined) {
+      await assertUsernameAvailable(input.username, id);
+   }
+
 
 
    return prisma.user.update({
@@ -501,6 +505,10 @@ export const updateUser = async (
          ...(existing.authProvider === AuthProvider.LOCAL &&
 
             input.lastName !== undefined && { lastName: input.lastName }),
+
+         ...(existing.authProvider === AuthProvider.LOCAL &&
+
+            input.username !== undefined && { username: input.username }),
 
          ...(existing.authProvider === AuthProvider.LOCAL &&
 
@@ -676,6 +684,10 @@ export const formatUserDetail = (user: UserDetail) => ({
       assignedAt: assignment.assignedAt,
 
    })),
+
+   checkIns: user._count.attendancesCheckedIn,
+
+   checkOuts: user._count.attendancesCheckedOut,
 
    createdAt: user.createdAt,
 

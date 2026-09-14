@@ -388,6 +388,7 @@ export const en = {
    'host.hero.description': 'Create and manage visitor invitations quickly and keep track of upcoming visits.',
    'host.hero.createInvitation': 'Create Invitation',
    'host.individualVisitor': 'Individual visitor',
+   'host.individualVisitors': 'Individual visitors',
    'host.visitorsCount': '{count} visitors',
    'host.pending.title': 'Pending Approvals',
    'host.pending.count': '{count} pending',

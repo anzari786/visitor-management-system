@@ -1,4 +1,5 @@
 import { hostService } from '@/services/host.service';
+import type { CreateHostInvitationApiPayload } from '@/lib/map-host-invitation';
 import type { ApiErrorResponse } from '@/types/api.types';
 import type {
    ApproveHostVisitPayload,
@@ -140,6 +141,16 @@ export function useHostUpcomingVisits(params?: HostVisitsParams) {
             mapVisitToHostCard,
          ),
       placeholderData: keepPreviousData,
+   });
+}
+
+export function useCreateHostInvitation() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: async (payload: CreateHostInvitationApiPayload) =>
+         (await hostService.createHostInvitation(payload)).data.data,
+      onSuccess: () => invalidateHostVisits(queryClient),
    });
 }
 

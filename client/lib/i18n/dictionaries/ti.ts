@@ -385,6 +385,7 @@ export const ti: Dictionary = {
    'host.hero.description': 'ዕድመታት በጻሕቲ ብቕልጡፍ ፍጠርን ኣመሓድርን፣ ዝመጹ ምብጻሓት እውን ተኸታተል።',
    'host.hero.createInvitation': 'ዕድመ ፍጠር',
    'host.individualVisitor': 'ውልቀ በጻሒ',
+   'host.individualVisitors': 'ውልቀ በጻሕቲ',
    'host.visitorsCount': '{count} በጻሕቲ',
    'host.pending.title': 'ኣብ ትጽቢት ዘለዉ ምጽዳቓት',
    'host.pending.count': '{count} ኣብ ትጽቢት',

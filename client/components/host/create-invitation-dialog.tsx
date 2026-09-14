@@ -17,10 +17,8 @@ import {
 } from '@/lib/validations/host-invitation.schema';
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
-import {
-   hostService,
-   type HostInvitationCreated,
-} from '@/services/host.service';
+import type { HostInvitationCreated } from '@/services/host.service';
+import { useCreateHostInvitation } from '@/hooks/use-host';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -82,6 +80,7 @@ export function CreateInvitationDialog({
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
+   const createInvitation = useCreateHostInvitation();
 
    const form = useForm<
       HostInvitationFormInput,
@@ -177,9 +176,9 @@ export function CreateInvitationDialog({
          }
 
          const apiPayload = mapHostInvitationToApi(payload, Number(employeeId));
-         await hostService.createHostInvitation(apiPayload);
+         const created = await createInvitation.mutateAsync(apiPayload);
 
-         setCreatedInvitation({ id: 'created', visitCode: 'created' });
+         setCreatedInvitation(created);
          toast.success(t('host.invite.toast.createdSimple'));
          form.reset(hostInvitationDefaultValues);
       } catch (error) {

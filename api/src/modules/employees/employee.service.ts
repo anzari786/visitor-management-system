@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma.js';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
 import type { PaginationParams } from '../../utils/pagination.js';
+import { UPCOMING_VISIT_STATUSES } from '../dashboard/dashboard.constants.js';
 import {
    employeeSelect,
    employeeHostOptionSelect,
@@ -154,7 +155,7 @@ export const getUpcomingVisits = async (filters: HostVisitListFilters) => {
 
    const where: Prisma.VisitWhereInput = {
       hostEmployeeId,
-      status: 'APPROVED',
+      status: { in: UPCOMING_VISIT_STATUSES },
       OR: [
          { endDate: { gt: today } },
          { endDate: today, endTime: { gte: currentTimeString() } },

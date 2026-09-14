@@ -385,6 +385,7 @@ export const am: Dictionary = {
    'host.hero.description': 'የጎብኚ ግብዣዎችን በፍጥነት ይፍጠሩና ያስተዳድሩ፣ የሚመጡ ጉብኝቶችንም ይከታተሉ።',
    'host.hero.createInvitation': 'ግብዣ ፍጠር',
    'host.individualVisitor': 'ግለሰብ ጎብኚ',
+   'host.individualVisitors': 'ግለሰባዊ ጎብኝዎች',
    'host.visitorsCount': '{count} ጎብኚዎች',
    'host.pending.title': 'በመጠባበቅ ላይ ያሉ ማጽደቆች',
    'host.pending.count': '{count} በመጠባበቅ ላይ',

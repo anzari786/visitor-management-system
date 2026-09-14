@@ -49,6 +49,11 @@ export function HostVisitCard({
       : visit.startDate;
    const timeLabel = `${formatTimeLabel(visit.time)} – ${formatTimeLabel(visit.endTime)}`;
    const hasLocation = Boolean(visit.floor && visit.room);
+   const organizationName = visit.orgName?.trim();
+   const individualLabel =
+      (visit.groupSize ?? 1) > 1
+         ? t('host.individualVisitors')
+         : t('host.individualVisitor');
 
    return (
       <article className="rounded-xl border border-border/80 bg-card transition-colors hover:bg-muted/15">
@@ -70,7 +75,7 @@ export function HostVisitCard({
                      </h3>
                      <p className="flex min-w-0 flex-wrap items-center text-xs text-muted-foreground">
                         <span className="truncate font-medium">
-                           {visit.orgName || t('host.individualVisitor')}
+                           {organizationName || individualLabel}
                         </span>
                         <MetaDot />
                         <span className="truncate">{scheduleLabel}</span>

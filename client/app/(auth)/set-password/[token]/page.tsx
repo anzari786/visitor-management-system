@@ -1,6 +1,12 @@
 import SetPassword from '@/components/auth/set-password';
 
-export default async function SetPasswordPage() {
+type SetPasswordPageProps = {
+   params: Promise<{ token: string }>;
+};
+
+export default async function SetPasswordPage({ params }: SetPasswordPageProps) {
+   const { token } = await params;
+
    return (
       <main className="flex min-h-dvh items-center justify-center relative overflow-hidden bg-[#e0f2f1] flex-col pt-6 pb-12 px-4">
          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -9,7 +15,7 @@ export default async function SetPasswordPage() {
          </div>
 
          <div className="relative z-10 w-full">
-            <SetPassword />
+            <SetPassword token={token} />
          </div>
       </main>
    );

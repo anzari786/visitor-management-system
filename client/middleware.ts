@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
-const PUBLIC_ROUTES = ['/login', '/self-service'];
+const PUBLIC_ROUTES = ['/login', '/self-service', '/set-password'];
 
 export function middleware(request: NextRequest) {
    const { pathname } = request.nextUrl;

@@ -84,7 +84,7 @@ export const sendPasswordSetupInvitation = async (
       }),
    ]);
 
-   const setupUrl = `${env.CLIENT_URL}/set-password?token=${rawToken}`;
+   const setupUrl = `${env.CLIENT_URL}/set-password/${rawToken}`;
    const recipientEmail = user.email;
 
    if (recipientEmail) {

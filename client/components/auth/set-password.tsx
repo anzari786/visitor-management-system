@@ -26,7 +26,7 @@ import { CheckCircle2Icon, Clock3, KeyRound, Link2Off } from 'lucide-react';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { Controller, useForm } from 'react-hook-form';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ApiErrorResponse } from '@/types/api.types';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
@@ -34,18 +34,20 @@ import LanguageDropdown from '@/components/shared/language-dropdown';
 
 type ResultState = 'success' | 'expired' | 'invalid' | null;
 
-const SetPassword = () => {
+type SetPasswordProps = {
+   token: string;
+};
+
+const SetPassword = ({ token }: SetPasswordProps) => {
    const { t } = useTranslation();
    const router = useRouter();
-   const [setupToken, setSetupToken] = useState<string | null>(null);
-   const [resultState, setResultState] = useState<ResultState>(null);
+   const setupToken = token.trim() || null;
+   const [resultState, setResultState] = useState<ResultState>(
+      setupToken ? null : 'invalid',
+   );
    const { mutateAsync: completePasswordSetup, isPending: isSetupPending } =
       useCompletePasswordSetup();
    const isPending = isSetupPending;
-
-   useEffect(() => {
-      setSetupToken(new URLSearchParams(window.location.search).get('token'));
-   }, []);
 
    const {
       control,

@@ -51,17 +51,10 @@ export type SettingsFormState = {
    // Badge Management
    badgePrefix: string;
    requireBadgeOnCheckIn: boolean;
-   autoAssignBadge: boolean;
-   releaseBadgeOnCheckout: boolean;
-   deactivateLostBadges: boolean;
-   blockDeactivatedBadges: boolean;
+   autoIssuePrintedBadge: boolean;
 
    // Security
    sessionTimeout: string;
-   requirePasswordChange: boolean;
-   twoFactorOptional: boolean;
-   qrCodeExpiry: string;
-   singleUseVisitCodes: boolean;
 };
 
 export const DEFAULT_SETTINGS: SettingsFormState = {
@@ -88,16 +81,9 @@ export const DEFAULT_SETTINGS: SettingsFormState = {
 
    badgePrefix: 'ATI',
    requireBadgeOnCheckIn: true,
-   autoAssignBadge: true,
-   releaseBadgeOnCheckout: true,
-   deactivateLostBadges: true,
-   blockDeactivatedBadges: true,
+   autoIssuePrintedBadge: true,
 
    sessionTimeout: '480',
-   requirePasswordChange: true,
-   twoFactorOptional: false,
-   qrCodeExpiry: '24',
-   singleUseVisitCodes: true,
 };
 
 function PanelHeader({
@@ -647,7 +633,7 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
             description={t('settings.badgeManagementHint')}
          />
 
-         <SettingsSection title={t('settings.section.formatting')}>
+         <SettingsSection title={t('settings.section.badgeFormat')}>
             <SettingsCard>
                <FormFieldBlock>
                   <Field className="gap-1.5">
@@ -681,56 +667,24 @@ export function BadgeManagementPanel({ icon, form, onChange }: PanelProps) {
             </SettingsCard>
          </SettingsSection>
 
-         <SettingsSection title={t('settings.section.assignment')}>
+         <SettingsSection title={t('settings.section.issuance')}>
             <SettingsCard>
                <SettingRow
                   id="settings-require-badge"
-                  title={t('settings.requireBadge')}
-                  description={t('settings.requireBadgeHint')}
+                  title={t('settings.requirePrintedBadge')}
+                  description={t('settings.requirePrintedBadgeHint')}
                   checked={form.requireBadgeOnCheckIn}
                   onCheckedChange={(checked) =>
                      onChange({ requireBadgeOnCheckIn: checked })
                   }
                />
                <SettingRow
-                  id="settings-auto-assign"
-                  title={t('settings.autoAssignBadge')}
-                  description={t('settings.autoAssignBadgeHint')}
-                  checked={form.autoAssignBadge}
+                  id="settings-auto-issue-printed-badge"
+                  title={t('settings.autoIssuePrintedBadge')}
+                  description={t('settings.autoIssuePrintedBadgeHint')}
+                  checked={form.autoIssuePrintedBadge}
                   onCheckedChange={(checked) =>
-                     onChange({ autoAssignBadge: checked })
-                  }
-               />
-               <SettingRow
-                  id="settings-release-badge"
-                  title={t('settings.releaseBadge')}
-                  description={t('settings.releaseBadgeHint')}
-                  checked={form.releaseBadgeOnCheckout}
-                  onCheckedChange={(checked) =>
-                     onChange({ releaseBadgeOnCheckout: checked })
-                  }
-               />
-            </SettingsCard>
-         </SettingsSection>
-
-         <SettingsSection title={t('settings.section.lostDeactivated')}>
-            <SettingsCard>
-               <SettingRow
-                  id="settings-deactivate-lost"
-                  title={t('settings.deactivateLost')}
-                  description={t('settings.deactivateLostHint')}
-                  checked={form.deactivateLostBadges}
-                  onCheckedChange={(checked) =>
-                     onChange({ deactivateLostBadges: checked })
-                  }
-               />
-               <SettingRow
-                  id="settings-block-deactivated"
-                  title={t('settings.blockDeactivated')}
-                  description={t('settings.blockDeactivatedHint')}
-                  checked={form.blockDeactivatedBadges}
-                  onCheckedChange={(checked) =>
-                     onChange({ blockDeactivatedBadges: checked })
+                     onChange({ autoIssuePrintedBadge: checked })
                   }
                />
             </SettingsCard>
@@ -750,9 +704,9 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
             description={t('settings.securityHint')}
          />
 
-         <SettingsSection title={t('settings.section.sessions')}>
+         <SettingsSection title={t('settings.section.session')}>
             <SettingsCard>
-               <FormFieldBlock className="border-b border-border/60">
+               <FormFieldBlock>
                   <Field className="gap-1.5">
                      <FieldLabel htmlFor="settings-session-timeout">
                         {t('settings.sessionTimeout')}
@@ -783,69 +737,6 @@ export function SecurityPanel({ icon, form, onChange }: PanelProps) {
                      </Select>
                   </Field>
                </FormFieldBlock>
-               <SettingRow
-                  id="settings-password-change"
-                  title={t('settings.requirePasswordChange')}
-                  description={t('settings.requirePasswordChangeHint')}
-                  checked={form.requirePasswordChange}
-                  onCheckedChange={(checked) =>
-                     onChange({ requirePasswordChange: checked })
-                  }
-               />
-               <SettingRow
-                  id="settings-2fa"
-                  title={t('settings.twoFactor')}
-                  description={t('settings.twoFactorHint')}
-                  checked={form.twoFactorOptional}
-                  onCheckedChange={(checked) =>
-                     onChange({ twoFactorOptional: checked })
-                  }
-               />
-            </SettingsCard>
-         </SettingsSection>
-
-         <SettingsSection title={t('settings.section.visitCodes')}>
-            <SettingsCard>
-               <FormFieldBlock className="border-b border-border/60">
-                  <Field className="gap-1.5">
-                     <FieldLabel htmlFor="settings-qr-expiry">
-                        {t('settings.qrExpiry')}
-                     </FieldLabel>
-                     <FieldDescription>
-                        {t('settings.qrExpiryHint')}
-                     </FieldDescription>
-                     <Select
-                        value={form.qrCodeExpiry}
-                        onValueChange={(value) =>
-                           onChange({ qrCodeExpiry: value })
-                        }
-                     >
-                        <SelectTrigger
-                           id="settings-qr-expiry"
-                           className="h-9 w-full max-w-xs shadow-xs dark:bg-background"
-                        >
-                           <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                           <SelectGroup>
-                              <SelectItem value="4">{t('settings.duration.4h')}</SelectItem>
-                              <SelectItem value="12">{t('settings.duration.12h')}</SelectItem>
-                              <SelectItem value="24">{t('settings.duration.24h')}</SelectItem>
-                              <SelectItem value="72">{t('settings.duration.3d')}</SelectItem>
-                           </SelectGroup>
-                        </SelectContent>
-                     </Select>
-                  </Field>
-               </FormFieldBlock>
-               <SettingRow
-                  id="settings-single-use-codes"
-                  title={t('settings.singleUseCodes')}
-                  description={t('settings.singleUseCodesHint')}
-                  checked={form.singleUseVisitCodes}
-                  onCheckedChange={(checked) =>
-                     onChange({ singleUseVisitCodes: checked })
-                  }
-               />
             </SettingsCard>
          </SettingsSection>
       </div>

@@ -61,19 +61,22 @@ export function getDateRanges(filter: DateFilter): DateRanges {
              : startOfMonth(now);
 
    const end = now;
-   const duration = end.getTime() - start.getTime();
+   const previousStart =
+      filter === 'this_month' ? startOfMonth(subMonths(now, 1)) : null;
 
    return {
       current: { start, end },
       previous: {
-         start: new Date(start.getTime() - duration),
+         start:
+            previousStart ??
+            new Date(start.getTime() - (end.getTime() - start.getTime())),
          end: start,
       },
    };
 }
 
 function percentChange(current: number, previous: number): number {
-   if (previous === 0) return current > 0 ? 100 : 0;
+   if (previous === 0) return 0;
    return Math.round(((current - previous) / previous) * 100);
 }
 
@@ -355,6 +358,7 @@ export async function getDashboardStats(
       avgCurrent,
       avgPrevious,
       pendingApprovals,
+      previousPendingApprovals,
       upcomingVisits,
       checkedOutVisitors,
    ] = await Promise.all([
@@ -374,7 +378,22 @@ export async function getDashboardStats(
       countOverstays(overstayCutoff),
       averageDurationInRange(current),
       previous ? averageDurationInRange(previous) : Promise.resolve(0),
-      prisma.visit.count({ where: { status: 'PENDING_APPROVAL' } }),
+      prisma.visit.count({
+         where: {
+            status: 'PENDING_APPROVAL',
+            createdAt: current
+               ? { gte: current.start, lt: current.end }
+               : undefined,
+         },
+      }),
+      previous
+         ? prisma.visit.count({
+              where: {
+                 status: 'PENDING_APPROVAL',
+                 createdAt: { gte: previous.start, lt: previous.end },
+              },
+           })
+         : Promise.resolve(0),
       prisma.visit.count({
          where: {
             status: { in: UPCOMING_VISIT_STATUSES },
@@ -395,12 +414,15 @@ export async function getDashboardStats(
          : 0,
       averageVisitDuration: formatVisitDuration(avgCurrent),
       averageVisitDurationChange: previous
-         ? Math.round(avgCurrent - avgPrevious)
+         ? percentChange(avgCurrent, avgPrevious)
          : 0,
       overstays,
       // Live overstay count has no reliable historical snapshot.
       overstaysChange: 0,
       pendingApprovals,
+      pendingApprovalsChange: previous
+         ? percentChange(pendingApprovals, previousPendingApprovals)
+         : 0,
       upcomingVisits,
       checkedInVisitors: currentlyInside,
       checkedOutVisitors,

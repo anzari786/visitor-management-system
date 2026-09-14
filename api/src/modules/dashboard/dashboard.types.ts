@@ -21,6 +21,7 @@ export type DashboardStats = {
    overstays: number;
    overstaysChange: number;
    pendingApprovals: number;
+   pendingApprovalsChange: number;
    upcomingVisits: number;
    checkedInVisitors: number;
    checkedOutVisitors: number;

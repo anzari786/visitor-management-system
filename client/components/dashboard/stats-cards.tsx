@@ -30,11 +30,6 @@ function formatSignedPercent(value: number) {
    return `${sign}${Math.abs(value)}%`;
 }
 
-function formatSignedMinutes(value: number) {
-   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
-   return `${sign}${Math.abs(value)}min`;
-}
-
 function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
    return [
       {
@@ -57,7 +52,7 @@ function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
          id: 'avg_duration',
          title: 'Avg. Visit Duration',
          value: stats.averageVisitDuration,
-         change: formatSignedMinutes(stats.averageVisitDurationChange),
+         change: formatSignedPercent(stats.averageVisitDurationChange),
          changeValue: '',
          isPositive: stats.averageVisitDurationChange >= 0,
       },
@@ -65,9 +60,9 @@ function mapStatsToCards(stats: VisitStats): DashboardStatCard[] {
          id: 'pending_approvals',
          title: 'Pending Approvals',
          value: stats.pendingApprovals.toLocaleString(),
-         change: '',
+         change: formatSignedPercent(stats.pendingApprovalsChange),
          changeValue: '',
-         isPositive: true,
+         isPositive: stats.pendingApprovalsChange >= 0,
       },
    ];
 }
@@ -121,13 +116,6 @@ export function StatsCards() {
             const Icon = STAT_ICONS[stat.id];
             const isPendingApprovals = stat.id === 'pending_approvals';
             const isCurrentlyInside = stat.id === 'currently_inside';
-            const subtitleText = t(
-               isPendingApprovals
-                  ? 'dashboard.stats.awaitingReview'
-                  : isCurrentlyInside
-                    ? 'dashboard.stats.onSiteNow'
-                    : 'dashboard.stats.vsLastMonth',
-            );
 
             return (
                <div key={stat.id} className="flex items-start">
@@ -145,37 +133,29 @@ export function StatsCards() {
                      {isPendingApprovals ? (
                         <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
                            <span className="text-muted-foreground">
-                              {subtitleText}
+                              {t('dashboard.stats.awaitingReview')}
+                           </span>
+                        </div>
+                     ) : isCurrentlyInside ? (
+                        <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
+                           <span className="text-muted-foreground hidden sm:inline">
+                              {t('dashboard.stats.onSiteNow')}
                            </span>
                         </div>
                      ) : (
                         <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[10px] sm:text-xs lg:text-sm font-medium">
-                           {!isCurrentlyInside && (
-                              <span
-                                 className={
-                                    stat.isPositive
-                                       ? 'text-emerald-600'
-                                       : 'text-red-600'
-                                 }
-                              >
-                                 {stat.change}
-                                 {!isPendingApprovals && stat.changeValue && (
-                                    <span className="hidden sm:inline">
-                                       {stat.changeValue}
-                                    </span>
-                                 )}
-                              </span>
-                           )}
-                           {isCurrentlyInside && (
-                              <span className="text-muted-foreground hidden sm:inline">
-                                 {subtitleText}
-                              </span>
-                           )}
-                           {!isCurrentlyInside && !isPendingApprovals && (
-                              <span className="text-muted-foreground hidden sm:inline">
-                                 {subtitleText}
-                              </span>
-                           )}
+                           <span
+                              className={
+                                 stat.isPositive
+                                    ? 'text-emerald-600'
+                                    : 'text-red-600'
+                              }
+                           >
+                              {stat.change}
+                           </span>
+                           <span className="text-muted-foreground hidden sm:inline">
+                              {t('dashboard.stats.vsLastMonth')}
+                           </span>
                         </div>
                      )}
                   </div>

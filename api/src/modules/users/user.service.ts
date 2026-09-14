@@ -240,7 +240,7 @@ export const createUser = async (
 
    try {
 
-      return await prisma.user.create({
+      const user = await prisma.user.create({
 
          data: {
 
@@ -267,6 +267,10 @@ export const createUser = async (
          select: userDetailSelect,
 
       });
+
+      await sendPasswordSetupInvitation(user.id);
+
+      return user;
 
    } catch (error) {
 
@@ -638,7 +642,6 @@ export const formatUserDetail = (user: UserDetail) => ({
 
    isActive: user.isActive,
 
-   mustChangePassword: user.mustChangePassword,
 
    passwordSetupPending: isPasswordSetupPending(user),
 

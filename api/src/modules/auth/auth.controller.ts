@@ -203,11 +203,7 @@ export const localLogin = async (req: Request, res: Response) => {
 
 
 
-   return loginResponse(res, user, {
-
-      mustChangePassword: credentialCheck.mustChangePassword,
-
-   });
+   return loginResponse(res, user);
 
 };
 

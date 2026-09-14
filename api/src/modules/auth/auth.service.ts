@@ -195,7 +195,6 @@ export const changePassword = async (
       data: {
          passwordHash,
 
-         mustChangePassword: false,
       },
    });
 };
@@ -287,7 +286,6 @@ export const formatAuthUser = (user: AuthUserWithRelations) => ({
 
    isActive: user.isActive,
 
-   mustChangePassword: user.mustChangePassword,
 
    lastLoginAt: user.lastLoginAt ?? undefined,
 

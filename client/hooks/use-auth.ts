@@ -6,7 +6,6 @@ import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/auth-store';
 import type {
    ChangePasswordPayload,
-   ForceChangePasswordPayload,
    CompletePasswordSetupPayload,
    LoginPayload,
    UpdateProfilePayload,
@@ -31,9 +30,7 @@ export function useLogin() {
       onSuccess: ({ user }) => {
          setUser(user);
 
-         router.push(
-            user.mustChangePassword ? '/change-password' : '/dashboard',
-         );
+         router.push('/dashboard');
       },
 
       onError: (error: AxiosError<ApiErrorResponse>) => {
@@ -147,31 +144,6 @@ export function useChangePassword() {
       mutationFn: async (payload: ChangePasswordPayload) => {
          const { data } = await authService.changePassword(payload);
          return data.data;
-      },
-   });
-}
-
-export function useForceChangePassword(options?: {
-   redirectOnSuccess?: boolean;
-}) {
-   const { setUser } = useAuthStore();
-   const router = useRouter();
-
-   return useMutation({
-      mutationFn: async (payload: ForceChangePasswordPayload) => {
-         const { data } = await authService.forceChangePassword(payload);
-         return data.data;
-      },
-      onSuccess: (updatedUser: User) => {
-         // Server returns the updated user with mustChangePassword: false
-         setUser(updatedUser);
-         toast.success('Password updated. Welcome!');
-         if (options?.redirectOnSuccess !== false) {
-            router.push('/');
-         }
-      },
-      onError: () => {
-         toast.error('Failed to update password. Please try again.');
       },
    });
 }

@@ -34,7 +34,6 @@ function normalizeUser(user: UserApiRecord): User {
       phone: user.phone,
       role: role ?? 'RECEPTION',
       isActive: user.isActive,
-      mustChangePassword: user.mustChangePassword ?? user.passwordSetupPending ?? false,
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       checkIns: 0,

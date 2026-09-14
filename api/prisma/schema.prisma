@@ -165,7 +165,6 @@ model User {
   /// Local auth credentials. Never store plaintext passwords.
   username           String?   @unique
   passwordHash       String?
-  mustChangePassword Boolean   @default(false)
   lastLoginAt        DateTime?
 
   isActive  Boolean  @default(true)

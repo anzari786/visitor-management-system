@@ -296,7 +296,6 @@ async function main() {
                email,
                phone,
                passwordHash,
-               mustChangePassword: false,
                isActive: true,
             },
          }),

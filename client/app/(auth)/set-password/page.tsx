@@ -1,80 +1,16 @@
-import { redirect } from 'next/navigation';
-import { getServerUser } from '@/lib/auth-server';
 import SetPassword from '@/components/auth/set-password';
 
 export default async function SetPasswordPage() {
-   const user = await getServerUser();
-
-   if (!user) redirect('/login');
-
-   // Session exists but password change not required → send to dashboard
-   if (!user.mustChangePassword) redirect('/');
-
    return (
-      <div className="min-h-screen w-full relative bg-background">
-         {/* Layer 1: Primary Glow (theme-aware) */}
-         <div
-            className="absolute inset-0 z-0"
-            style={{
-               backgroundImage: `radial-gradient(125% 125% at 50% 90%, var(--background) 40%, color-mix(in oklch, var(--primary) 35%, var(--background)) 100%)`,
-               backgroundSize: '100% 100%',
-            }}
-         />
+      <main className="flex min-h-dvh items-center justify-center relative overflow-hidden bg-[#e0f2f1] flex-col pt-6 pb-12 px-4">
+         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-[-10%] left-[-15%] w-[65vw] h-[120vh] bg-gradient-to-r from-[#6dbf58]/70 via-[#8bc34a]/60 to-transparent rounded-full blur-[100px]" />
+            <div className="absolute top-[-10%] right-[-15%] w-[65vw] h-[120vh] bg-gradient-to-l from-[#b2ebf2]/80 via-[#e0f7fa]/70 to-transparent rounded-full blur-[100px]" />
+         </div>
 
-         {/* Layer 2: Dashed Grid (theme-aware) */}
-         <div
-            className="absolute inset-0 z-0"
-            style={{
-               backgroundImage: `
-        linear-gradient(to right, var(--border) 1px, transparent 1px),
-        linear-gradient(to bottom, var(--border) 1px, transparent 1px)
-      `,
-               backgroundSize: '20px 20px',
-               backgroundPosition: '0 0, 0 0',
-               opacity: 0.6,
-               maskImage: `
-         repeating-linear-gradient(
-              to right,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            repeating-linear-gradient(
-              to bottom,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)
-      `,
-               WebkitMaskImage: `
-  repeating-linear-gradient(
-              to right,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            repeating-linear-gradient(
-              to bottom,
-              black 0px,
-              black 3px,
-              transparent 3px,
-              transparent 8px
-            ),
-            radial-gradient(ellipse 100% 80% at 50% 100%, #000 50%, transparent 90%)
-      `,
-               maskComposite: 'intersect',
-               WebkitMaskComposite: 'source-in',
-            }}
-         />
-
-         {/* Content */}
-         <div className="relative z-10">
+         <div className="relative z-10 w-full">
             <SetPassword />
          </div>
-      </div>
+      </main>
    );
 }

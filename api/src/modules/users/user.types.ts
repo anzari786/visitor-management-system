@@ -11,7 +11,6 @@ export const userDetailSelect = {
    username: true,
    passwordHash: true,
    isActive: true,
-   mustChangePassword: true,
    lastLoginAt: true,
    createdAt: true,
    updatedAt: true,

@@ -66,13 +66,6 @@ export const sendPasswordSetupInvitation = async (
       throw new BadRequestError('Cannot invite an inactive user');
    }
 
-   if (user.passwordHash) {
-      throw new BadRequestError(
-         'This account already has a password configured',
-         'PASSWORD_ALREADY_SET',
-      );
-   }
-
    const rawToken = randomBytes(TOKEN_BYTES).toString('hex');
    const tokenHash = hashSetupToken(rawToken);
    const expiresAt = getTokenExpiry();
@@ -91,7 +84,7 @@ export const sendPasswordSetupInvitation = async (
       }),
    ]);
 
-   const setupUrl = `${env.CLIENT_URL}/auth/password/setup?token=${rawToken}`;
+   const setupUrl = `${env.CLIENT_URL}/set-password?token=${rawToken}`;
    const recipientEmail = user.email;
 
    if (recipientEmail) {
@@ -166,13 +159,6 @@ export const completePasswordSetup = async (
       );
    }
 
-   if (user.passwordHash) {
-      throw new BadRequestError(
-         'This account already has a password configured',
-         'PASSWORD_ALREADY_SET',
-      );
-   }
-
    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
    await prisma.$transaction([
@@ -180,7 +166,6 @@ export const completePasswordSetup = async (
          where: { id: user.id },
          data: {
             passwordHash,
-            mustChangePassword: false,
          },
       }),
       prisma.passwordSetupToken.update({

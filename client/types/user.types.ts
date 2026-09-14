@@ -13,7 +13,6 @@ export type User = {
    phone?: string;
    role: UserRole;
    isActive: boolean;
-   mustChangePassword: boolean; // true when admin creates/resets the account
    lastLoginAt?: string;
    createdAt: string;
    checkIns: number;
@@ -37,7 +36,6 @@ export type UserApiRecord = {
    phone?: string;
    username?: string;
    isActive: boolean;
-   mustChangePassword?: boolean;
    passwordSetupPending?: boolean;
    lastLoginAt?: string;
    createdAt: string;

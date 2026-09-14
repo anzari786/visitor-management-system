@@ -12,7 +12,7 @@ export const loginSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
-export const forceChangePasswordSchema = z
+export const completePasswordSetupSchema = z
    .object({
       newPassword: passwordSchema,
 
@@ -23,6 +23,6 @@ export const forceChangePasswordSchema = z
       message: 'validation.passwordsMismatch',
    });
 
-export type ForceChangePasswordFormValues = z.infer<
-   typeof forceChangePasswordSchema
+export type CompletePasswordSetupFormValues = z.infer<
+   typeof completePasswordSetupSchema
 >;

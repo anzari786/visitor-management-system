@@ -6,7 +6,6 @@ import type {
    LoginPayload,
    UpdateProfilePayload,
    ChangePasswordPayload,
-   ForceChangePasswordPayload,
    CompletePasswordSetupPayload,
    CheckUsernameData,
 } from '@/types/auth.types';
@@ -38,13 +37,6 @@ export const authService = {
 
    changePassword(payload: ChangePasswordPayload) {
       return api.post<ApiResponse<null>>(`${BASE}/change-password`, payload);
-   },
-
-   forceChangePassword(payload: ForceChangePasswordPayload) {
-      return api.post<ApiResponse<User>>(
-         `${BASE}/force-change-password`,
-         payload,
-      );
    },
 
    completePasswordSetup(payload: CompletePasswordSetupPayload) {

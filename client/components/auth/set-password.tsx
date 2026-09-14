@@ -16,13 +16,10 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { PasswordInput } from '@/components/profile/password-input';
+import { useCompletePasswordSetup } from '@/hooks/use-auth';
 import {
-   useCompletePasswordSetup,
-   useForceChangePassword,
-} from '@/hooks/use-auth';
-import {
-   forceChangePasswordSchema,
-   type ForceChangePasswordFormValues,
+   completePasswordSetupSchema,
+   type CompletePasswordSetupFormValues,
 } from '@/lib/validations/auth.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2Icon, Clock3, KeyRound, Link2Off } from 'lucide-react';
@@ -31,30 +28,20 @@ import { useRouter } from 'next/navigation';
 import { Controller, useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import type { ApiErrorResponse } from '@/types/api.types';
-import { useAuthStore } from '@/store/auth-store';
 import Image from 'next/image';
 import { useTranslation } from '@/lib/i18n';
+import LanguageDropdown from '@/components/shared/language-dropdown';
 
 type ResultState = 'success' | 'expired' | 'invalid' | null;
 
 const SetPassword = () => {
    const { t } = useTranslation();
    const router = useRouter();
-   const user = useAuthStore((state) => state.user);
    const [setupToken, setSetupToken] = useState<string | null>(null);
    const [resultState, setResultState] = useState<ResultState>(null);
-   const { mutateAsync: forceChangePassword, isPending: isForcePending } =
-      useForceChangePassword({ redirectOnSuccess: false });
    const { mutateAsync: completePasswordSetup, isPending: isSetupPending } =
       useCompletePasswordSetup();
-   const isPending = isForcePending || isSetupPending;
-
-   // Guard: if user doesn't need to change password, send them to dashboard
-   useEffect(() => {
-      if (user && !user.mustChangePassword) {
-         router.replace('/');
-      }
-   }, [user, router]);
+   const isPending = isSetupPending;
 
    useEffect(() => {
       setSetupToken(new URLSearchParams(window.location.search).get('token'));
@@ -64,8 +51,8 @@ const SetPassword = () => {
       control,
       handleSubmit,
       formState: { errors },
-   } = useForm<ForceChangePasswordFormValues>({
-      resolver: zodResolver(forceChangePasswordSchema),
+   } = useForm<CompletePasswordSetupFormValues>({
+      resolver: zodResolver(completePasswordSetupSchema),
       defaultValues: {
          newPassword: '',
          confirmPassword: '',
@@ -74,9 +61,7 @@ const SetPassword = () => {
 
    const onSubmit = handleSubmit(async (values) => {
       if (!setupToken) {
-         await forceChangePassword(values, {
-            onSuccess: () => setResultState('success'),
-         });
+         setResultState('invalid');
          return;
       }
 
@@ -123,8 +108,11 @@ const SetPassword = () => {
 
    return (
       <>
-         <div className="flex min-h-dvh items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
-            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 sm:pt-14">
+         <div className="flex items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
+            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 ">
+               <div className="flex w-full justify-end">
+                  <LanguageDropdown align="end" />
+               </div>
                <CardHeader className=" px-0 pb-1.5 text-center sm:pb-3">
                   <Image
                      src="/logo.png"

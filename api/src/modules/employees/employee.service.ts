@@ -14,6 +14,7 @@ import type {
    EmployeeSyncRecord,
    HostVisitWithSelect,
 } from './employee.types.js';
+import { upsertDepartment } from '../departments/department.service.js';
 
 interface ListEmployeesFilters extends PaginationParams {
    search?: string;
@@ -183,15 +184,56 @@ export const getUpcomingVisits = async (filters: HostVisitListFilters) => {
 export const syncEmployees = async (records: EmployeeSyncRecord[]) => {
    const syncedAt = new Date();
 
-   const results = await prisma.$transaction(
-      records.map((record) =>
-         prisma.employee.upsert({
-            where: { externalEmployeeId: record.externalEmployeeId },
-            create: { ...record, isActive: true, lastSyncedAt: syncedAt },
-            update: { ...record, isActive: true, lastSyncedAt: syncedAt },
-            select: employeeSelect,
-         }),
-      ),
+   const results = await prisma.$transaction(async (tx) =>
+      (async () => {
+         const departmentRecords = [
+            ...new Map(
+               records.map((record) => {
+                  const department = {
+                     externalDepartmentId:
+                        record.departmentCode ?? record.departmentName,
+                     name: record.departmentName,
+                     code: record.departmentCode,
+                  };
+                  return [department.externalDepartmentId, department];
+               }),
+            ).values(),
+         ];
+         const departments = await Promise.all(
+            departmentRecords.map((record) => upsertDepartment(tx, record)),
+         );
+         const departmentsByExternalId = new Map(
+            departments.map((department) => [
+               department.externalDepartmentId,
+               department,
+            ]),
+         );
+
+         return Promise.all(
+            records.map((record) => {
+               const department = departmentsByExternalId.get(
+                  record.departmentCode ?? record.departmentName,
+               );
+
+               return tx.employee.upsert({
+                  where: { externalEmployeeId: record.externalEmployeeId },
+                  create: {
+                     ...record,
+                     department: { connect: { id: department!.id } },
+                     isActive: true,
+                     lastSyncedAt: syncedAt,
+                  },
+                  update: {
+                     ...record,
+                     department: { connect: { id: department!.id } },
+                     isActive: true,
+                     lastSyncedAt: syncedAt,
+                  },
+                  select: employeeSelect,
+               });
+            }),
+         );
+      })(),
    );
 
    return {

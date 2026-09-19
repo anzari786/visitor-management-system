@@ -112,15 +112,6 @@ const DASHBOARD_EXPORT_PERIODS = {
    '6m': { unit: 'months', value: 6 },
 } as const;
 
-const DEPARTMENT_ID_TO_NAME: Record<number, string> = {
-   1: 'Human Resources',
-   2: 'Finance',
-   3: 'Information Technology',
-   4: 'Research & Development',
-   5: 'Procurement',
-   6: 'Legal Affairs',
-};
-
 const EXPORT_VISIT_LOG_COLUMNS = [
    'Visit Code',
    'Visit Date',
@@ -533,15 +524,20 @@ export async function exportVisitLogCsv(query: ExportVisitLogQuery): Promise<{
 }> {
    const { period, departmentId, departmentName, status, from, to } = query;
    const range = resolveDateRange(period, from, to);
-   const resolvedDepartmentName =
-      departmentName ??
-      (departmentId !== undefined
-         ? DEPARTMENT_ID_TO_NAME[departmentId]
-         : undefined);
+   const department =
+      departmentId !== undefined
+         ? await prisma.department.findUnique({
+              where: { id: departmentId },
+              select: { name: true },
+           })
+         : null;
+   const resolvedDepartmentName = department?.name ?? departmentName;
 
    const visits = await prisma.visit.findMany({
       where: {
-         ...(resolvedDepartmentName
+         ...(departmentId !== undefined
+            ? { hostEmployee: { departmentId } }
+            : departmentName
             ? { departmentNameSnapshot: resolvedDepartmentName }
             : {}),
          ...(status ? { status } : {}),

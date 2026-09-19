@@ -145,7 +145,11 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
       to: new Date(),
    });
 
-   const { data: departments = [] } = useDepartments(true);
+   const {
+      data: departments = [],
+      isPending: isDepartmentsLoading,
+      isError: isDepartmentsError,
+   } = useDepartments(true);
    const { mutate: exportLog, isPending } = useExportVisitLog();
 
    const selectedStatus = STATUS_OPTIONS.find((s) => s.value === status);
@@ -289,14 +293,27 @@ export function ExportVisitLogDialog({ trigger }: ExportVisitLogDialogProps) {
                               <SelectItem value="all">
                                  {t('export.allDepartments')}
                               </SelectItem>
-                              {departments.map((dept) => (
-                                 <SelectItem
-                                    key={dept.id}
-                                    value={String(dept.id)}
-                                 >
-                                    {dept.name}
+                              {isDepartmentsLoading ? (
+                                 <SelectItem value="departments-loading" disabled>
+                                    <span className="flex items-center gap-2">
+                                       <Loader2 className="size-4 animate-spin" />
+                                       {t('common.loading')}
+                                    </span>
                                  </SelectItem>
-                              ))}
+                              ) : isDepartmentsError ? (
+                                 <SelectItem value="departments-error" disabled>
+                                    {t('common.error')}
+                                 </SelectItem>
+                              ) : (
+                                 departments.map((dept) => (
+                                    <SelectItem
+                                       key={dept.id}
+                                       value={String(dept.id)}
+                                    >
+                                       {dept.name}
+                                    </SelectItem>
+                                 ))
+                              )}
                            </SelectGroup>
                         </SelectContent>
                      </Select>

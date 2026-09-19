@@ -22,12 +22,12 @@ const ORG_NAME = 'Ethiopian Agricultural Transformation Institute';
 const PASSWORD_HASH_COST = 12;
 
 const DEPARTMENTS = [
-   ['Human Resources', 'HR'],
-   ['Finance', 'FIN'],
-   ['Information Technology', 'IT'],
-   ['Research & Development', 'R&D'],
-   ['Procurement', 'PROC'],
-   ['Legal Affairs', 'LEGAL'],
+   ['HR-SEED', 'Human Resources', 'HR'],
+   ['FIN-SEED', 'Finance', 'FIN'],
+   ['IT-SEED', 'Information Technology', 'IT'],
+   ['RD-SEED', 'Research & Development', 'R&D'],
+   ['PROC-SEED', 'Procurement', 'PROC'],
+   ['LEGAL-SEED', 'Legal Affairs', 'LEGAL'],
 ] as const;
 
 const STAFF = [
@@ -242,6 +242,7 @@ async function clearSeedData() {
    await prisma.userRole.deleteMany();
    await prisma.user.deleteMany();
    await prisma.employee.deleteMany();
+   await prisma.department.deleteMany();
    await prisma.role.deleteMany();
    await prisma.systemSetting.deleteMany();
    await prisma.visitCodeSequence.deleteMany();
@@ -258,6 +259,22 @@ async function main() {
    );
    const roleByName = new Map(roles.map((role) => [role.name, role]));
 
+   const departments = await Promise.all(
+      DEPARTMENTS.map(([externalDepartmentId, name, code]) =>
+         prisma.department.create({
+            data: {
+               externalDepartmentId,
+               name,
+               code,
+               isActive: true,
+            },
+         }),
+      ),
+   );
+   const departmentByCode = new Map(
+      departments.map((department) => [department.code, department]),
+   );
+
    const employees = await Promise.all(
       HOSTS.map(
          (
@@ -265,7 +282,7 @@ async function main() {
             index,
          ) => {
             const department = DEPARTMENTS.find(
-               (item) => item[1] === departmentCode,
+               (item) => item[2] === departmentCode,
             )!;
             return prisma.employee.create({
                data: {
@@ -275,8 +292,11 @@ async function main() {
                   email,
                   phone,
                   position,
-                  departmentName: department[0],
+                  departmentName: department[1],
                   departmentCode,
+                  department: {
+                     connect: { id: departmentByCode.get(departmentCode)!.id },
+                  },
                   isActive: true,
                },
             });

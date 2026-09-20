@@ -63,13 +63,13 @@ type RegisterVisitorAtVisitBody = z.infer<
 >['body'];
 
 const HOST_VIEW_ROLES: RoleName[] = [
-   'MANAGER',
+   'GUARD_MANAGER',
    'ADMIN',
-   'RECEPTION',
+
    'GUARD',
 ];
 
-const INVITE_STAFF_ROLES: RoleName[] = ['RECEPTION', 'ADMIN', 'MANAGER'];
+const INVITE_STAFF_ROLES: RoleName[] = ['ADMIN', 'GUARD_MANAGER'];
 
 const sessionRoles = (req: Request): RoleName[] =>
    (req.session.roleCodes ?? []) as RoleName[];

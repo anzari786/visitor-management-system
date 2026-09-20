@@ -3,7 +3,7 @@ import type { RoleName } from '../generated/prisma/client.js';
 
 /**
  * Role-based access control using RoleName enum values stored on the
- * session after login (GUARD | RECEPTION | ADMIN | MANAGER).
+ * session after login (GUARD | GUARD_MANAGER | ADMIN | HOST).
  */
 export function requireRole(...roles: RoleName[]) {
    return (req: Request, res: Response, next: NextFunction) => {

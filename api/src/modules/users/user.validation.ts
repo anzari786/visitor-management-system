@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const roleNameSchema = z.enum(['GUARD', 'RECEPTION', 'ADMIN', 'MANAGER']);
+const roleNameSchema = z.enum(['GUARD', 'GUARD_MANAGER', 'ADMIN', 'HOST']);
 const rolesSchema = z.array(roleNameSchema).min(1).max(4);
 const authProviderSchema = z.enum(['SSO', 'LOCAL']);
 

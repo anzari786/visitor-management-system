@@ -11,7 +11,7 @@ export const DEV_USER: User = {
    firstName: 'Dev',
    lastName: 'Admin',
    username: 'dev.admin',
-   role: 'admin', // swap to 'front_desk' to test that role instead
+   role: 'ADMIN', // change this to another UserRole when testing a different role
    isActive: true,
    mustChangePassword: false,
    createdAt: new Date().toISOString(),

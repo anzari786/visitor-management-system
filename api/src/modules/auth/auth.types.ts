@@ -126,7 +126,7 @@ export interface SessionUser {
 
    userId: number;
 
-   /** RoleName values, e.g. GUARD / RECEPTION / ADMIN / MANAGER */
+   /** RoleName values, e.g. GUARD / GUARD_MANAGER / ADMIN / HOST */
 
    roleCodes: RoleName[];
 

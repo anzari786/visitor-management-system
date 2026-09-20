@@ -25,7 +25,7 @@ import {
 
 const router = Router();
 
-const deskStaff = requireRole('GUARD', 'RECEPTION', 'ADMIN');
+const deskStaff = requireRole('GUARD', 'ADMIN');
 
 // Static segments declared before ':id' so they aren't swallowed by it.
 router.get('/', requireAuth, validate(listAttendancesSchema), getAttendances);

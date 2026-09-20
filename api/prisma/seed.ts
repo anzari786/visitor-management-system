@@ -53,7 +53,7 @@ const STAFF_USERS: Array<{
       lastName: 'Manager',
       username: 'manager',
       email: 'manager@ati.gov.et',
-      role: RoleName.MANAGER,
+      role: RoleName.GUARD_MANAGER,
       phone: '+251 911 556 677',
    },
    {
@@ -67,9 +67,9 @@ const STAFF_USERS: Array<{
    {
       firstName: 'Sara',
       lastName: 'Bekele',
-      username: 'reception1',
-      email: 'reception1@ati.gov.et',
-      role: RoleName.RECEPTION,
+      username: 'host1',
+      email: 'host1@ati.gov.et',
+      role: RoleName.HOST,
       phone: '+251 933 445 566',
    },
 ];
@@ -111,9 +111,9 @@ async function main() {
       (
          [
             RoleName.GUARD,
-            RoleName.RECEPTION,
+            RoleName.GUARD_MANAGER,
             RoleName.ADMIN,
-            RoleName.MANAGER,
+            RoleName.HOST,
          ] as const
       ).map((name) =>
          prisma.role.create({
@@ -211,9 +211,6 @@ async function main() {
 
    const guardUsers = staffUsers.filter(
       (_, i) => STAFF_USERS[i].role === RoleName.GUARD,
-   );
-   const receptionUsers = staffUsers.filter(
-      (_, i) => STAFF_USERS[i].role === RoleName.RECEPTION,
    );
    const adminUser = staffUsers.find(
       (_, i) => STAFF_USERS[i].role === RoleName.ADMIN,
@@ -373,8 +370,8 @@ async function main() {
       visitors: [visitorA],
       floor: '1st Floor',
       room: 'Conference Room A',
-      createdById: receptionUsers[0]?.id,
-      decidedById: hostUsers[0]?.id ?? receptionUsers[0]?.id,
+      createdById: guardUsers[0]?.id,
+      decidedById: hostUsers[0]?.id ?? guardUsers[0]?.id,
    });
    const activeSingleBadgeToken = generateQrToken();
    await prisma.visitAttendance.create({
@@ -419,7 +416,7 @@ async function main() {
       visitors: groupVisitors,
       floor: '2nd Floor',
       room: 'Board Room',
-      createdById: receptionUsers[0]?.id,
+      createdById: guardUsers[0]?.id,
       decidedById: hostUsers[1]?.id ?? adminUser.id,
    });
    for (const participant of approvedGroup.participants) {
@@ -532,7 +529,7 @@ async function main() {
       visitors: [await createVisitor({ idNumber: 'ID-SEED-RS1' })],
       floor: 'Basement',
       room: 'Plant Room',
-      createdById: receptionUsers[0]?.id,
+      createdById: guardUsers[0]?.id,
       decidedById: adminUser.id,
    });
 
@@ -584,7 +581,7 @@ async function main() {
          visitors,
          floor: 'Ground Floor',
          room: 'Meeting Room 1',
-         createdById: receptionUsers[0]?.id,
+         createdById: guardUsers[0]?.id,
          decidedById: adminUser.id,
       });
 
@@ -619,7 +616,7 @@ async function main() {
 
    console.log('\nSeeding complete.');
    console.log(`- Org: ${ORG_NAME}`);
-   console.log(`- Roles: GUARD, RECEPTION, ADMIN, MANAGER`);
+   console.log(`- Roles: GUARD, GUARD_MANAGER, ADMIN, HOST`);
    console.log(
       `- Staff logins: ${STAFF_USERS.map((u) => u.username).join(', ')}`,
    );

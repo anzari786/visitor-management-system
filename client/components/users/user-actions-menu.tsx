@@ -161,11 +161,17 @@ export function UserActionsMenu({
                                  handleRoleChange(value as UserRole)
                               }
                            >
-                              <DropdownMenuRadioItem value="admin">
+                              <DropdownMenuRadioItem value="GUARD">
+                                 Guard
+                              </DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="GUARD_MANAGER">
+                                 Guard Manager
+                              </DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem value="ADMIN">
                                  Admin
                               </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="front_desk">
-                                 Front Desk
+                              <DropdownMenuRadioItem value="HOST">
+                                 Host
                               </DropdownMenuRadioItem>
                            </DropdownMenuRadioGroup>
                         </DropdownMenuGroup>

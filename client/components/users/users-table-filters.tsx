@@ -22,8 +22,10 @@ export const statusFilterLabels: Record<UserStatusFilter, string> = {
 };
 
 export const roleFilterLabels: Record<UserRole, string> = {
-   admin: USER_ROLE_CONFIG.admin.label,
-   front_desk: USER_ROLE_CONFIG.front_desk.label,
+   GUARD: USER_ROLE_CONFIG.GUARD.label,
+   GUARD_MANAGER: USER_ROLE_CONFIG.GUARD_MANAGER.label,
+   ADMIN: USER_ROLE_CONFIG.ADMIN.label,
+   HOST: USER_ROLE_CONFIG.HOST.label,
 };
 
 export function UsersTableFilters() {

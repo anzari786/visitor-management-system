@@ -87,9 +87,9 @@ enum BadgePrintJobStatus {
 /// VMS dashboard roles (hosts are Employees, not necessarily Users).
 enum RoleName {
   GUARD
-  RECEPTION
+  GUARD_MANAGER
   ADMIN
-  MANAGER
+  HOST
 }
 
 /// How a dashboard user authenticates.

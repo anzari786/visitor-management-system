@@ -53,7 +53,7 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
          lastName: '',
          username: '',
          phone: '+251 ',
-         role: 'front_desk',
+         role: 'GUARD',
          password: '',
       },
    });
@@ -186,10 +186,10 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="front_desk">
-                                    Front Desk
-                                 </SelectItem>
+                                 <SelectItem value="GUARD">Guard</SelectItem>
+                                 <SelectItem value="GUARD_MANAGER">Guard Manager</SelectItem>
+                                 <SelectItem value="ADMIN">Admin</SelectItem>
+                                 <SelectItem value="HOST">Host</SelectItem>
                               </SelectContent>
                            </Select>
                         )}

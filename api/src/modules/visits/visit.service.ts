@@ -40,11 +40,10 @@ import type {
    VisitSummary,
 } from './visit.types.js';
 
-const HOST_DECISION_ROLES: RoleName[] = ['MANAGER', 'ADMIN', 'RECEPTION'];
+const HOST_DECISION_ROLES: RoleName[] = ['GUARD_MANAGER', 'ADMIN'];
 const HOST_MODIFY_ROLES: RoleName[] = [
-   'MANAGER',
+   'GUARD_MANAGER',
    'ADMIN',
-   'RECEPTION',
    'GUARD',
 ];
 

@@ -9,6 +9,7 @@ import {
    getPendingApprovalVisits,
    getUpcomingVisits,
    formatHostVisit,
+   getDefaultLocation,
 } from './employee.service.js';
 import {
    type listEmployeesSchema,
@@ -106,6 +107,15 @@ export const getMyUpcomingVisits = async (req: Request, res: Response) => {
       success: true,
       data: visits.map(formatHostVisit),
       pagination: meta,
+   });
+};
+
+export const getMyDefaultLocation = async (req: Request, res: Response) => {
+   const location = await getDefaultLocation(req.session.userId!);
+
+   return res.status(200).json({
+      success: true,
+      data: location,
    });
 };
 

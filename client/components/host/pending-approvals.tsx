@@ -40,6 +40,7 @@ import {
 } from './visit-update-details';
 import { HostVisitCard, type HostVisitCardData } from './host-visit-card';
 import { MEETING_TYPE_KEYS, useTranslation } from '@/lib/i18n';
+import { useHostDefaultLocation } from '@/hooks/use-host';
 
 type PendingApprovalsProps = {
    visits: HostVisitCardData[];
@@ -72,6 +73,7 @@ const PendingApprovals = ({
    );
    const [approveRequest, setApproveRequest] =
       useState<HostVisitCardData | null>(null);
+   const defaultLocationQuery = useHostDefaultLocation(!!updateRequest);
    // const [resendingId, setResendingId] = useState<string | null>(null);
 
    const filteredRequests = useMemo(() => {
@@ -281,8 +283,16 @@ const PendingApprovals = ({
                      }
                      defaultStartTime={updateRequest.time}
                      defaultEndTime={updateRequest.endTime}
-                     defaultFloor={updateRequest.floor}
-                     defaultRoom={updateRequest.room}
+                     defaultFloor={
+                        updateRequest.floor ||
+                        defaultLocationQuery.data?.defaultFloor ||
+                        undefined
+                     }
+                     defaultRoom={
+                        updateRequest.room ||
+                        defaultLocationQuery.data?.defaultRoom ||
+                        undefined
+                     }
                      onCancel={() => setUpdateRequest(null)}
                      onConfirm={async (value) => {
                         await onReschedule(updateRequest, value);

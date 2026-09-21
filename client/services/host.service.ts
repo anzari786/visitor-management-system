@@ -15,10 +15,21 @@ export type HostInvitationCreated = {
    visitCode: string;
 };
 
+export type HostDefaultLocation = {
+   defaultFloor: string | null;
+   defaultRoom: string | null;
+};
+
 const EMPLOYEE_VISITS_BASE = '/v1/employees/me/visits';
 const VISITS_BASE = '/v1/visits';
 
 export const hostService = {
+   getDefaultLocation() {
+      return api.get<ApiResponse<HostDefaultLocation>>(
+         '/v1/employees/me/default-location',
+      );
+   },
+
    getPendingVisits(params?: HostVisitsParams) {
       return api.get<ApiResponse<HostVisit[]>>(
          `${EMPLOYEE_VISITS_BASE}/pending-approvals`,

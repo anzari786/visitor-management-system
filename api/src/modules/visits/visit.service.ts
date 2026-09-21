@@ -108,15 +108,34 @@ const createVisitWithUniqueCode = async (
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   const visitCode = await generateVisitCode();
+   for (let attempt = 0; attempt < 5; attempt += 1) {
+      const visitCode = await generateVisitCode();
 
-   return prisma.visit.create({
-      data: {
-         ...data,
-         visitCode,
-      },
-      select: visitDetailSelect,
-   });
+      try {
+         return await prisma.visit.create({
+            data: {
+               ...data,
+               visitCode,
+            },
+            select: visitDetailSelect,
+         });
+      } catch (error) {
+         const target = error instanceof Prisma.PrismaClientKnownRequestError
+            ? error.meta?.target
+            : undefined;
+         const isVisitCodeCollision =
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002' &&
+            (String(target).includes('visitCode') ||
+               error.message.includes('visits_visitCode_key'));
+
+         if (!isVisitCodeCollision || attempt === 4) {
+            throw error;
+         }
+      }
+   }
+
+   throw new Error('Unable to generate a unique visit code');
 };
 
 const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {

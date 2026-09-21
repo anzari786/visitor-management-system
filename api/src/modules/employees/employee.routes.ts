@@ -6,6 +6,7 @@ import {
    runEmployeeSync,
    getMyPendingApprovalVisits,
    getMyUpcomingVisits,
+   getMyDefaultLocation,
 } from './employee.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { requireRole } from '../../middleware/permission.middleware.js';
@@ -35,6 +36,7 @@ router.get(
    validate(listMyVisitsSchema),
    getMyUpcomingVisits,
 );
+router.get('/me/default-location', requireAuth, getMyDefaultLocation);
 
 router.get('/:id', requireAuth, validate(employeeIdParamSchema), getEmployee);
 

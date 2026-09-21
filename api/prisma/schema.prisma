@@ -225,6 +225,8 @@ model Employee {
   departmentName String
   departmentCode String?
   departmentId   Int?
+  defaultFloor   String?
+  defaultRoom    String?
 
   isActive     Boolean  @default(true)
   lastSyncedAt DateTime @default(now())

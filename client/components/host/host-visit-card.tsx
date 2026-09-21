@@ -34,6 +34,22 @@ function MetaDot() {
    );
 }
 
+function getVisitorOrganizationLabel(
+   visitors: HostVisit['visitors'] | undefined,
+): string {
+   const organizations = Array.from(
+      new Set(
+         visitors
+            ?.map((visitor) => visitor.organization?.trim())
+            .filter((organization): organization is string => !!organization) ?? [],
+      ),
+   );
+
+   if (organizations.length === 0) return '';
+   if (organizations.length === 1) return organizations[0];
+   return organizations.join(' • ');
+}
+
 export function HostVisitCard({
    visit,
    statusLabel,
@@ -49,7 +65,7 @@ export function HostVisitCard({
       : visit.startDate;
    const timeLabel = `${formatTimeLabel(visit.time)} – ${formatTimeLabel(visit.endTime)}`;
    const hasLocation = Boolean(visit.floor && visit.room);
-   const organizationName = visit.orgName?.trim();
+   const organizationName = getVisitorOrganizationLabel(visit.visitors);
    const individualLabel =
       (visit.groupSize ?? 1) > 1
          ? t('host.individualVisitors')

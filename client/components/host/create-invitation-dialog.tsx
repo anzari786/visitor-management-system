@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { startOfDay } from 'date-fns';
 import { CheckCircle2Icon, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
+import type { FloorOption } from '@/constants/visit-location';
 import {
    emptyInvitationVisitorValues,
    hostInvitationDefaultValues,
@@ -18,7 +19,10 @@ import {
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
 import type { HostInvitationCreated } from '@/services/host.service';
-import { useCreateHostInvitation } from '@/hooks/use-host';
+import {
+   useCreateHostInvitation,
+   useHostDefaultLocation,
+} from '@/hooks/use-host';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
@@ -81,6 +85,7 @@ export function CreateInvitationDialog({
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
    const createInvitation = useCreateHostInvitation();
+   const defaultLocationQuery = useHostDefaultLocation(open);
 
    const form = useForm<
       HostInvitationFormInput,
@@ -98,6 +103,31 @@ export function CreateInvitationDialog({
    const scheduleType = form.watch('scheduleType');
    const visitorCount = form.watch('visitorCount');
    const startDate = form.watch('startDate');
+
+   useEffect(() => {
+      if (!open) return;
+
+      const defaultFloor = defaultLocationQuery.data
+         ?.defaultFloor as FloorOption | null | undefined;
+      const defaultRoom = defaultLocationQuery.data?.defaultRoom;
+
+      if (
+         defaultFloor &&
+         !form.getValues('floor') &&
+         !form.getFieldState('floor').isDirty
+      ) {
+         form.setValue('floor', defaultFloor, {
+            shouldDirty: false,
+         });
+      }
+      if (
+         defaultRoom &&
+         !form.getValues('room') &&
+         !form.getFieldState('room').isDirty
+      ) {
+         form.setValue('room', defaultRoom, { shouldDirty: false });
+      }
+   }, [defaultLocationQuery.data, form, open]);
 
    const handleOpenChange = (nextOpen: boolean) => {
       if (!nextOpen) {
@@ -563,6 +593,8 @@ export function CreateInvitationDialog({
                            form={form}
                            idPrefix="invitation"
                            showDescription={false}
+                           defaultFloor={defaultLocationQuery.data?.defaultFloor}
+                           defaultRoom={defaultLocationQuery.data?.defaultRoom}
                         />
                      </div>
                   </FieldGroup>

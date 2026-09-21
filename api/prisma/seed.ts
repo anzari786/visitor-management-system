@@ -73,6 +73,8 @@ const HOSTS = [
       '+251 911 101 201',
       'Director of Partnerships',
       'HR',
+      '1st Floor',
+      'Executive Suite',
    ],
    [
       'Dawit',
@@ -81,6 +83,8 @@ const HOSTS = [
       '+251 911 101 202',
       'Research Program Lead',
       'R&D',
+      '2nd Floor',
+      'Conference Room A',
    ],
    [
       'Liya',
@@ -89,6 +93,8 @@ const HOSTS = [
       '+251 911 101 203',
       'Procurement Specialist',
       'PROC',
+      '2nd Floor',
+      'Training Room 1',
    ],
    [
       'Nahom',
@@ -97,6 +103,8 @@ const HOSTS = [
       '+251 911 101 204',
       'IT Infrastructure Manager',
       'IT',
+      'Basement',
+      'Service Entrance',
    ],
    [
       'Hana',
@@ -105,6 +113,8 @@ const HOSTS = [
       '+251 911 101 205',
       'Finance Manager',
       'FIN',
+      '1st Floor',
+      'Finance Meeting Room',
    ],
    [
       'Samuel',
@@ -113,6 +123,8 @@ const HOSTS = [
       '+251 911 101 206',
       'Legal Counsel',
       'LEGAL',
+      '3rd Floor',
+      'Board Room',
    ],
 ] as const;
 
@@ -122,6 +134,7 @@ const VISITORS = [
       'Alemu',
       'kidist.alemu@example.com',
       '+251 911 300 001',
+      'ET',
       'Green Horizon Ltd',
       'NATIONAL_ID',
       'ID-SEED-001',
@@ -131,6 +144,7 @@ const VISITORS = [
       'Hailu',
       'yonas.hailu@example.com',
       '+251 911 300 002',
+      'ET',
       'AgriTech Ethiopia',
       'PASSPORT',
       'P-SEED-002',
@@ -140,6 +154,7 @@ const VISITORS = [
       'Gebre',
       'marta.gebre@example.com',
       '+251 911 300 003',
+      'KE',
       'AgriTech Ethiopia',
       'NATIONAL_ID',
       'ID-SEED-003',
@@ -149,6 +164,7 @@ const VISITORS = [
       'Kebede',
       'daniel.kebede@example.com',
       '+251 911 300 004',
+      'ET',
       'AgriTech Ethiopia',
       'NATIONAL_ID',
       'ID-SEED-004',
@@ -158,6 +174,7 @@ const VISITORS = [
       'Mekonnen',
       'rahel.mekonnen@example.com',
       '+251 911 300 005',
+      'RW',
       'Blue Nile Consulting',
       'KEBELE_ID',
       'K-SEED-005',
@@ -167,6 +184,7 @@ const VISITORS = [
       'Fikru',
       'henok.fikru@example.com',
       '+251 911 300 006',
+      'ET',
       'Blue Nile Consulting',
       'NATIONAL_ID',
       'ID-SEED-006',
@@ -176,6 +194,7 @@ const VISITORS = [
       'Abebe',
       'selam.abebe@example.com',
       '+251 911 300 007',
+      'ET',
       'ATI Partner Network',
       'DRIVERS_LICENSE',
       'DL-SEED-007',
@@ -185,6 +204,7 @@ const VISITORS = [
       'Worku',
       'robel.worku@example.com',
       '+251 911 300 008',
+      'ET',
       'ATI Partner Network',
       'NATIONAL_ID',
       'ID-SEED-008',
@@ -194,6 +214,7 @@ const VISITORS = [
       'Assefa',
       'tigist.assefa@example.com',
       '+251 911 300 009',
+      'GB',
       'Mekong Systems',
       'PASSPORT',
       'P-SEED-009',
@@ -203,6 +224,7 @@ const VISITORS = [
       'Girma',
       'bekele.girma@example.com',
       '+251 911 300 010',
+      'ET',
       'Mekong Systems',
       'NATIONAL_ID',
       'ID-SEED-010',
@@ -212,6 +234,7 @@ const VISITORS = [
       'Desta',
       'aster.desta@example.com',
       '+251 911 300 011',
+      'US',
       'ATI Visitor',
       'NATIONAL_ID',
       'ID-SEED-011',
@@ -221,6 +244,7 @@ const VISITORS = [
       'Kassa',
       'mulu.kassa@example.com',
       '+251 911 300 012',
+      'ET',
       'ATI Visitor',
       'NATIONAL_ID',
       'ID-SEED-012',
@@ -278,7 +302,16 @@ async function main() {
    const employees = await Promise.all(
       HOSTS.map(
          (
-            [firstName, lastName, email, phone, position, departmentCode],
+            [
+               firstName,
+               lastName,
+               email,
+               phone,
+               position,
+               departmentCode,
+               defaultFloor,
+               defaultRoom,
+            ],
             index,
          ) => {
             const department = DEPARTMENTS.find(
@@ -294,6 +327,8 @@ async function main() {
                   position,
                   departmentName: department[1],
                   departmentCode,
+                  defaultFloor,
+                  defaultRoom,
                   department: {
                      connect: { id: departmentByCode.get(departmentCode)!.id },
                   },
@@ -357,6 +392,7 @@ async function main() {
             lastName,
             email,
             phone,
+            nationality,
             organization,
             idType,
             idNumber,
@@ -367,6 +403,7 @@ async function main() {
                   lastName,
                   email,
                   phone,
+                  nationality,
                   organization,
                   idType: toIdType(idType),
                   idNumber,
@@ -415,8 +452,14 @@ async function main() {
             hostEmailSnapshot: host.email,
             departmentNameSnapshot: host.departmentName,
             departmentCodeSnapshot: host.departmentCode,
-            floor: input.floor,
-            room: input.room,
+            floor:
+               input.status === VisitStatus.PENDING_APPROVAL
+                  ? null
+                  : input.floor,
+            room:
+               input.status === VisitStatus.PENDING_APPROVAL
+                  ? null
+                  : input.room,
             startDate: input.dates[0],
             endDate: input.dates[input.dates.length - 1],
             startTime: input.startTime ?? '09:00',

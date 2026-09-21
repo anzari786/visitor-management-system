@@ -102,6 +102,8 @@ export function VisitUpdateDetails({
    onConfirm,
 }: VisitUpdateDetailsProps) {
    const { t } = useTranslation();
+   const initialFloor = defaultFloor ?? undefined;
+   const initialRoom = defaultRoom || '';
    const form = useForm<
       VisitUpdateDetailsInput,
       unknown,
@@ -115,8 +117,8 @@ export function VisitUpdateDetails({
          endDate: isMultiDay ? (defaultEndDate ?? defaultDate) : undefined,
          startTime: defaultStartTime,
          endTime: defaultEndTime,
-         floor: (defaultFloor as FloorOption | undefined) ?? undefined,
-         room: defaultRoom,
+         floor: (initialFloor as FloorOption | undefined) ?? undefined,
+         room: initialRoom,
       },
       mode: 'onSubmit',
       reValidateMode: 'onChange',
@@ -131,9 +133,9 @@ export function VisitUpdateDetails({
          endDate: isMultiDay ? (defaultEndDate ?? defaultDate) : undefined,
          startTime: defaultStartTime,
          endTime: defaultEndTime,
-         floor: (defaultFloor as FloorOption | undefined) ?? undefined,
-         room: defaultRoom,
-      });
+         floor: (initialFloor as FloorOption | undefined) ?? undefined,
+         room: initialRoom,
+      }, { keepDirtyValues: true });
    }, [
       defaultDate,
       defaultEndDate,
@@ -144,6 +146,16 @@ export function VisitUpdateDetails({
       form,
       isMultiDay,
    ]);
+
+   useEffect(() => {
+      if (
+         defaultRoom &&
+         !form.getValues('room') &&
+         !form.getFieldState('room').isDirty
+      ) {
+         form.setValue('room', defaultRoom, { shouldDirty: false });
+      }
+   }, [defaultRoom, form]);
 
    const isSubmitting = form.formState.isSubmitting;
    const currentDateLabel = formatDateLabel({

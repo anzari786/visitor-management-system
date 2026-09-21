@@ -120,7 +120,12 @@ export const visitSummarySelect = {
       select: {
          id: true,
          visitor: {
-            select: { firstName: true, lastName: true, phone: true },
+            select: {
+               firstName: true,
+               lastName: true,
+               phone: true,
+               nationality: true,
+            },
          },
          attendances: {
             select: {

@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
@@ -84,16 +84,33 @@ const resolveHostEmployeeId = async (userId: number): Promise<number> => {
    return user.employeeId;
 };
 
+export const getDefaultLocation = async (userId: number) => {
+   const employeeId = await resolveHostEmployeeId(userId);
+   const [location] = await prisma.$queryRaw<
+      { defaultFloor: string | null; defaultRoom: string | null }[]
+   >(
+      Prisma.sql`SELECT defaultFloor, defaultRoom FROM employees WHERE id = ${employeeId} LIMIT 1`,
+   );
+
+   if (!location) {
+      throw new NotFoundError('Employee not found');
+   }
+
+   return location;
+};
+
 /** Powers the searchable host picker on the visit request/invitation form. */
-export const searchHosts = async (query: string, limit: number) => {
+export const searchHosts = async (query: string | undefined, limit: number) => {
    return prisma.employee.findMany({
       where: {
          isActive: true,
-         OR: [
-            { firstName: { contains: query } },
-            { lastName: { contains: query } },
-            { email: { contains: query } },
-         ],
+         ...(query && {
+            OR: [
+               { firstName: { contains: query } },
+               { lastName: { contains: query } },
+               { email: { contains: query } },
+            ],
+         }),
       },
       select: employeeHostOptionSelect,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],

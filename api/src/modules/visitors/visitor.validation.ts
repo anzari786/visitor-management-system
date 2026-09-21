@@ -31,6 +31,9 @@ export const createVisitorSchema = z.object({
       phone: z.string().trim().min(7).max(20),
       email: z.string().trim().email().optional(),
       organization: z.string().trim().min(1).max(150).optional(),
+      subCity: z.string().trim().min(1).max(100).optional(),
+      woreda: z.string().trim().min(1).max(100).optional(),
+      houseNumber: z.string().trim().min(1).max(50).optional(),
       idType: identificationTypeSchema,
       idNumber: z.string().trim().min(1).max(50),
    }),
@@ -47,6 +50,9 @@ export const updateVisitorSchema = z.object({
          phone: z.string().trim().min(7).max(20).optional(),
          email: z.string().trim().email().optional(),
          organization: z.string().trim().min(1).max(150).optional(),
+         subCity: z.string().trim().min(1).max(100).optional(),
+         woreda: z.string().trim().min(1).max(100).optional(),
+         houseNumber: z.string().trim().min(1).max(50).optional(),
       })
       .refine((body) => Object.keys(body).length > 0, {
          message: 'At least one field must be provided',

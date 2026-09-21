@@ -31,6 +31,30 @@ export const visitorSchema = z.object({
       .refine((val) => isValidEthiopianPhone(val), {
          message: 'Enter a valid Ethiopian phone number',
       }),
+   subCity: z
+      .string()
+      .max(100, 'Sub-city must be 100 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
+   woreda: z
+      .string()
+      .max(100, 'Woreda must be 100 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
+   houseNumber: z
+      .string()
+      .max(50, 'House number must be 50 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
    idType: z.enum(
       ID_TYPE_OPTIONS.map((o) => o.value) as [IdTypeValue, ...IdTypeValue[]],
       { message: 'ID type is required' },
@@ -69,6 +93,9 @@ export const emptyVisitorValues: {
    idType: undefined;
    idNumber: string;
    organization: string;
+   subCity: string;
+   woreda: string;
+   houseNumber: string;
 } = {
    firstName: '',
    lastName: '',
@@ -77,6 +104,9 @@ export const emptyVisitorValues: {
    idType: undefined,
    idNumber: '',
    organization: '',
+   subCity: '',
+   woreda: '',
+   houseNumber: '',
 };
 
 const visitDetailsFieldsSchema = z.object({

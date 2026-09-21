@@ -7,6 +7,9 @@ export const visitorSelect = {
    phone: true,
    email: true,
    organization: true,
+   subCity: true,
+   woreda: true,
+   houseNumber: true,
    idType: true,
    idNumber: true,
    createdAt: true,
@@ -50,6 +53,9 @@ export interface VisitorInput {
    phone: string;
    email?: string;
    organization?: string;
+   subCity?: string;
+   woreda?: string;
+   houseNumber?: string;
    idType?: IdType;
    idNumber?: string;
 }

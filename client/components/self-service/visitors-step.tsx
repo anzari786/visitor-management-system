@@ -123,6 +123,47 @@ function VisitorFields({
 
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
+               <FieldLabel htmlFor={`visitors.${index}.subCity`}>
+                  Sub-city
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.subCity`}
+                  placeholder="Enter sub-city"
+                  aria-invalid={!!errors?.subCity}
+                  {...form.register(`visitors.${index}.subCity`)}
+               />
+               <FieldError>{errors?.subCity?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.woreda`}>
+                  Woreda
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.woreda`}
+                  placeholder="Enter woreda"
+                  aria-invalid={!!errors?.woreda}
+                  {...form.register(`visitors.${index}.woreda`)}
+               />
+               <FieldError>{errors?.woreda?.message}</FieldError>
+            </Field>
+         </div>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.houseNumber`}>
+               House Number
+            </FieldLabel>
+            <Input
+               id={`visitors.${index}.houseNumber`}
+               placeholder="Enter house number"
+               aria-invalid={!!errors?.houseNumber}
+               {...form.register(`visitors.${index}.houseNumber`)}
+            />
+            <FieldError>{errors?.houseNumber?.message}</FieldError>
+         </Field>
+
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
                <FieldLabel htmlFor={`visitors.${index}.idType`}>
                   ID Type <span className="text-destructive">*</span>
                </FieldLabel>

@@ -7,6 +7,9 @@ export interface RegisterVisitorInput {
    phone: string;
    email?: string;
    organization?: string;
+   subCity?: string;
+   woreda?: string;
+   houseNumber?: string;
    idType: VisitorInputForVisit['idType'];
    idNumber: string;
 }

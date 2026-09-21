@@ -254,6 +254,9 @@ model Visitor {
   email        String?
   phone        String?
   organization String?
+  subCity      String?
+  woreda       String?
+  houseNumber  String?
 
   /// Collected on public/reception requests; may be filled at check-in for invitations.
   idType   IdType?

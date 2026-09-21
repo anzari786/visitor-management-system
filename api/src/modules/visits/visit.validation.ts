@@ -38,6 +38,9 @@ const visitorInputSchema = z.object({
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
    organization: z.string().trim().min(1).max(150).optional(),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
    idType: identificationTypeSchema,
    idNumber: z.string().trim().min(1).max(50),
 });
@@ -48,6 +51,9 @@ const hostInvitationVisitorSchema = z.object({
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
    organization: z.string().trim().min(1).max(150).optional(),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
    idType: identificationTypeSchema.optional(),
    idNumber: z.string().trim().min(1).max(50).optional(),
 });
@@ -170,6 +176,9 @@ const registerVisitorBodySchema = z.object({
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
    organization: z.string().trim().min(1).max(150).optional(),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
    idType: identificationTypeSchema,
    idNumber: z.string().trim().min(1).max(50),
 });

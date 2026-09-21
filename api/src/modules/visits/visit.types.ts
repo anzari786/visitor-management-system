@@ -53,6 +53,9 @@ export const visitDetailSelect = {
                phone: true,
                email: true,
                organization: true,
+               subCity: true,
+               woreda: true,
+               houseNumber: true,
                idType: true,
                idNumber: true,
             },
@@ -145,6 +148,9 @@ export interface VisitorInputForVisit {
    phone: string;
    email?: string;
    organization?: string;
+   subCity?: string;
+   woreda?: string;
+   houseNumber?: string;
    idType?: IdType;
    idNumber?: string;
 }

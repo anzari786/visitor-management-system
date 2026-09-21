@@ -184,6 +184,9 @@ const resolveVisitorRecords = async (
                phone: visitor.phone,
                email: visitor.email,
                organization: visitor.organization,
+               subCity: visitor.subCity,
+               woreda: visitor.woreda,
+               houseNumber: visitor.houseNumber,
                idType: visitor.idType,
                idNumber: visitor.idNumber,
             });
@@ -195,6 +198,9 @@ const resolveVisitorRecords = async (
             phone: visitor.phone,
             email: visitor.email,
             organization: visitor.organization,
+            subCity: visitor.subCity,
+            woreda: visitor.woreda,
+            houseNumber: visitor.houseNumber,
          });
       }),
    );

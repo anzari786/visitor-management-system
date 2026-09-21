@@ -57,6 +57,9 @@ export type RegisterVisitorPayload = {
    phone: string;
    email?: string;
    organization?: string;
+   subCity?: string;
+   woreda?: string;
+   houseNumber?: string;
    idType: string;
    idNumber: string;
 };

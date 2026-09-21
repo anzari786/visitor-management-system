@@ -35,6 +35,9 @@ const registrationSchema = z.object({
    firstName: z.string().trim().min(1, 'First name is required'),
    lastName: z.string().trim().min(1, 'Last name is required'),
    phone: z.string().trim().min(7, 'Phone is required'),
+   subCity: z.string().trim().max(100).optional(),
+   woreda: z.string().trim().max(100).optional(),
+   houseNumber: z.string().trim().max(50).optional(),
    email: z.string().trim().email().optional().or(z.literal('')),
    organization: z.string().trim().optional(),
    idType: z.enum([
@@ -63,6 +66,9 @@ export function VisitorRegistrationContent() {
          firstName: '',
          lastName: '',
          phone: '',
+         subCity: '',
+         woreda: '',
+         houseNumber: '',
          email: '',
          organization: '',
          idType: 'NATIONAL_ID',
@@ -206,6 +212,49 @@ export function VisitorRegistrationContent() {
                   <FieldLabel htmlFor="phone">Phone</FieldLabel>
                   <Input id="phone" {...form.register('phone')} />
                   <FieldError>{form.formState.errors.phone?.message}</FieldError>
+               </Field>
+
+               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                     <FieldLabel htmlFor="subCity">Sub-city</FieldLabel>
+                     <Input
+                        id="subCity"
+                        placeholder="Enter sub-city"
+                        aria-invalid={!!form.formState.errors.subCity}
+                        {...form.register('subCity')}
+                     />
+                     <FieldError>
+                        {form.formState.errors.subCity?.message}
+                     </FieldError>
+                  </Field>
+
+                  <Field>
+                     <FieldLabel htmlFor="woreda">Woreda</FieldLabel>
+                     <Input
+                        id="woreda"
+                        placeholder="Enter woreda"
+                        aria-invalid={!!form.formState.errors.woreda}
+                        {...form.register('woreda')}
+                     />
+                     <FieldError>
+                        {form.formState.errors.woreda?.message}
+                     </FieldError>
+                  </Field>
+               </div>
+
+               <Field>
+                  <FieldLabel htmlFor="houseNumber">
+                     House Number
+                  </FieldLabel>
+                  <Input
+                     id="houseNumber"
+                     placeholder="Enter house number"
+                     aria-invalid={!!form.formState.errors.houseNumber}
+                     {...form.register('houseNumber')}
+                  />
+                  <FieldError>
+                     {form.formState.errors.houseNumber?.message}
+                  </FieldError>
                </Field>
 
                <Field>

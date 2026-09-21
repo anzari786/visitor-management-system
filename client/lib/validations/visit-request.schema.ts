@@ -111,7 +111,7 @@ function refineVisitSchedule(
       }
    }
 
-   if (data.startTime && data.endTime && data.startTime >= data.endTime) {
+   if (data.startTime && data.endTime && data.startTime === data.endTime) {
       ctx.addIssue({
          code: 'custom',
          path: ['endTime'],

@@ -7,6 +7,8 @@ export type EmployeeSearchResult = {
    departmentName: string;
    departmentCode?: string;
    position?: string;
+   defaultFloor?: string | null;
+   defaultRoom?: string | null;
    isActive: boolean;
 };
 

@@ -30,6 +30,7 @@ import { VisitDetailsStep } from './visit-details-step';
 import { ReviewSubmitStep } from './review-submit-step';
 import { toast } from 'sonner';
 import { useTranslation, type TranslationKey } from '@/lib/i18n';
+import { addHours, format } from 'date-fns';
 
 interface Step {
    titleKey: TranslationKey;
@@ -65,6 +66,16 @@ const VISIT_DETAILS_FIELDS = [
    'endTime',
 ] as const;
 
+function getDefaultScheduleTimes() {
+   const start = new Date();
+   const end = addHours(start, 2);
+
+   return {
+      startTime: format(start, 'HH:mm'),
+      endTime: format(end, 'HH:mm'),
+   };
+}
+
 type VisitRequestFormProps = {
    submitAction: (
       values: VisitRequestFormValues,
@@ -75,6 +86,8 @@ type VisitRequestFormProps = {
    successTitle?: string;
    successDescription?: string;
    doneLabel?: string;
+   stickyHeader?: boolean;
+   stickyFooter?: boolean;
 };
 
 export default function VisitRequestForm({
@@ -85,12 +98,15 @@ export default function VisitRequestForm({
    successTitle,
    successDescription,
    doneLabel,
+   stickyHeader = false,
+   stickyFooter = false,
 }: VisitRequestFormProps) {
    const { t } = useTranslation();
    const [activeStep, setActiveStep] = useState(0);
    const [successOpen, setSuccessOpen] = useState(false);
    const [submittedVisit, setSubmittedVisit] =
       useState<SubmitVisitRequestResponse | null>(null);
+   const defaultScheduleTimes = getDefaultScheduleTimes();
 
    const form = useForm<VisitRequestFormInput, unknown, VisitRequestFormValues>({
       resolver: zodResolver(visitRequestSchema),
@@ -103,8 +119,7 @@ export default function VisitRequestForm({
          purpose: undefined,
          startDate: undefined,
          endDate: undefined,
-         startTime: '',
-         endTime: '',
+         ...defaultScheduleTimes,
       },
       mode: 'onTouched',
    });
@@ -141,8 +156,7 @@ export default function VisitRequestForm({
          purpose: undefined,
          startDate: undefined,
          endDate: undefined,
-         startTime: '',
-         endTime: '',
+         ...getDefaultScheduleTimes(),
       });
       setActiveStep(0);
       setSuccessOpen(false);
@@ -171,7 +185,12 @@ export default function VisitRequestForm({
                className,
             )}
          >
-            <div className="sticky top-0 z-10 relative flex w-full shrink-0 items-center justify-between bg-background">
+            <div
+               className={cn(
+                  'relative z-10 flex w-full shrink-0 items-center justify-between bg-background',
+                  stickyHeader && 'sticky top-0',
+               )}
+            >
                <div
                   className="absolute h-0.5 bg-border"
                   style={{ left: '16.67%', right: '16.67%', top: '18px' }}
@@ -268,7 +287,12 @@ export default function VisitRequestForm({
                </AnimatePresence>
             </div>
 
-            <div className="sticky bottom-0 z-10 flex shrink-0 flex-col-reverse gap-3 bg-background pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+               className={cn(
+                  'z-10 flex shrink-0 flex-col-reverse gap-3 bg-background pt-2 sm:flex-row sm:items-center sm:justify-between',
+                  stickyFooter && 'sticky bottom-0',
+               )}
+            >
                <Button
                   type="button"
                   variant="outline"

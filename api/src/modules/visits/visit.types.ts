@@ -52,6 +52,7 @@ export const visitDetailSelect = {
                lastName: true,
                phone: true,
                email: true,
+               nationality: true,
                organization: true,
                idType: true,
                idNumber: true,
@@ -147,6 +148,7 @@ export interface VisitorInputForVisit {
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    idType?: IdType;
    idNumber?: string;
@@ -157,6 +159,7 @@ export interface RegisterVisitorInput {
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
 }
 

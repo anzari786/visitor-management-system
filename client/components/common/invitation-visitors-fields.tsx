@@ -1,8 +1,13 @@
 'use client';
 
 import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
+import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatEthiopianPhone } from '@/lib/phone';
+import {
+   DEFAULT_NATIONALITY,
+   NATIONALITY_OPTIONS,
+} from '@/constants/nationalities';
 import {
    emptyInvitationVisitorValues,
    type HostInvitationFormInput,
@@ -20,6 +25,14 @@ import {
    FieldSet,
 } from '@/components/ui/field';
 import { useTranslation } from '@/lib/i18n';
+import {
+   Autocomplete,
+   AutocompleteContent,
+   AutocompleteEmpty,
+   AutocompleteInput,
+   AutocompleteItem,
+   AutocompleteList,
+} from '@/components/ui/autocomplete';
 
 type FormType = UseFormReturn<
    HostInvitationFormInput,
@@ -30,6 +43,14 @@ type FormType = UseFormReturn<
 function VisitorFields({ form, index }: { form: FormType; index: number }) {
    const { t } = useTranslation();
    const errors = form.formState.errors.visitors?.[index];
+   const [nationalityInput, setNationalityInput] = useState('');
+   const nationalityValue = form.watch(`visitors.${index}.nationality`);
+   const selectedNationality = NATIONALITY_OPTIONS.find(
+      ({ value }) => value === nationalityValue,
+   );
+   const filteredNationalities = NATIONALITY_OPTIONS.filter(({ label }) =>
+      label.toLowerCase().includes(nationalityInput.toLowerCase()),
+   );
 
    return (
       <FieldGroup className="gap-4">
@@ -107,6 +128,54 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
                )}
             />
             <FieldError>{errors?.phone?.message}</FieldError>
+         </Field>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.nationality`}>
+               Nationality <span className="text-destructive">*</span>
+            </FieldLabel>
+            <Controller
+               name={`visitors.${index}.nationality`}
+               control={form.control}
+               defaultValue={DEFAULT_NATIONALITY}
+               render={({ field }) => (
+                  <Autocomplete
+                     key={nationalityValue ?? ''}
+                     value={field.value || null}
+                     onValueChange={(value) => field.onChange(value ?? '')}
+                     onInputValueChange={setNationalityInput}
+                     defaultInputValue={selectedNationality?.label ?? ''}
+                  >
+                     <AutocompleteInput
+                        id={`visitors.${index}.nationality`}
+                        placeholder="Search nationality..."
+                        autoComplete="off"
+                        showClear
+                        aria-invalid={!!errors?.nationality}
+                     />
+                     <AutocompleteContent>
+                        <AutocompleteList>
+                           {filteredNationalities.length === 0 ? (
+                              <AutocompleteEmpty>
+                                 No nationality found.
+                              </AutocompleteEmpty>
+                           ) : (
+                              filteredNationalities.map((nationality) => (
+                                 <AutocompleteItem
+                                    key={nationality.value}
+                                    value={nationality.value}
+                                    label={nationality.label}
+                                 >
+                                    {nationality.label}
+                                 </AutocompleteItem>
+                              ))
+                           )}
+                        </AutocompleteList>
+                     </AutocompleteContent>
+                  </Autocomplete>
+               )}
+            />
+            <FieldError>{errors?.nationality?.message}</FieldError>
          </Field>
 
          <Field>

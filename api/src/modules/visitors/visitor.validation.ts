@@ -30,6 +30,7 @@ export const createVisitorSchema = z.object({
       lastName: z.string().trim().min(1).max(100),
       phone: z.string().trim().min(7).max(20),
       email: z.string().trim().email().optional(),
+      nationality: z.string().trim().min(1).max(100).optional(),
       organization: z.string().trim().min(1).max(150).optional(),
       idType: identificationTypeSchema,
       idNumber: z.string().trim().min(1).max(50),
@@ -46,6 +47,7 @@ export const updateVisitorSchema = z.object({
          lastName: z.string().trim().min(1).max(100).optional(),
          phone: z.string().trim().min(7).max(20).optional(),
          email: z.string().trim().email().optional(),
+         nationality: z.string().trim().min(1).max(100).optional(),
          organization: z.string().trim().min(1).max(150).optional(),
       })
       .refine((body) => Object.keys(body).length > 0, {

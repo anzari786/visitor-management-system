@@ -27,6 +27,7 @@ export type SubmitVisitRequestPayload = {
       lastName: string;
       phone: string;
       email?: string;
+      nationality?: string;
       organization?: string;
    }>;
    scheduleDates: Array<{

@@ -68,6 +68,7 @@ export type ManagedVisitor = {
    attendanceStatus: VisitorAttendanceStatus;
    phone?: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    idType?: IdType;
    idNumber?: string;
@@ -168,6 +169,7 @@ export type BackendVisitSummary = {
       firstName: string;
       lastName: string;
       phone?: string;
+      nationality?: string;
       attendances: Array<{
          id: string;
          status: string;

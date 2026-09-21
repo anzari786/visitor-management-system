@@ -116,6 +116,7 @@ const EXPORT_VISIT_LOG_COLUMNS = [
    'Visit Code',
    'Visit Date',
    'Visitor Name',
+   'Nationality',
    'Organization',
    'Visitor Phone',
    'Host Name',
@@ -135,6 +136,7 @@ type VisitLogCsvRow = {
    'Visit Code': string;
    'Visit Date': string;
    'Visitor Name': string;
+   Nationality: string;
    Organization: string;
    'Visitor Phone': string;
    'Host Name': string;
@@ -604,6 +606,7 @@ export async function exportVisitLogCsv(query: ExportVisitLogQuery): Promise<{
                'Visit Code': visit.visitCode,
                'Visit Date': format(visitDate, 'yyyy-MM-dd'),
                'Visitor Name': visitorName,
+               Nationality: visitor.nationality ?? '',
                Organization: visit.organization ?? visitor.organization ?? '',
                'Visitor Phone': visitor.phone ?? '',
                'Host Name': hostName,

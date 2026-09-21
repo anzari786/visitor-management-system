@@ -271,6 +271,7 @@ model Visitor {
   lastName     String
   email        String?
   phone        String?
+  nationality  String?
   organization String?
 
   /// Collected and verified at check-in for all visit types.

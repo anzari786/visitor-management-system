@@ -22,11 +22,12 @@ export function toSubmitVisitRequestPayload(
       purpose: values.purpose,
       hostEmployeeId: Number(values.hostId),
       visitors: values.visitors.map(
-         ({ firstName, lastName, phone, email, organization }) => ({
+         ({ firstName, lastName, phone, email, nationality, organization }) => ({
             firstName,
             lastName,
             phone,
             email,
+            nationality,
             organization,
          }),
       ),

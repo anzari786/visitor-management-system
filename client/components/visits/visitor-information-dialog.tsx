@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { FLOOR_OPTIONS } from '@/constants/visit-location';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
+import { DEFAULT_NATIONALITY } from '@/constants/nationalities';
 import {
    emptyInvitationVisitorValues,
    hostInvitationSchema,
@@ -51,9 +52,15 @@ function getVisitorValues(
             lastName: lastNameParts.join(' '),
             email: visitor.email || '',
             phone: visitor.phone || '+251 ',
+            nationality: visitor.nationality || DEFAULT_NATIONALITY,
             organization: visitor.organization || '',
          };
-      }) || [{ ...emptyInvitationVisitorValues }]
+      }) || [
+         {
+            ...emptyInvitationVisitorValues,
+            nationality: DEFAULT_NATIONALITY,
+         },
+      ]
    );
 }
 

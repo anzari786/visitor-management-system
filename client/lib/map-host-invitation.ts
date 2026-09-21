@@ -11,6 +11,7 @@ export interface CreateHostInvitationApiPayload {
       lastName: string;
       phone: string;
       email?: string;
+      nationality?: string;
       organization?: string;
    }>;
    expectedVisitorCount?: number;
@@ -107,6 +108,7 @@ export const mapHostInvitationToApi = (
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email,
+            nationality: visitor.nationality,
             organization: visitor.organization,
          })),
       };

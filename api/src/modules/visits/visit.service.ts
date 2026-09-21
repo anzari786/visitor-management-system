@@ -358,6 +358,7 @@ const resolveVisitorRecords = async (
                lastName: visitor.lastName,
                phone: visitor.phone,
                email: visitor.email,
+               nationality: visitor.nationality,
                organization: visitor.organization,
                idType: visitor.idType,
                idNumber: visitor.idNumber,
@@ -369,6 +370,7 @@ const resolveVisitorRecords = async (
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email,
+            nationality: visitor.nationality,
             organization: visitor.organization,
          });
       }),
@@ -878,6 +880,7 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       firstName: participant.visitor.firstName,
       lastName: participant.visitor.lastName,
       phone: participant.visitor.phone ?? undefined,
+      nationality: participant.visitor.nationality ?? undefined,
       attendances: participant.attendances.map((attendance) => ({
          id: String(attendance.id),
          status: attendance.status,

@@ -31,6 +31,7 @@ export interface LabelGeometry {
 }
 
 export interface AgentConfig {
+   printerMode: 'zebra' | 'mock';
    vmsApiUrl: string;
    printAgentToken: string;
    printAgentId: string;

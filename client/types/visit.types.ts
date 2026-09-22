@@ -219,10 +219,12 @@ export type CheckInPayload = {
 
 export type RegisterVisitorPayload = {
    visitId: number;
+   visitParticipantId?: number;
    firstName: string;
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
 };
 

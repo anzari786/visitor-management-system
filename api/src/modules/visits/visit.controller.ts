@@ -272,6 +272,7 @@ export const registerVisitorAtVisit = async (req: Request, res: Response) => {
          participantId: String(result.participantId),
          visitorId: String(result.visitorId),
          visitId: String(result.visitId),
+         visitor: result.visitor,
       },
    });
 };

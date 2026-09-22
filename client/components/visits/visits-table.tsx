@@ -481,6 +481,7 @@ export function VisitsTable({
                name: `${data.firstName} ${data.lastName}`,
                email: data.email,
                phone: data.phone,
+               nationality: data.nationality,
                organization: data.organization,
             };
          });
@@ -528,10 +529,12 @@ export function VisitsTable({
          for (const visitor of visitorData) {
             await registerVisitor({
                visitId,
+               visitParticipantId: visitor.visitParticipantId,
                firstName: visitor.firstName,
                lastName: visitor.lastName,
                phone: visitor.phone,
                email: visitor.email || undefined,
+               nationality: visitor.nationality || undefined,
                organization: visitor.organization?.trim() || undefined,
             });
          }

@@ -60,7 +60,7 @@ const HOST_MODIFY_ROLES: RoleName[] = [
    'GUARD',
 ];
 
-const MAX_VISIT_CODE_ATTEMPTS = 100;
+const MAX_VISIT_CODE_ATTEMPTS = 4;
 
 const PURPOSE_VALUES = new Set<VisitPurpose>([
    'MEETING',
@@ -110,11 +110,7 @@ const createVisitWithUniqueCode = async (
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   for (
-      let attempt = 0;
-      attempt < MAX_VISIT_CODE_ATTEMPTS;
-      attempt += 1
-   ) {
+   for (let attempt = 0; attempt < MAX_VISIT_CODE_ATTEMPTS; attempt += 1) {
       const visitCode = await generateVisitCode();
 
       try {
@@ -126,9 +122,10 @@ const createVisitWithUniqueCode = async (
             select: visitDetailSelect,
          });
       } catch (error) {
-         const target = error instanceof Prisma.PrismaClientKnownRequestError
-            ? error.meta?.target
-            : undefined;
+         const target =
+            error instanceof Prisma.PrismaClientKnownRequestError
+               ? error.meta?.target
+               : undefined;
          const isVisitCodeCollision =
             error instanceof Prisma.PrismaClientKnownRequestError &&
             error.code === 'P2002' &&
@@ -288,7 +285,14 @@ const resolveRegisteredVisitor = async (
 
    if (!existing) {
       return db.visitor.create({
-         data: { firstName, lastName, email, phone, organization },
+         data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            nationality: input.nationality?.trim() || undefined,
+            organization,
+         },
          select: visitorSelect,
       });
    }
@@ -305,6 +309,7 @@ const resolveRegisteredVisitor = async (
          lastName,
          email: email ?? existing.email,
          phone: phone || existing.phone,
+         nationality: input.nationality?.trim() || existing.nationality,
          organization: organization ?? existing.organization,
       },
       select: visitorSelect,
@@ -333,6 +338,47 @@ export const registerVisitorForVisit = async (
          if (!visit) throw new NotFoundError('Visit not found');
          assertVisitEligibleForRegistration(visit);
 
+         if (input.visitParticipantId) {
+            const participant = await tx.visitParticipant.findFirst({
+               where: { id: input.visitParticipantId, visitId },
+               select: {
+                  id: true,
+                  visitor: { select: visitorSelect },
+               },
+            });
+
+            if (!participant) {
+               throw new NotFoundError(
+                  'Invitation visitor participant not found',
+               );
+            }
+
+            const visitor = await tx.visitor.update({
+               where: { id: participant.visitor.id },
+               data: {
+                  firstName: input.firstName.trim(),
+                  lastName: input.lastName.trim(),
+                  phone: input.phone.trim(),
+                  email: input.email?.trim() || participant.visitor.email,
+                  nationality:
+                     input.nationality?.trim() ||
+                     participant.visitor.nationality,
+                  organization:
+                     input.organization?.trim() ||
+                     participant.visitor.organization,
+               },
+               select: visitorSelect,
+            });
+
+            await seedAttendancesForParticipant(participant.id, visitId, tx);
+            return {
+               participantId: participant.id,
+               visitorId: visitor.id,
+               visitId,
+               visitor,
+            };
+         }
+
          if (visit._count.participants >= visit.expectedVisitorCount) {
             throw new ConflictError(
                'Registration capacity has been reached for this visit',
@@ -355,6 +401,7 @@ export const registerVisitorForVisit = async (
                participantId: existingParticipant.id,
                visitorId: visitor.id,
                visitId,
+               visitor,
             };
          }
 
@@ -367,6 +414,7 @@ export const registerVisitorForVisit = async (
             participantId: participant.id,
             visitorId: visitor.id,
             visitId,
+            visitor,
          };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -544,13 +592,13 @@ export const listVisits = async (filters: ListVisitsFilters) => {
    const where: Prisma.VisitWhereInput = {
       ...(filters.status && {
          status: Array.isArray(filters.status)
-         ? { in: filters.status }
-         : filters.status,
+            ? { in: filters.status }
+            : filters.status,
       }),
       ...(filters.source && {
          source: Array.isArray(filters.source)
-         ? { in: filters.source }
-         : filters.source,
+            ? { in: filters.source }
+            : filters.source,
       }),
       ...(filters.search && {
          OR: [

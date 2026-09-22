@@ -34,7 +34,9 @@ interface VisitorInformationDialogProps {
    visit: ManagedVisit | null;
    onComplete: (visitors: VisitorFormValues[]) => void;
    onRegisterComplete: (
-      visitors: VisitorFormValues[],
+      visitors: Array<
+         VisitorFormValues & { visitParticipantId?: number }
+      >,
    ) => void | Promise<void>;
 }
 
@@ -127,9 +129,10 @@ export function VisitorInformationDialog({
    };
 
    const handleSubmit = form.handleSubmit(async (data) => {
-      const visitors = data.visitors.map((visitor) => ({
+      const visitors = data.visitors.map((visitor, index) => ({
          ...visitor,
          organization: visitor.organization,
+         visitParticipantId: visit?.visitors[index]?.visitParticipantId,
       }));
 
       setIsSubmitting(true);

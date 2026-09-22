@@ -357,6 +357,7 @@ export function VisitDetailsSheet({
             phone: data.phone,
             idType: data.idType,
             idNumber: data.idNumber,
+            nationality: data.nationality,
             organization: data.organization,
          };
       });
@@ -372,7 +373,7 @@ export function VisitDetailsSheet({
    };
 
    const handleVisitorRegistrationComplete = async (
-      visitorData: VisitorFormValues[],
+      visitorData: Array<VisitorFormValues & { visitParticipantId?: number }>,
    ) => {
       if (!visit) return;
 
@@ -384,10 +385,12 @@ export function VisitDetailsSheet({
       for (const visitor of visitorData) {
          await registerVisitor({
             visitId,
+            visitParticipantId: visitor.visitParticipantId,
             firstName: visitor.firstName,
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email || undefined,
+            nationality: visitor.nationality || undefined,
             organization: visitor.organization?.trim() || undefined,
          });
       }

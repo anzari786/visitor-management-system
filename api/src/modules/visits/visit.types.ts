@@ -162,6 +162,7 @@ export interface VisitorInputForVisit {
 }
 
 export interface RegisterVisitorInput {
+   visitParticipantId?: number;
    firstName: string;
    lastName: string;
    phone: string;
@@ -174,6 +175,15 @@ export interface RegistrationResult {
    participantId: number;
    visitorId: number;
    visitId: number;
+   visitor: {
+      id: number;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string | null;
+      nationality: string | null;
+      organization: string | null;
+   };
 }
 
 export type VisitTransactionClient = Omit<

@@ -169,7 +169,9 @@ export type BackendVisitSummary = {
       firstName: string;
       lastName: string;
       phone?: string;
+      email?: string;
       nationality?: string;
+      organization?: string;
       attendances: Array<{
          id: string;
          status: string;

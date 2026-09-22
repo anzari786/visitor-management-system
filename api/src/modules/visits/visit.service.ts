@@ -60,6 +60,8 @@ const HOST_MODIFY_ROLES: RoleName[] = [
    'GUARD',
 ];
 
+const MAX_VISIT_CODE_ATTEMPTS = 100;
+
 const PURPOSE_VALUES = new Set<VisitPurpose>([
    'MEETING',
    'INTERVIEW',
@@ -108,7 +110,11 @@ const createVisitWithUniqueCode = async (
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   for (let attempt = 0; attempt < 5; attempt += 1) {
+   for (
+      let attempt = 0;
+      attempt < MAX_VISIT_CODE_ATTEMPTS;
+      attempt += 1
+   ) {
       const visitCode = await generateVisitCode();
 
       try {
@@ -129,13 +135,27 @@ const createVisitWithUniqueCode = async (
             (String(target).includes('visitCode') ||
                error.message.includes('visits_visitCode_key'));
 
-         if (!isVisitCodeCollision || attempt === 4) {
+         if (!isVisitCodeCollision) {
             throw error;
+         }
+
+         if (attempt === MAX_VISIT_CODE_ATTEMPTS - 1) {
+            console.error('Unable to allocate a unique visit code', {
+               attempts: MAX_VISIT_CODE_ATTEMPTS,
+               errorCode: error.code,
+            });
+            throw new ConflictError(
+               'Unable to allocate a unique visit code. Please try again.',
+               'VISIT_CODE_GENERATION_FAILED',
+            );
          }
       }
    }
 
-   throw new Error('Unable to generate a unique visit code');
+   throw new ConflictError(
+      'Unable to allocate a unique visit code. Please try again.',
+      'VISIT_CODE_GENERATION_FAILED',
+   );
 };
 
 const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
@@ -899,7 +919,9 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       firstName: participant.visitor.firstName,
       lastName: participant.visitor.lastName,
       phone: participant.visitor.phone ?? undefined,
+      email: participant.visitor.email ?? undefined,
       nationality: participant.visitor.nationality ?? undefined,
+      organization: participant.visitor.organization ?? undefined,
       attendances: participant.attendances.map((attendance) => ({
          id: String(attendance.id),
          status: attendance.status,

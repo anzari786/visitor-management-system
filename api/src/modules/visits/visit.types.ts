@@ -124,7 +124,9 @@ export const visitSummarySelect = {
                firstName: true,
                lastName: true,
                phone: true,
+                  email: true,
                nationality: true,
+                  organization: true,
             },
          },
          attendances: {

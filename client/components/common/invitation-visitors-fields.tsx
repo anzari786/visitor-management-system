@@ -132,7 +132,7 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.nationality`}>
-               Nationality <span className="text-destructive">*</span>
+               Nationality
             </FieldLabel>
             <Controller
                name={`visitors.${index}.nationality`}

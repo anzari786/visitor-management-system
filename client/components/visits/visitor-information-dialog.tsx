@@ -51,8 +51,8 @@ function getVisitorValues(
             firstName,
             lastName: lastNameParts.join(' '),
             email: visitor.email || '',
-            phone: visitor.phone || '+251 ',
-            nationality: visitor.nationality || DEFAULT_NATIONALITY,
+            phone: visitor.phone || '',
+            nationality: visitor.nationality || '',
             organization: visitor.organization || '',
          };
       }) || [
@@ -105,7 +105,7 @@ export function VisitorInformationDialog({
 
    React.useEffect(() => {
       if (open && visit) {
-         form.reset(getDefaultValues(visit));
+         form.reset(getDefaultValues(visit), { keepDirtyValues: true });
       }
    }, [open, visit, form]);
 

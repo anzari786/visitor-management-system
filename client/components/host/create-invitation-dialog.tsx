@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { startOfDay } from 'date-fns';
+import { addHours, format, startOfDay } from 'date-fns';
+import { isAxiosError } from 'axios';
 import { CheckCircle2Icon, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
@@ -19,6 +20,7 @@ import {
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
 import type { HostInvitationCreated } from '@/services/host.service';
+import type { ApiErrorResponse } from '@/types/api.types';
 import {
    useCreateHostInvitation,
    useHostDefaultLocation,
@@ -61,6 +63,34 @@ type CreateInvitationDialogProps = {
 const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
 
+function addTwoHours(time: string) {
+   const [hours, minutes] = time.split(':').map(Number);
+   const date = new Date();
+   date.setHours(hours, minutes, 0, 0);
+   return format(addHours(date, 2), 'HH:mm');
+}
+
+function getDefaultScheduleTimes() {
+   const start = new Date();
+
+   return {
+      startTime: format(start, 'HH:mm'),
+      endTime: addTwoHours(format(start, 'HH:mm')),
+   };
+}
+
+function getDefaultInvitationValues(
+   defaultFloor?: string | null,
+   defaultRoom?: string | null,
+) {
+   return {
+      ...hostInvitationDefaultValues,
+      ...getDefaultScheduleTimes(),
+      floor: (defaultFloor as FloorOption | null) ?? undefined,
+      room: defaultRoom ?? '',
+   };
+}
+
 function SectionHeading({
    title,
    description,
@@ -93,7 +123,10 @@ export function CreateInvitationDialog({
       HostInvitationFormValues
    >({
       resolver: zodResolver(hostInvitationSchema),
-      defaultValues: hostInvitationDefaultValues,
+      defaultValues: getDefaultInvitationValues(
+         defaultLocationQuery.data?.defaultFloor,
+         defaultLocationQuery.data?.defaultRoom,
+      ),
       mode: 'onSubmit',
       reValidateMode: 'onChange',
       shouldFocusError: true,
@@ -130,8 +163,16 @@ export function CreateInvitationDialog({
    }, [defaultLocationQuery.data, form, open]);
 
    const handleOpenChange = (nextOpen: boolean) => {
+      const defaultValues = getDefaultInvitationValues(
+         defaultLocationQuery.data?.defaultFloor,
+         defaultLocationQuery.data?.defaultRoom,
+      );
+
+      if (nextOpen) {
+         form.reset(defaultValues);
+      }
       if (!nextOpen) {
-         form.reset(hostInvitationDefaultValues);
+         form.reset(defaultValues);
          setCreatedInvitation(null);
       }
       onOpenChange(nextOpen);
@@ -210,12 +251,18 @@ export function CreateInvitationDialog({
 
          setCreatedInvitation(created);
          toast.success(t('host.invite.toast.createdSimple'));
-         form.reset(hostInvitationDefaultValues);
+         form.reset(
+            getDefaultInvitationValues(
+               defaultLocationQuery.data?.defaultFloor,
+               defaultLocationQuery.data?.defaultRoom,
+            ),
+         );
       } catch (error) {
-         const message =
-            error instanceof Error
-               ? error.message
-               : 'Unable to create invitation. Please try again.';
+         const message = isAxiosError<ApiErrorResponse>(error)
+            ? (error.response?.data?.message ?? error.message)
+            : error instanceof Error
+              ? error.message
+              : 'Unable to create invitation. Please try again.';
          toast.error(message);
       } finally {
          setIsSubmitting(false);
@@ -547,7 +594,16 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.startTime
                                     }
                                     value={field.value}
-                                    onChange={field.onChange}
+                                    onChange={(event) => {
+                                       field.onChange(event);
+                                       if (!form.formState.dirtyFields.endTime) {
+                                          form.setValue(
+                                             'endTime',
+                                             addTwoHours(event.target.value),
+                                             { shouldValidate: true },
+                                          );
+                                       }
+                                    }}
                                     onBlur={field.onBlur}
                                  />
                                  <FieldError>

@@ -1,9 +1,7 @@
 'use client';
 
 import {
-   useLayoutEffect,
    useMemo,
-   useRef,
    useState,
    type ReactElement,
 } from 'react';
@@ -207,9 +205,6 @@ export default function NotificationDropdown({
 }: Props) {
    const { t } = useTranslation();
    const [open, setOpen] = useState(Boolean(defaultOpen));
-   const [expanded, setExpanded] = useState(false);
-   const [listHeight, setListHeight] = useState<number>();
-   const listContainerRef = useRef<HTMLDivElement>(null);
 
    const {
       data: notifications = [],
@@ -231,19 +226,6 @@ export default function NotificationDropdown({
    );
 
    const hasMany = notifications.length > INITIAL_VISIBLE_COUNT;
-   const visibleNotifications =
-      hasMany && !expanded
-         ? notifications.slice(0, INITIAL_VISIBLE_COUNT)
-         : notifications;
-
-   const showSeeAll = hasMany && !expanded;
-   const showMarkAllAsReadButton = (!hasMany || expanded) && unreadCount > 0;
-
-   useLayoutEffect(() => {
-      if (!expanded && listContainerRef.current && notifications.length > 0) {
-         setListHeight(listContainerRef.current.offsetHeight);
-      }
-   }, [expanded, notifications.length, visibleNotifications.length]);
 
    function handleNotificationSelect(notification: NotificationItem) {
       if (notification.isRead) return;
@@ -256,10 +238,6 @@ export default function NotificationDropdown({
             open={open}
             onOpenChange={(nextOpen) => {
                setOpen(nextOpen);
-               if (!nextOpen) {
-                  setExpanded(false);
-                  setListHeight(undefined);
-               }
             }}
          >
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
@@ -321,30 +299,10 @@ export default function NotificationDropdown({
                      </div>
                   </div>
                ) : (
-                  <div
-                     ref={listContainerRef}
-                     className="overflow-hidden"
-                     style={
-                        expanded && listHeight
-                           ? { height: listHeight }
-                           : undefined
-                     }
-                  >
-                     {expanded ? (
-                        <ScrollArea className="h-full">
-                           <NotificationList
-                              notifications={visibleNotifications}
-                              onSelect={handleNotificationSelect}
-                              pendingReadId={
-                                 markAsRead.isPending
-                                    ? Number(markAsRead.variables ?? 0)
-                                    : null
-                              }
-                           />
-                        </ScrollArea>
-                     ) : (
+                  <div className="overflow-hidden">
+                     <ScrollArea className={cn(hasMany && 'h-[22rem]')}>
                         <NotificationList
-                           notifications={visibleNotifications}
+                           notifications={notifications}
                            onSelect={handleNotificationSelect}
                            pendingReadId={
                               markAsRead.isPending
@@ -352,24 +310,13 @@ export default function NotificationDropdown({
                                  : null
                            }
                         />
-                     )}
+                        </ScrollArea>
                   </div>
                )}
 
                {!isLoading && !isError && notifications.length > 0 && (
                   <div className="mx-1.5 mb-1.5 p-2 pt-1">
-                     {showSeeAll ? (
-                        <Button
-                           type="button"
-                           className="w-full rounded-xl cursor-pointer hover:bg-primary/80"
-                           onClick={(event) => {
-                              event.preventDefault();
-                              setExpanded(true);
-                           }}
-                        >
-                           {t('header.seeAllNotifications')}
-                        </Button>
-                     ) : showMarkAllAsReadButton ? (
+                        {unreadCount > 0 ? (
                         <Button
                            type="button"
                            variant="outline"

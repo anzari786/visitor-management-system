@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import { ForbiddenError, NotFoundError } from '../../lib/errors.js';
 import { getSkipTake, buildPaginationMeta } from '../../utils/pagination.js';
@@ -14,6 +14,7 @@ import type {
    EmployeeSyncRecord,
    HostVisitWithSelect,
 } from './employee.types.js';
+import { upsertDepartment } from '../departments/department.service.js';
 
 interface ListEmployeesFilters extends PaginationParams {
    search?: string;
@@ -83,16 +84,33 @@ const resolveHostEmployeeId = async (userId: number): Promise<number> => {
    return user.employeeId;
 };
 
+export const getDefaultLocation = async (userId: number) => {
+   const employeeId = await resolveHostEmployeeId(userId);
+   const [location] = await prisma.$queryRaw<
+      { defaultFloor: string | null; defaultRoom: string | null }[]
+   >(
+      Prisma.sql`SELECT defaultFloor, defaultRoom FROM employees WHERE id = ${employeeId} LIMIT 1`,
+   );
+
+   if (!location) {
+      throw new NotFoundError('Employee not found');
+   }
+
+   return location;
+};
+
 /** Powers the searchable host picker on the visit request/invitation form. */
-export const searchHosts = async (query: string, limit: number) => {
+export const searchHosts = async (query: string | undefined, limit: number) => {
    return prisma.employee.findMany({
       where: {
          isActive: true,
-         OR: [
-            { firstName: { contains: query } },
-            { lastName: { contains: query } },
-            { email: { contains: query } },
-         ],
+         ...(query && {
+            OR: [
+               { firstName: { contains: query } },
+               { lastName: { contains: query } },
+               { email: { contains: query } },
+            ],
+         }),
       },
       select: employeeHostOptionSelect,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -183,15 +201,56 @@ export const getUpcomingVisits = async (filters: HostVisitListFilters) => {
 export const syncEmployees = async (records: EmployeeSyncRecord[]) => {
    const syncedAt = new Date();
 
-   const results = await prisma.$transaction(
-      records.map((record) =>
-         prisma.employee.upsert({
-            where: { externalEmployeeId: record.externalEmployeeId },
-            create: { ...record, isActive: true, lastSyncedAt: syncedAt },
-            update: { ...record, isActive: true, lastSyncedAt: syncedAt },
-            select: employeeSelect,
-         }),
-      ),
+   const results = await prisma.$transaction(async (tx) =>
+      (async () => {
+         const departmentRecords = [
+            ...new Map(
+               records.map((record) => {
+                  const department = {
+                     externalDepartmentId:
+                        record.departmentCode ?? record.departmentName,
+                     name: record.departmentName,
+                     code: record.departmentCode,
+                  };
+                  return [department.externalDepartmentId, department];
+               }),
+            ).values(),
+         ];
+         const departments = await Promise.all(
+            departmentRecords.map((record) => upsertDepartment(tx, record)),
+         );
+         const departmentsByExternalId = new Map(
+            departments.map((department) => [
+               department.externalDepartmentId,
+               department,
+            ]),
+         );
+
+         return Promise.all(
+            records.map((record) => {
+               const department = departmentsByExternalId.get(
+                  record.departmentCode ?? record.departmentName,
+               );
+
+               return tx.employee.upsert({
+                  where: { externalEmployeeId: record.externalEmployeeId },
+                  create: {
+                     ...record,
+                     department: { connect: { id: department!.id } },
+                     isActive: true,
+                     lastSyncedAt: syncedAt,
+                  },
+                  update: {
+                     ...record,
+                     department: { connect: { id: department!.id } },
+                     isActive: true,
+                     lastSyncedAt: syncedAt,
+                  },
+                  select: employeeSelect,
+               });
+            }),
+         );
+      })(),
    );
 
    return {

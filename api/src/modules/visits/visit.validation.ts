@@ -42,6 +42,7 @@ const visitorInputSchema = z.object({
       (value) => (value === '' ? undefined : value),
       z.string().trim().email().optional(),
    ),
+   nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.preprocess(
       (value) => (value === '' ? undefined : value),
       z.string().trim().min(1).max(150).optional(),
@@ -55,6 +56,7 @@ const hostInvitationVisitorSchema = z.object({
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
+   nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
    idType: identificationTypeSchema.optional(),
    idNumber: z.string().trim().min(1).max(50).optional(),
@@ -177,10 +179,12 @@ const hostInvitationBodySchema = z
    });
 
 const registerVisitorBodySchema = z.object({
+   visitParticipantId: z.coerce.number().int().positive().optional(),
    firstName: z.string().trim().min(1).max(100),
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
+   nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
 });
 

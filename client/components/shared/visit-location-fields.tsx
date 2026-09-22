@@ -6,6 +6,7 @@ import {
    type Path,
    type UseFormReturn,
 } from 'react-hook-form';
+import { useEffect } from 'react';
 import { FLOOR_OPTIONS, ROOM_OPTIONS } from '@/constants/visit-location';
 import {
    Field,
@@ -35,6 +36,8 @@ type VisitLocationFieldsProps<T extends FieldValues & LocationFormFields> = {
    form: UseFormReturn<T>;
    idPrefix?: string;
    showDescription?: boolean;
+   defaultFloor?: string | null;
+   defaultRoom?: string | null;
 };
 
 const ROOM_GROUPS = FLOOR_OPTIONS.map((floor, floorIndex) => ({
@@ -110,11 +113,29 @@ export function VisitLocationFields<
    form,
    idPrefix = 'location',
    showDescription = true,
+   defaultFloor,
+   defaultRoom,
 }: VisitLocationFieldsProps<T>) {
    const { t } = useTranslation();
    const floorId = `${idPrefix}-floor`;
    const roomId = `${idPrefix}-room`;
    const floorError = form.formState.errors.floor;
+
+   useEffect(() => {
+      const floorName = 'floor' as Path<T>;
+      const roomName = 'room' as Path<T>;
+
+      if (!form.getFieldState(floorName).isDirty && defaultFloor) {
+         form.setValue(floorName, defaultFloor as never, {
+            shouldDirty: false,
+         });
+      }
+      if (!form.getFieldState(roomName).isDirty && defaultRoom) {
+         form.setValue(roomName, defaultRoom as never, {
+            shouldDirty: false,
+         });
+      }
+   }, [defaultFloor, defaultRoom, form]);
 
    return (
       <div className="space-y-4">

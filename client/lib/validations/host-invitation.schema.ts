@@ -9,6 +9,7 @@ import {
    type FloorOption,
 } from '@/constants/visit-location';
 import { startOfDay } from 'date-fns';
+import { DEFAULT_NATIONALITY } from '@/constants/nationalities';
 
 const purposeValues = VISIT_PURPOSE_OPTIONS.map((o) => o.value) as [
    VisitPurposeValue,
@@ -44,6 +45,7 @@ export const invitationVisitorSchema = z.object({
       .refine((val) => isValidEthiopianPhone(val), {
          message: 'validation.phoneInvalid',
       }),
+   nationality: z.string().min(1, 'validation.nationalityRequired'),
    organization: z
       .string()
       .max(100, 'validation.organizationMax')
@@ -59,6 +61,7 @@ const invitationVisitorInputSchema = z.object({
    lastName: z.string(),
    email: z.string(),
    phone: z.string(),
+   nationality: z.string(),
    organization: z.string().optional(),
 });
 
@@ -201,6 +204,7 @@ export const emptyInvitationVisitorValues: InvitationVisitorInput = {
    lastName: '',
    email: '',
    phone: '+251 ',
+   nationality: DEFAULT_NATIONALITY,
    organization: '',
 };
 

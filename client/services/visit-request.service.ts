@@ -9,7 +9,7 @@ import type {
 
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-request';
 import type { VisitRequestFormValues } from '@/lib/validations/visit-request.schema';
-import { eachDayOfInterval, format, isSameDay } from 'date-fns';
+import { addDays, eachDayOfInterval, format, isSameDay } from 'date-fns';
 
 export function toSubmitVisitRequestPayload(
    values: VisitRequestFormValues,
@@ -22,11 +22,12 @@ export function toSubmitVisitRequestPayload(
       purpose: values.purpose,
       hostEmployeeId: Number(values.hostId),
       visitors: values.visitors.map(
-         ({ firstName, lastName, phone, email, organization }) => ({
+         ({ firstName, lastName, phone, email, nationality, organization }) => ({
             firstName,
             lastName,
             phone,
             email,
+            nationality,
             organization,
          }),
       ),
@@ -35,10 +36,13 @@ export function toSubmitVisitRequestPayload(
          end: values.endDate,
       }).map((day) => {
          const date = format(day, 'yyyy-MM-dd');
+         const endDate =
+            values.endTime < values.startTime ? addDays(day, 1) : day;
+         const endDateString = format(endDate, 'yyyy-MM-dd');
          return {
             date: `${date}T00:00:00.000Z`,
             expectedStartTime: `${date}T${values.startTime}:00.000Z`,
-            expectedEndTime: `${date}T${values.endTime}:00.000Z`,
+            expectedEndTime: `${endDateString}T${values.endTime}:00.000Z`,
          };
       }),
    };

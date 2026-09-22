@@ -11,6 +11,8 @@ export const employeeSelect = {
    departmentName: true,
    departmentCode: true,
    position: true,
+   defaultFloor: true,
+   defaultRoom: true,
    isActive: true,
    lastSyncedAt: true,
    createdAt: true,

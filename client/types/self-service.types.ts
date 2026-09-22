@@ -7,6 +7,8 @@ export type EmployeeSearchResult = {
    departmentName: string;
    departmentCode?: string;
    position?: string;
+   defaultFloor?: string | null;
+   defaultRoom?: string | null;
    isActive: boolean;
 };
 
@@ -25,6 +27,7 @@ export type SubmitVisitRequestPayload = {
       lastName: string;
       phone: string;
       email?: string;
+      nationality?: string;
       organization?: string;
    }>;
    scheduleDates: Array<{

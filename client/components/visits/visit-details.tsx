@@ -77,7 +77,10 @@ import {
    VisitorAttendanceBadge,
 } from './managed-visit-status-badge';
 import { visitAttendanceService } from '@/services/visit-attendance.service';
-import type { CheckInPrintTarget } from './check-in-success-dialog';
+import type {
+   CheckInPrintTarget,
+   CheckInResult,
+} from './check-in-success-dialog';
 import { AxiosError } from 'axios';
 import { visitQueryKeys } from '@/hooks/use-visits';
 import {
@@ -209,6 +212,9 @@ export function VisitDetailsSheet({
    const [checkInPrintTargets, setCheckInPrintTargets] = React.useState<
       CheckInPrintTarget[]
    >([]);
+   const [checkInResult, setCheckInResult] = React.useState<CheckInResult>({
+      status: 'success',
+   });
    const [pendingCheckOutIds, setPendingCheckOutIds] = React.useState<string[]>(
       [],
    );
@@ -357,6 +363,7 @@ export function VisitDetailsSheet({
             phone: data.phone,
             idType: data.idType,
             idNumber: data.idNumber,
+            nationality: data.nationality,
             organization: data.organization,
          };
       });
@@ -372,7 +379,7 @@ export function VisitDetailsSheet({
    };
 
    const handleVisitorRegistrationComplete = async (
-      visitorData: VisitorFormValues[],
+      visitorData: Array<VisitorFormValues & { visitParticipantId?: number }>,
    ) => {
       if (!visit) return;
 
@@ -384,10 +391,12 @@ export function VisitDetailsSheet({
       for (const visitor of visitorData) {
          await registerVisitor({
             visitId,
+            visitParticipantId: visitor.visitParticipantId,
             firstName: visitor.firstName,
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email || undefined,
+            nationality: visitor.nationality || undefined,
             organization: visitor.organization?.trim() || undefined,
          });
       }
@@ -401,12 +410,23 @@ export function VisitDetailsSheet({
 
       const selected = visit.visitors.filter((v) => ids.includes(v.id));
       const printTargets: CheckInPrintTarget[] = [];
+      const names = selected.map((v) => v.name);
+
+      setSuccessLabel(
+         names.length === 1
+            ? names[0]!
+            : t('visits.visitorsCount', { count: names.length }),
+      );
+      setCheckInPrintTargets([]);
+      setCheckInResult({ status: 'pending' });
+      setCheckInSuccessOpen(true);
 
       for (const visitor of selected) {
          if (visitor.visitParticipantId == null || visitor.visitDayId == null) {
-            toast.error(
-               `Unable to check in ${visitor.name}: missing visit participant or visit day ID`,
-            );
+            setCheckInResult({
+               status: 'error',
+               message: `Unable to check in ${visitor.name}: missing visit participant or visit day ID`,
+            });
             return;
          }
          try {
@@ -427,12 +447,15 @@ export function VisitDetailsSheet({
                   : error instanceof Error
                     ? error.message
                     : undefined;
-            toast.error(message ?? `Unable to check in ${visitor.name}`);
+            setCheckInPrintTargets(printTargets);
+            setCheckInResult({
+               status: 'error',
+               message: message ?? `Unable to check in ${visitor.name}`,
+            });
             return;
          }
       }
 
-      const names = selected.map((v) => v.name);
       const withAttendance = applyVisitorAttendance(
          visit,
          ids,
@@ -446,13 +469,8 @@ export function VisitDetailsSheet({
 
       setSelectedIds({});
       setPendingCheckInIds([]);
-      setSuccessLabel(
-         names.length === 1
-            ? names[0]!
-            : t('visits.visitorsCount', { count: names.length }),
-      );
       setCheckInPrintTargets(printTargets);
-      setCheckInSuccessOpen(true);
+      setCheckInResult({ status: 'success' });
    };
 
    const handleCheckOut = () => {
@@ -912,6 +930,7 @@ export function VisitDetailsSheet({
             onOpenChange={setCheckInSuccessOpen}
             visitorLabel={successLabel || visit.visitorName}
             visitId={visit.id}
+            result={checkInResult}
             printTargets={checkInPrintTargets}
             onRetryPrint={async (attendanceId) => {
                const { data } =

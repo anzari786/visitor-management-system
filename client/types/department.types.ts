@@ -1,9 +1,10 @@
 export type Department = {
    id: number;
+   externalDepartmentId: string;
    name: string;
-   shortName?: string;
-   color: string;
+   code?: string;
    isActive: boolean;
+   lastSyncedAt: string;
    createdAt: string;
-   totalVisits: number;
+   updatedAt: string;
 };

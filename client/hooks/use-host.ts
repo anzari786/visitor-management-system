@@ -1,4 +1,7 @@
-import { hostService } from '@/services/host.service';
+import {
+   hostService,
+   type HostDefaultLocation,
+} from '@/services/host.service';
 import type { CreateHostInvitationApiPayload } from '@/lib/map-host-invitation';
 import type { ApiErrorResponse } from '@/types/api.types';
 import type {
@@ -22,6 +25,7 @@ type ApiError = AxiosError<ApiErrorResponse>;
 
 export const hostQueryKeys = {
    all: ['host'] as const,
+   defaultLocation: () => [...hostQueryKeys.all, 'default-location'] as const,
    visits: () => [...hostQueryKeys.all, 'visits'] as const,
    pendingVisits: (params?: HostVisitsParams) =>
       [...hostQueryKeys.visits(), 'pending', params ?? {}] as const,
@@ -100,12 +104,22 @@ function mapVisitToHostCard(visit: any): HostVisit {
       ? format(parseISO(String(parsedEndDate).slice(0, 10)), 'd MMM yyyy')
       : undefined;
 
+   const visitors = Array.isArray(visit.visitors)
+      ? visit.visitors.map((visitor: any) => ({
+           id: visitor.id ? String(visitor.id) : undefined,
+           firstName: visitor.firstName,
+           lastName: visitor.lastName,
+           organization: visitor.organization ?? undefined,
+        }))
+      : [];
+
    return {
       id: String(visit.id),
       visitorName: visitorNames.join(', ') || 'Visitor',
       isGroup: visit.groupType === 'GROUP' || visit.groupType === 'group',
       groupSize: visit.expectedVisitorCount ?? visit.groupSize,
       orgName: visit.organization ?? visit.orgName,
+      visitors,
       meetingType: normalizeMeetingType(visit.purpose ?? visit.meetingType),
       purpose: normalizeMeetingType(visit.purpose ?? visit.meetingType),
       startDate: startDateValue,
@@ -130,6 +144,15 @@ export function useHostPendingVisits(params?: HostVisitsParams) {
             mapVisitToHostCard,
          ),
       placeholderData: keepPreviousData,
+   });
+}
+
+export function useHostDefaultLocation(enabled = true) {
+   return useQuery<HostDefaultLocation>({
+      queryKey: hostQueryKeys.defaultLocation(),
+      enabled,
+      queryFn: async () =>
+         (await hostService.getDefaultLocation()).data.data,
    });
 }
 

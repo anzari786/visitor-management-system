@@ -26,6 +26,7 @@ export const visitorSchema = z.object({
       .refine((val) => isValidEthiopianPhone(val), {
          message: 'validation.phoneInvalid',
       }),
+   nationality: z.string().min(1, 'validation.nationalityRequired'),
    organization: z
       .string()
       .max(100, 'validation.organizationMax')
@@ -46,12 +47,14 @@ export const emptyVisitorValues: {
    lastName: string;
    email: string;
    phone: string;
+   nationality: string;
    organization: string;
 } = {
    firstName: '',
    lastName: '',
    email: '',
    phone: '+251 ',
+   nationality: 'ET',
    organization: '',
 };
 
@@ -111,7 +114,7 @@ function refineVisitSchedule(
       }
    }
 
-   if (data.startTime && data.endTime && data.startTime >= data.endTime) {
+   if (data.startTime && data.endTime && data.startTime === data.endTime) {
       ctx.addIssue({
          code: 'custom',
          path: ['endTime'],

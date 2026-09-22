@@ -60,6 +60,8 @@ const HOST_MODIFY_ROLES: RoleName[] = [
    'GUARD',
 ];
 
+const MAX_VISIT_CODE_ATTEMPTS = 4;
+
 const PURPOSE_VALUES = new Set<VisitPurpose>([
    'MEETING',
    'INTERVIEW',
@@ -108,15 +110,49 @@ const createVisitWithUniqueCode = async (
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   const visitCode = await generateVisitCode();
+   for (let attempt = 0; attempt < MAX_VISIT_CODE_ATTEMPTS; attempt += 1) {
+      const visitCode = await generateVisitCode();
 
-   return prisma.visit.create({
-      data: {
-         ...data,
-         visitCode,
-      },
-      select: visitDetailSelect,
-   });
+      try {
+         return await prisma.visit.create({
+            data: {
+               ...data,
+               visitCode,
+            },
+            select: visitDetailSelect,
+         });
+      } catch (error) {
+         const target =
+            error instanceof Prisma.PrismaClientKnownRequestError
+               ? error.meta?.target
+               : undefined;
+         const isVisitCodeCollision =
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002' &&
+            (String(target).includes('visitCode') ||
+               error.message.includes('visits_visitCode_key'));
+
+         if (!isVisitCodeCollision) {
+            throw error;
+         }
+
+         if (attempt === MAX_VISIT_CODE_ATTEMPTS - 1) {
+            console.error('Unable to allocate a unique visit code', {
+               attempts: MAX_VISIT_CODE_ATTEMPTS,
+               errorCode: error.code,
+            });
+            throw new ConflictError(
+               'Unable to allocate a unique visit code. Please try again.',
+               'VISIT_CODE_GENERATION_FAILED',
+            );
+         }
+      }
+   }
+
+   throw new ConflictError(
+      'Unable to allocate a unique visit code. Please try again.',
+      'VISIT_CODE_GENERATION_FAILED',
+   );
 };
 
 const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
@@ -249,7 +285,14 @@ const resolveRegisteredVisitor = async (
 
    if (!existing) {
       return db.visitor.create({
-         data: { firstName, lastName, email, phone, organization },
+         data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            nationality: input.nationality?.trim() || undefined,
+            organization,
+         },
          select: visitorSelect,
       });
    }
@@ -266,6 +309,7 @@ const resolveRegisteredVisitor = async (
          lastName,
          email: email ?? existing.email,
          phone: phone || existing.phone,
+         nationality: input.nationality?.trim() || existing.nationality,
          organization: organization ?? existing.organization,
       },
       select: visitorSelect,
@@ -294,6 +338,47 @@ export const registerVisitorForVisit = async (
          if (!visit) throw new NotFoundError('Visit not found');
          assertVisitEligibleForRegistration(visit);
 
+         if (input.visitParticipantId) {
+            const participant = await tx.visitParticipant.findFirst({
+               where: { id: input.visitParticipantId, visitId },
+               select: {
+                  id: true,
+                  visitor: { select: visitorSelect },
+               },
+            });
+
+            if (!participant) {
+               throw new NotFoundError(
+                  'Invitation visitor participant not found',
+               );
+            }
+
+            const visitor = await tx.visitor.update({
+               where: { id: participant.visitor.id },
+               data: {
+                  firstName: input.firstName.trim(),
+                  lastName: input.lastName.trim(),
+                  phone: input.phone.trim(),
+                  email: input.email?.trim() || participant.visitor.email,
+                  nationality:
+                     input.nationality?.trim() ||
+                     participant.visitor.nationality,
+                  organization:
+                     input.organization?.trim() ||
+                     participant.visitor.organization,
+               },
+               select: visitorSelect,
+            });
+
+            await seedAttendancesForParticipant(participant.id, visitId, tx);
+            return {
+               participantId: participant.id,
+               visitorId: visitor.id,
+               visitId,
+               visitor,
+            };
+         }
+
          if (visit._count.participants >= visit.expectedVisitorCount) {
             throw new ConflictError(
                'Registration capacity has been reached for this visit',
@@ -316,6 +401,7 @@ export const registerVisitorForVisit = async (
                participantId: existingParticipant.id,
                visitorId: visitor.id,
                visitId,
+               visitor,
             };
          }
 
@@ -328,6 +414,7 @@ export const registerVisitorForVisit = async (
             participantId: participant.id,
             visitorId: visitor.id,
             visitId,
+            visitor,
          };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -358,6 +445,7 @@ const resolveVisitorRecords = async (
                lastName: visitor.lastName,
                phone: visitor.phone,
                email: visitor.email,
+               nationality: visitor.nationality,
                organization: visitor.organization,
                idType: visitor.idType,
                idNumber: visitor.idNumber,
@@ -369,6 +457,7 @@ const resolveVisitorRecords = async (
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email,
+            nationality: visitor.nationality,
             organization: visitor.organization,
          });
       }),
@@ -503,13 +592,13 @@ export const listVisits = async (filters: ListVisitsFilters) => {
    const where: Prisma.VisitWhereInput = {
       ...(filters.status && {
          status: Array.isArray(filters.status)
-         ? { in: filters.status }
-         : filters.status,
+            ? { in: filters.status }
+            : filters.status,
       }),
       ...(filters.source && {
          source: Array.isArray(filters.source)
-         ? { in: filters.source }
-         : filters.source,
+            ? { in: filters.source }
+            : filters.source,
       }),
       ...(filters.search && {
          OR: [
@@ -878,6 +967,9 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       firstName: participant.visitor.firstName,
       lastName: participant.visitor.lastName,
       phone: participant.visitor.phone ?? undefined,
+      email: participant.visitor.email ?? undefined,
+      nationality: participant.visitor.nationality ?? undefined,
+      organization: participant.visitor.organization ?? undefined,
       attendances: participant.attendances.map((attendance) => ({
          id: String(attendance.id),
          status: attendance.status,

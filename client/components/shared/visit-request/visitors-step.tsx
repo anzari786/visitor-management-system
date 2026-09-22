@@ -1,7 +1,9 @@
 'use client';
 
 import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
+import { useState } from 'react';
 import { formatEthiopianPhone } from '@/lib/phone';
+import { NATIONALITY_OPTIONS } from '@/constants/nationalities';
 import {
    emptyVisitorValues,
    type VisitRequestFormInput,
@@ -20,6 +22,14 @@ import {
 } from '@/components/ui/field';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import {
+   Autocomplete,
+   AutocompleteContent,
+   AutocompleteEmpty,
+   AutocompleteInput,
+   AutocompleteItem,
+   AutocompleteList,
+} from '@/components/ui/autocomplete';
 
 type FormType = UseFormReturn<
    VisitRequestFormInput,
@@ -30,6 +40,14 @@ type FormType = UseFormReturn<
 function VisitorFields({ form, index }: { form: FormType; index: number }) {
    const { t } = useTranslation();
    const errors = form.formState.errors.visitors?.[index];
+   const [nationalityInput, setNationalityInput] = useState('');
+   const nationalityValue = form.watch(`visitors.${index}.nationality`);
+   const selectedNationality = NATIONALITY_OPTIONS.find(
+      ({ value }) => value === nationalityValue,
+   );
+   const filteredNationalities = NATIONALITY_OPTIONS.filter(({ label }) =>
+      label.toLowerCase().includes(nationalityInput.toLowerCase()),
+   );
 
    return (
       <FieldGroup>
@@ -83,31 +101,80 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
             <FieldError>{errors?.email?.message}</FieldError>
          </Field>
 
-         <Field>
-            <FieldLabel htmlFor={`visitors.${index}.phone`}>
-               {t('common.phoneNumber')}{' '}
-               <span className="text-destructive">*</span>
-            </FieldLabel>
-            <Controller
-               name={`visitors.${index}.phone`}
-               control={form.control}
-               render={({ field }) => (
-                  <Input
-                     id={`visitors.${index}.phone`}
-                     type="tel"
-                     autoComplete={index === 0 ? 'tel' : 'off'}
-                     placeholder={t('selfService.phonePlaceholder')}
-                     aria-invalid={!!errors?.phone}
-                     value={field.value ?? ''}
-                     onChange={(e) =>
-                        field.onChange(formatEthiopianPhone(e.target.value))
-                     }
-                     onBlur={field.onBlur}
-                  />
-               )}
-            />
-            <FieldError>{errors?.phone?.message}</FieldError>
-         </Field>
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.phone`}>
+                  {t('common.phoneNumber')}{' '}
+                  <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Controller
+                  name={`visitors.${index}.phone`}
+                  control={form.control}
+                  render={({ field }) => (
+                     <Input
+                        id={`visitors.${index}.phone`}
+                        type="tel"
+                        autoComplete={index === 0 ? 'tel' : 'off'}
+                        placeholder={t('selfService.phonePlaceholder')}
+                        aria-invalid={!!errors?.phone}
+                        value={field.value ?? ''}
+                        onChange={(e) =>
+                           field.onChange(formatEthiopianPhone(e.target.value))
+                        }
+                        onBlur={field.onBlur}
+                     />
+                  )}
+               />
+               <FieldError>{errors?.phone?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.nationality`}>
+                  Nationality
+               </FieldLabel>
+               <Controller
+                  name={`visitors.${index}.nationality`}
+                  control={form.control}
+                  render={({ field }) => (
+                     <Autocomplete
+                        key={nationalityValue ?? ''}
+                        value={field.value || null}
+                        onValueChange={(value) => field.onChange(value ?? '')}
+                        onInputValueChange={setNationalityInput}
+                        defaultInputValue={selectedNationality?.label ?? ''}
+                     >
+                        <AutocompleteInput
+                           id={`visitors.${index}.nationality`}
+                           placeholder="Search nationality..."
+                           autoComplete="off"
+                           showClear
+                           aria-invalid={!!errors?.nationality}
+                        />
+                        <AutocompleteContent>
+                           <AutocompleteList>
+                              {filteredNationalities.length === 0 ? (
+                                 <AutocompleteEmpty>
+                                    No nationality found.
+                                 </AutocompleteEmpty>
+                              ) : (
+                                 filteredNationalities.map((nationality) => (
+                                    <AutocompleteItem
+                                       key={nationality.value}
+                                       value={nationality.value}
+                                       label={nationality.label}
+                                    >
+                                       {nationality.label}
+                                    </AutocompleteItem>
+                                 ))
+                              )}
+                           </AutocompleteList>
+                        </AutocompleteContent>
+                     </Autocomplete>
+                  )}
+               />
+               <FieldError>{errors?.nationality?.message}</FieldError>
+            </Field>
+         </div>
 
          <Field>
             <FieldLabel htmlFor={`visitors.${index}.organization`}>

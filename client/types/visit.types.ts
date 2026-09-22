@@ -68,6 +68,7 @@ export type ManagedVisitor = {
    attendanceStatus: VisitorAttendanceStatus;
    phone?: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    idType?: IdType;
    idNumber?: string;
@@ -168,6 +169,9 @@ export type BackendVisitSummary = {
       firstName: string;
       lastName: string;
       phone?: string;
+      email?: string;
+      nationality?: string;
+      organization?: string;
       attendances: Array<{
          id: string;
          status: string;
@@ -215,10 +219,12 @@ export type CheckInPayload = {
 
 export type RegisterVisitorPayload = {
    visitId: number;
+   visitParticipantId?: number;
    firstName: string;
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
 };
 

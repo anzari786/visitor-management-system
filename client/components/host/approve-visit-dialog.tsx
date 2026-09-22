@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Check, Loader2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import type { FloorOption } from '@/constants/visit-location';
 import {
    emptyVisitLocationValues,
    visitLocationSchema,
@@ -21,6 +22,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import { useTranslation } from '@/lib/i18n';
+import { useHostDefaultLocation } from '@/hooks/use-host';
 
 export type ApproveVisitRequest = {
    id: string;
@@ -44,6 +46,7 @@ export function ApproveVisitDialog({
 }: ApproveVisitDialogProps) {
    const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = useState(false);
+   const defaultLocationQuery = useHostDefaultLocation(open);
 
    const form = useForm<VisitLocationInput, unknown, VisitLocationValues>({
       resolver: zodResolver(visitLocationSchema),
@@ -54,10 +57,29 @@ export function ApproveVisitDialog({
    });
 
    useEffect(() => {
-      if (open) {
-         form.reset(emptyVisitLocationValues);
+      if (!open) return;
+
+      const defaultFloor = defaultLocationQuery.data
+         ?.defaultFloor as FloorOption | null | undefined;
+      const defaultRoom = defaultLocationQuery.data?.defaultRoom;
+
+      if (
+         defaultFloor &&
+         !form.getValues('floor') &&
+         !form.getFieldState('floor').isDirty
+      ) {
+         form.setValue('floor', defaultFloor, {
+            shouldDirty: false,
+         });
       }
-   }, [open, form, request?.id]);
+      if (
+         defaultRoom &&
+         !form.getValues('room') &&
+         !form.getFieldState('room').isDirty
+      ) {
+         form.setValue('room', defaultRoom, { shouldDirty: false });
+      }
+   }, [defaultLocationQuery.data, form, open]);
 
    const handleOpenChange = (nextOpen: boolean) => {
       if (!nextOpen) {
@@ -121,6 +143,8 @@ export function ApproveVisitDialog({
                         form={form}
                         idPrefix={`approve-${request.id}`}
                         showDescription={false}
+                        defaultFloor={defaultLocationQuery.data?.defaultFloor}
+                        defaultRoom={defaultLocationQuery.data?.defaultRoom}
                      />
 
                      <div className="flex w-full gap-3">

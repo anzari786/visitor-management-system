@@ -12,12 +12,20 @@ export type HostVisitStatus =
  * Visit card / list item shape used by the Host Portal UI.
  * Display dates currently use `d MMM yyyy`; API may return ISO — map at the UI boundary.
  */
+export type HostVisitVisitor = {
+   id?: string;
+   firstName?: string;
+   lastName?: string;
+   organization?: string;
+};
+
 export type HostVisit = {
    id: string;
    visitorName: string;
    isGroup?: boolean;
    groupSize?: number;
    orgName?: string;
+   visitors?: HostVisitVisitor[];
    meetingType: string;
    purpose?: string;
    startDate: string;

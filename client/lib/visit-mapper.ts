@@ -94,7 +94,9 @@ export function mapBackendVisit(visit: BackendVisitSummary): ManagedVisit {
          name,
          attendanceStatus,
          phone: detail?.phone,
-         organization: visit.organization,
+         email: detail?.email,
+         nationality: detail?.nationality,
+         organization: detail?.organization ?? visit.organization,
          visitParticipantId: detail?.participantId
             ? Number(detail.participantId)
             : undefined,

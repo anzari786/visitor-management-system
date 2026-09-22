@@ -59,7 +59,10 @@ import { VisitsTablePagination } from './visits-table-pagination';
 import { QrScannerDialog } from '@/components/shared/qr-scanner-dialog';
 import { visitAttendanceLookupService } from '@/services/visit-attendance-lookup.service';
 import { visitAttendanceService } from '@/services/visit-attendance.service';
-import type { CheckInPrintTarget } from './check-in-success-dialog';
+import type {
+   CheckInPrintTarget,
+   CheckInResult,
+} from './check-in-success-dialog';
 import { toast } from 'sonner';
 import { AxiosError } from 'axios';
 import {
@@ -359,6 +362,9 @@ export function VisitsTable({
    const [checkInPrintTargets, setCheckInPrintTargets] = React.useState<
       CheckInPrintTarget[]
    >([]);
+   const [checkInResult, setCheckInResult] = React.useState<CheckInResult>({
+      status: 'success',
+   });
    const [checkoutQrScannerOpen, setCheckoutQrScannerOpen] =
       React.useState(false);
    const [findVisitOpen, setFindVisitOpen] = React.useState(false);
@@ -481,6 +487,7 @@ export function VisitsTable({
                name: `${data.firstName} ${data.lastName}`,
                email: data.email,
                phone: data.phone,
+               nationality: data.nationality,
                organization: data.organization,
             };
          });
@@ -528,10 +535,12 @@ export function VisitsTable({
          for (const visitor of visitorData) {
             await registerVisitor({
                visitId,
+               visitParticipantId: visitor.visitParticipantId,
                firstName: visitor.firstName,
                lastName: visitor.lastName,
                phone: visitor.phone,
                email: visitor.email || undefined,
+               nationality: visitor.nationality || undefined,
                organization: visitor.organization?.trim() || undefined,
             });
          }
@@ -634,6 +643,17 @@ export function VisitsTable({
          );
 
          const printTargets: CheckInPrintTarget[] = [];
+         const names = selected.map((visitor) => visitor.name);
+
+         setCheckInSuccessLabel(
+            names.length === 1
+               ? names[0]!
+               : t('visits.visitorsCount', { count: names.length }),
+         );
+         setCheckInSuccessVisitId(checkInVisit.id);
+         setCheckInPrintTargets([]);
+         setCheckInResult({ status: 'pending' });
+         setCheckInSuccessOpen(true);
 
          if (
             selected.some(
@@ -642,9 +662,10 @@ export function VisitsTable({
                   visitor.visitDayId == null,
             )
          ) {
-            toast.error(
-               `Unable to check in ${checkInVisit.visitorName}: missing visit participant or visit day ID`,
-            );
+            setCheckInResult({
+               status: 'error',
+               message: `Unable to check in ${checkInVisit.visitorName}: missing visit participant or visit day ID`,
+            });
             return;
          }
 
@@ -667,12 +688,15 @@ export function VisitsTable({
                      : error instanceof Error
                         ? error.message
                         : undefined;
-               toast.error(
-                  message ??
+               setCheckInPrintTargets(printTargets);
+               setCheckInResult({
+                  status: 'error',
+                  message:
+                     message ??
                      t('visits.toast.checkInFailed', {
                         name: visitor.name,
                      }),
-               );
+               });
                return;
             }
          }
@@ -687,15 +711,8 @@ export function VisitsTable({
             queryKey: visitQueryKeys.lists(),
          });
 
-         const names = selected.map((visitor) => visitor.name);
-         setCheckInSuccessLabel(
-            names.length === 1
-               ? names[0]!
-               : t('visits.visitorsCount', { count: names.length }),
-         );
-         setCheckInSuccessVisitId(checkInVisit.id);
          setCheckInPrintTargets(printTargets);
-         setCheckInSuccessOpen(true);
+         setCheckInResult({ status: 'success' });
          setCheckInVisitId(null);
          setCheckInVisitorIds(null);
       },
@@ -965,6 +982,7 @@ export function VisitsTable({
             onOpenChange={setCheckInSuccessOpen}
             visitorLabel={checkInSuccessLabel}
             visitId={checkInSuccessVisitId}
+            result={checkInResult}
             printTargets={checkInPrintTargets}
             onRetryPrint={async (attendanceId) => {
                const { data } =

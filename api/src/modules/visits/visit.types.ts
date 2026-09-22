@@ -52,6 +52,7 @@ export const visitDetailSelect = {
                lastName: true,
                phone: true,
                email: true,
+               nationality: true,
                organization: true,
                idType: true,
                idNumber: true,
@@ -119,7 +120,14 @@ export const visitSummarySelect = {
       select: {
          id: true,
          visitor: {
-            select: { firstName: true, lastName: true, phone: true },
+            select: {
+               firstName: true,
+               lastName: true,
+               phone: true,
+                  email: true,
+               nationality: true,
+                  organization: true,
+            },
          },
          attendances: {
             select: {
@@ -147,16 +155,19 @@ export interface VisitorInputForVisit {
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    idType?: IdType;
    idNumber?: string;
 }
 
 export interface RegisterVisitorInput {
+   visitParticipantId?: number;
    firstName: string;
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
 }
 
@@ -164,6 +175,15 @@ export interface RegistrationResult {
    participantId: number;
    visitorId: number;
    visitId: number;
+   visitor: {
+      id: number;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string | null;
+      nationality: string | null;
+      organization: string | null;
+   };
 }
 
 export type VisitTransactionClient = Omit<

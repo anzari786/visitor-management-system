@@ -12,7 +12,7 @@ export const listEmployeesSchema = z.object({
 
 export const searchHostSchema = z.object({
    query: z.object({
-      q: z.string().trim().min(1),
+      q: z.string().trim().min(1).optional(),
       limit: z.coerce.number().int().positive().max(25).optional().default(10),
    }),
 });

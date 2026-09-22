@@ -174,7 +174,6 @@ export function CheckInDialog({
    React.useEffect(() => {
       if (!open) {
          setActiveStepIdx(0);
-         setIsSubmitting(false);
          setVerifiedIds({});
          replaceVerifications([]);
          setActiveVerifyVisitorId(null);
@@ -310,11 +309,11 @@ export function CheckInDialog({
    const handleConfirm = async () => {
       if (isSubmitting || !hasVerified) return;
       setIsSubmitting(true);
+      onOpenChange(false);
       try {
          await onConfirm({
             visitorIds: verifiedVisitors.map((visitor) => visitor.id),
          });
-         onOpenChange(false);
       } finally {
          setIsSubmitting(false);
       }

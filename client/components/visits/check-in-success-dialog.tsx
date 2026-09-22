@@ -31,11 +31,17 @@ export type CheckInPrintTarget = {
    initialStatus?: PrintJobStatus;
 };
 
+export type CheckInResult =
+   | { status: 'pending' }
+   | { status: 'success' }
+   | { status: 'error'; message: string };
+
 type CheckInSuccessDialogProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
    visitorLabel: string;
    visitId: string;
+   result?: CheckInResult;
    printTargets?: CheckInPrintTarget[];
    onRetryPrint?: (attendanceId: string) => Promise<BadgePrintJob | void>;
 };
@@ -129,6 +135,7 @@ export function CheckInSuccessDialog({
    onOpenChange,
    visitorLabel,
    visitId,
+   result = { status: 'success' },
    printTargets = [],
    onRetryPrint,
 }: CheckInSuccessDialogProps) {
@@ -234,28 +241,59 @@ export function CheckInSuccessDialog({
             showCloseButton={false}
          >
             <div className="flex flex-col items-center gap-4 py-2 text-center">
-               <div className="flex size-16 items-center justify-center rounded-full bg-sky-400/10 text-sky-500">
-                  <CheckCircle2Icon size={32} strokeWidth={1.5} />
+               <div
+                  className={
+                     result.status === 'error'
+                        ? 'flex size-16 items-center justify-center rounded-full bg-amber-400/10 text-amber-500'
+                        : 'flex size-16 items-center justify-center rounded-full bg-sky-400/10 text-sky-500'
+                  }
+               >
+                  {result.status === 'error' ? (
+                     <AlertTriangle size={32} strokeWidth={1.5} />
+                  ) : result.status === 'pending' ? (
+                     <Loader2 size={32} strokeWidth={1.5} className="animate-spin" />
+                  ) : (
+                     <CheckCircle2Icon size={32} strokeWidth={1.5} />
+                  )}
                </div>
                <DialogHeader className="items-center space-y-2">
                   <DialogTitle className="text-lg">
-                     {t('checkInSuccess.title')}
+                     {t(
+                        result.status === 'error'
+                           ? 'checkInSuccess.errorTitle'
+                           : result.status === 'pending'
+                             ? 'checkInSuccess.pendingTitle'
+                             : 'checkInSuccess.title',
+                     )}
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     {t('checkInSuccess.description', {
-                        name: visitorLabel,
-                        id: visitId,
-                     })}
+                     {result.status === 'error'
+                        ? result.message
+                        : result.status === 'pending'
+                          ? t('checkInSuccess.pendingDescription')
+                          : t('checkInSuccess.description', {
+                               name: visitorLabel,
+                               id: visitId,
+                            })}
                   </DialogDescription>
                </DialogHeader>
 
                <div className="w-full space-y-2 text-left">
-                  <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
-                     <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-                     <p className="font-medium">
-                        {t('checkInSuccess.visitorCheckedIn')}
-                     </p>
-                  </div>
+                  {result.status === 'success' ? (
+                     <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
+                        <p className="font-medium">
+                           {t('checkInSuccess.visitorCheckedIn')}
+                        </p>
+                     </div>
+                  ) : result.status === 'error' ? (
+                     <div className="flex items-start gap-2 rounded-lg border border-amber-200/80 bg-amber-50/70 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <p className="font-medium">
+                           {t('checkInSuccess.errorDescription')}
+                        </p>
+                     </div>
+                  ) : null}
 
                   {showPrintRows
                      ? targets.map((target) => (

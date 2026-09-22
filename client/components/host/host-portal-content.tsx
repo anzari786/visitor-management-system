@@ -166,9 +166,10 @@ export function HostPortalContent() {
    };
 
    return (
-      <div className="min-h-dvh w-full bg-background">
+      <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-background">
          <PortalHeader homeHref="/host" />
-         <main className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10">
+         <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-8 sm:space-y-10 sm:px-6 sm:py-10">
             <CreateInvitationDialog
                open={createDialogOpen}
                onOpenChange={setCreateDialogOpen}
@@ -231,6 +232,7 @@ export function HostPortalContent() {
                open={!!confirmedReschedule}
                onOpenChange={(open) => !open && setConfirmedReschedule(null)}
             />
+            </div>
          </main>
       </div>
    );

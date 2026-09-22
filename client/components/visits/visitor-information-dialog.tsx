@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { FLOOR_OPTIONS } from '@/constants/visit-location';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
+import { DEFAULT_NATIONALITY } from '@/constants/nationalities';
 import {
    emptyInvitationVisitorValues,
    hostInvitationSchema,
@@ -33,7 +34,9 @@ interface VisitorInformationDialogProps {
    visit: ManagedVisit | null;
    onComplete: (visitors: VisitorFormValues[]) => void;
    onRegisterComplete: (
-      visitors: VisitorFormValues[],
+      visitors: Array<
+         VisitorFormValues & { visitParticipantId?: number }
+      >,
    ) => void | Promise<void>;
 }
 
@@ -50,10 +53,16 @@ function getVisitorValues(
             firstName,
             lastName: lastNameParts.join(' '),
             email: visitor.email || '',
-            phone: visitor.phone || '+251 ',
+            phone: visitor.phone || '',
+            nationality: visitor.nationality || '',
             organization: visitor.organization || '',
          };
-      }) || [{ ...emptyInvitationVisitorValues }]
+      }) || [
+         {
+            ...emptyInvitationVisitorValues,
+            nationality: DEFAULT_NATIONALITY,
+         },
+      ]
    );
 }
 
@@ -98,7 +107,7 @@ export function VisitorInformationDialog({
 
    React.useEffect(() => {
       if (open && visit) {
-         form.reset(getDefaultValues(visit));
+         form.reset(getDefaultValues(visit), { keepDirtyValues: true });
       }
    }, [open, visit, form]);
 
@@ -120,9 +129,10 @@ export function VisitorInformationDialog({
    };
 
    const handleSubmit = form.handleSubmit(async (data) => {
-      const visitors = data.visitors.map((visitor) => ({
+      const visitors = data.visitors.map((visitor, index) => ({
          ...visitor,
          organization: visitor.organization,
+         visitParticipantId: visit?.visitors[index]?.visitParticipantId,
       }));
 
       setIsSubmitting(true);

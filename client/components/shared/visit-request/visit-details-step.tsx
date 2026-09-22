@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { Controller, type UseFormReturn } from 'react-hook-form';
-import { format, startOfDay } from 'date-fns';
+import { addHours, format, startOfDay } from 'date-fns';
 import { CalendarIcon, ChevronDown, LoaderCircleIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-request';
@@ -60,13 +60,21 @@ type Employee = NonNullable<
    ReturnType<typeof useEmployeeSearch>['data']
 >[number];
 
+function addTwoHours(time: string) {
+   const [hours, minutes] = time.split(':').map(Number);
+   const date = new Date();
+   date.setHours(hours, minutes, 0, 0);
+   return format(addHours(date, 2), 'HH:mm');
+}
+
 function HostEmployeeField({ form }: { form: FormType }) {
    const { t } = useTranslation();
    const [open, setOpen] = useState(false);
    const [inputValue, setInputValue] = useState('');
+   const query = inputValue.trim();
    const search = useEmployeeSearch(
-      { q: inputValue.trim(), limit: 25 },
-      inputValue.trim().length > 0,
+      query ? { q: query, limit: 25 } : { limit: 25 },
+      open || query.length > 0,
    );
    const results = (search.data ?? []).filter((employee) => employee.isActive);
    const grouped = useMemo(() => {
@@ -427,6 +435,16 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               className="bg-background appearance-none"
                               aria-invalid={!!form.formState.errors.startTime}
                               {...field}
+                              onChange={(event) => {
+                                 field.onChange(event);
+                                 if (!form.formState.dirtyFields.endTime) {
+                                    form.setValue(
+                                       'endTime',
+                                       addTwoHours(event.target.value),
+                                       { shouldValidate: true },
+                                    );
+                                 }
+                              }}
                            />
                            <FieldError>
                               {form.formState.errors.startTime?.message}
@@ -449,6 +467,9 @@ export function VisitDetailsStep({ form }: { form: FormType }) {
                               className="bg-background appearance-none"
                               aria-invalid={!!form.formState.errors.endTime}
                               {...field}
+                              onChange={(event) => {
+                                 field.onChange(event);
+                              }}
                            />
                            <FieldError>
                               {form.formState.errors.endTime?.message}

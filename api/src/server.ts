@@ -1,6 +1,7 @@
 import app from './app.js';
 import { env } from './config/env.js';
 import { startScheduler } from './jobs/scheduler.js';
+import { registerNotificationDispatchJob } from './jobs/notification-dispatch.job.js';
 import { registerVisitExpirationJob } from './jobs/visit-expiration.job.js';
 
 const PORT = env.PORT || 5000;
@@ -8,6 +9,7 @@ const PORT = env.PORT || 5000;
 const startServer = async () => {
    try {
       registerVisitExpirationJob();
+      registerNotificationDispatchJob();
       startScheduler();
 
       app.listen(PORT, () => {

@@ -4,7 +4,7 @@ import { UserRole } from '@/types/user.types';
 import {
    ClipboardList,
    LayoutGrid,
-   LucideIcon,
+   type LucideIcon,
    Settings,
    Users,
 } from 'lucide-react';
@@ -23,18 +23,16 @@ type NavigationItem = {
    roles: UserRole[];
    isGradient?: boolean;
    isRoot?: boolean;
-   hidden?: boolean; // excluded from sidebar rendering, still resolvable by getNavigationItem
+   hidden?: boolean;
 };
 
 const SIDEBAR_GROUPS = ['Workspace', 'Administration'] as const;
 
-/** Sidebar/command-palette group headings, per language. */
-export const GROUP_LABEL_KEYS: Record<NavigationItem['group'], TranslationKey> =
-   {
-      Workspace: 'nav.workspace',
-      Administration: 'nav.administration',
-      Operations: 'nav.operations',
-   };
+export const GROUP_LABEL_KEYS: Record<NavigationItem['group'], TranslationKey> = {
+   Workspace: 'nav.workspace',
+   Administration: 'nav.administration',
+   Operations: 'nav.operations',
+};
 
 export const navigation: NavigationItem[] = [
    {
@@ -44,7 +42,7 @@ export const navigation: NavigationItem[] = [
       href: '/dashboard',
       isRoot: true,
       group: 'Workspace',
-      roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
+      roles: ['GUARD', 'GUARD_MANAGER', 'ADMIN'],
    },
    {
       title: 'Visits',
@@ -52,7 +50,7 @@ export const navigation: NavigationItem[] = [
       icon: ClipboardList,
       href: '/visits',
       group: 'Workspace',
-      roles: ['ADMIN', 'RECEPTION', 'GUARD', 'MANAGER'],
+      roles: ['GUARD', 'GUARD_MANAGER', 'ADMIN'],
    },
    {
       title: 'Users',

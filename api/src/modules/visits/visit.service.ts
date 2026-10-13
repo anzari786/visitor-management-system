@@ -52,11 +52,10 @@ const REGISTRATION_ELIGIBLE_STATUSES = new Set([
    'PARTIALLY_CHECKED_OUT',
 ]);
 
-const HOST_DECISION_ROLES: RoleName[] = ['MANAGER', 'ADMIN', 'RECEPTION'];
+const HOST_DECISION_ROLES: RoleName[] = ['GUARD_MANAGER', 'ADMIN'];
 const HOST_MODIFY_ROLES: RoleName[] = [
-   'MANAGER',
+   'GUARD_MANAGER',
    'ADMIN',
-   'RECEPTION',
    'GUARD',
 ];
 
@@ -447,6 +446,9 @@ const resolveVisitorRecords = async (
                email: visitor.email,
                nationality: visitor.nationality,
                organization: visitor.organization,
+               subCity: visitor.subCity,
+               woreda: visitor.woreda,
+               houseNumber: visitor.houseNumber,
                idType: visitor.idType,
                idNumber: visitor.idNumber,
             });
@@ -459,6 +461,9 @@ const resolveVisitorRecords = async (
             email: visitor.email,
             nationality: visitor.nationality,
             organization: visitor.organization,
+            subCity: visitor.subCity,
+            woreda: visitor.woreda,
+            houseNumber: visitor.houseNumber,
          });
       }),
    );

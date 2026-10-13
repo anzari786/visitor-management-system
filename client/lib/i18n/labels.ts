@@ -21,9 +21,9 @@ import type { TranslationKey } from './dictionaries';
 
 export const USER_ROLE_KEYS: Record<UserRole, TranslationKey> = {
    GUARD: 'role.guard',
-   RECEPTION: 'role.reception',
+   GUARD_MANAGER: 'role.guardManager',
    ADMIN: 'role.admin',
-   MANAGER: 'role.manager',
+   HOST: 'role.host',
 };
 
 export const MANAGED_VISIT_STATUS_KEYS: Record<

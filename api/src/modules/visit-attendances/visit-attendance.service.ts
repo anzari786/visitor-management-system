@@ -37,12 +37,6 @@ const CHECK_IN_ELIGIBLE_VISIT_STATUSES: VisitStatus[] = [
    'CHECKED_OUT',
 ];
 
-const startOfLocalDay = (date: Date): Date => {
-   const copy = new Date(date);
-   copy.setHours(0, 0, 0, 0);
-   return copy;
-};
-
 const calendarDate = (date: Date) =>
    `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 

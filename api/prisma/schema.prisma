@@ -88,9 +88,9 @@ enum BadgePrintJobStatus {
 /// VMS dashboard roles (hosts are Employees, not necessarily Users).
 enum RoleName {
   GUARD
-  RECEPTION
+  GUARD_MANAGER
   ADMIN
-  MANAGER
+  HOST
 }
 
 /// How a dashboard user authenticates.
@@ -222,11 +222,14 @@ model Employee {
   phone     String?
   position  String?
 
+    /// Default office location used when a host creates an invitation.
+  defaultFloor String?
+  defaultRoom  String?
+
+  /// Department comes from HR sync — stored as values, not a separate table.
   departmentName String
   departmentCode String?
   departmentId   Int?
-  defaultFloor   String?
-  defaultRoom    String?
 
   isActive     Boolean  @default(true)
   lastSyncedAt DateTime @default(now())
@@ -275,6 +278,9 @@ model Visitor {
   phone        String?
   nationality  String?
   organization String?
+  subCity      String?
+  woreda       String?
+  houseNumber  String?
 
   /// Collected and verified at check-in for all visit types.
   idType   IdType?

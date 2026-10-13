@@ -289,6 +289,8 @@ export const am: Dictionary = {
    // ── Users: table, filters, create/edit, actions ───────────────────────
    'role.admin': 'አስተዳዳሪ',
    'role.guard': 'ጠባቂ',
+   'role.guardManager': 'የጠባቂዎች አስተዳዳሪ',
+   'role.host': 'አስተናጋጅ',
    'role.reception': 'አቀባበል',
    'role.manager': 'ሥራ አስኪያጅ',
    'users.subtitle': 'የሠራተኞችን መለያዎች፣ ሚናዎችና መዳረሻ ያስተዳድሩ።',

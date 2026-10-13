@@ -3,7 +3,6 @@ import type { z } from 'zod';
 import {
    listMyNotifications,
    getUnreadCount,
-   getMyNotificationById,
    markNotificationRead,
    markAllNotificationsRead,
    formatNotification,

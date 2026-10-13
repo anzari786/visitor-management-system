@@ -30,40 +30,48 @@ const DEPARTMENTS = [
    ['LEGAL-SEED', 'Legal Affairs', 'LEGAL'],
 ] as const;
 
-const STAFF = [
-   [
-      'System',
-      'Administrator',
-      'admin',
-      'admin@ati.gov.et',
-      '+251 911 223 344',
-      RoleName.ADMIN,
-   ],
-   [
-      'Operations',
-      'Manager',
-      'manager',
-      'manager@ati.gov.et',
-      '+251 911 556 677',
-      RoleName.MANAGER,
-   ],
-   [
-      'Abel',
-      'Tesfaye',
-      'guard1',
-      'guard1@ati.gov.et',
-      '+251 922 334 455',
-      RoleName.GUARD,
-   ],
-   [
-      'Sara',
-      'Bekele',
-      'reception1',
-      'reception1@ati.gov.et',
-      '+251 933 445 566',
-      RoleName.RECEPTION,
-   ],
-] as const;
+const STAFF_USERS: Array<{
+   firstName: string;
+   lastName: string;
+   username: string;
+   email: string;
+   role: RoleName;
+   phone: string;
+}> = [
+   {
+      firstName: 'System',
+      lastName: 'Administrator',
+      username: 'admin',
+      email: 'admin@ati.gov.et',
+      role: RoleName.ADMIN,
+      phone: '+251 911 223 344',
+   },
+   {
+      firstName: 'Operations',
+      lastName: 'Manager',
+      username: 'manager',
+      email: 'manager@ati.gov.et',
+      role: RoleName.GUARD_MANAGER,
+      phone: '+251 911 556 677',
+   },
+   {
+      firstName: 'Abel',
+      lastName: 'Tesfaye',
+      username: 'guard1',
+      email: 'guard1@ati.gov.et',
+      role: RoleName.GUARD,
+      phone: '+251 922 334 455',
+   },
+   {
+      firstName: 'Sara',
+      lastName: 'Bekele',
+      username: 'host1',
+      email: 'host1@ati.gov.et',
+      role: RoleName.HOST,
+      phone: '+251 933 445 566',
+   },
+];
+
 
 const HOSTS = [
    [
@@ -277,8 +285,17 @@ async function main() {
    await clearSeedData();
 
    const roles = await Promise.all(
-      Object.values(RoleName).map((name) =>
-         prisma.role.create({ data: { name, description: `${name} access` } }),
+      (
+         [
+            RoleName.GUARD,
+            RoleName.GUARD_MANAGER,
+            RoleName.ADMIN,
+            RoleName.HOST,
+         ] as const
+      ).map((name) =>
+         prisma.role.create({
+            data: { name, description: `${name} access` },
+         }),
       ),
    );
    const roleByName = new Map(roles.map((role) => [role.name, role]));
@@ -341,15 +358,15 @@ async function main() {
 
    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, PASSWORD_HASH_COST);
    const staffUsers = await Promise.all(
-      STAFF.map(([firstName, lastName, username, email, phone]) =>
+      STAFF_USERS.map((staff) =>
          prisma.user.create({
             data: {
                authProvider: AuthProvider.LOCAL,
-               firstName,
-               lastName,
-               username,
-               email,
-               phone,
+               firstName: staff.firstName,
+               lastName: staff.lastName,
+               username: staff.username,
+               email: staff.email,
+               phone: staff.phone,
                passwordHash,
                isActive: true,
             },
@@ -357,11 +374,11 @@ async function main() {
       ),
    );
    await Promise.all(
-      STAFF.map((staff, index) =>
+      STAFF_USERS.map((staff, index) =>
          prisma.userRole.create({
             data: {
                userId: staffUsers[index].id,
-               roleId: roleByName.get(staff[5])!.id,
+               roleId: roleByName.get(staff.role)!.id,
             },
          }),
       ),
@@ -384,7 +401,7 @@ async function main() {
       ),
    );
 
-   const [admin, manager, guard, reception] = staffUsers;
+   const [admin, manager, guard] = staffUsers;
    const visitors = await Promise.all(
       VISITORS.map(
          ([
@@ -411,7 +428,6 @@ async function main() {
             }),
       ),
    );
-
    const today = startOfDay(new Date());
    const tomorrow = addDays(today, 1);
    const dayAfter = addDays(today, 2);
@@ -517,8 +533,10 @@ async function main() {
       });
    };
 
+
    const pending = await createVisit({
       code: 'ATI-0001',
+
       source: VisitSource.PUBLIC,
       groupType: VisitorGroupType.SINGLE,
       durationType: VisitDurationType.SINGLE_DAY,
@@ -529,7 +547,7 @@ async function main() {
       dates: [tomorrow],
       floor: 'Ground Floor',
       room: 'Reception Lobby',
-      createdById: reception.id,
+      createdById: guard.id,
    });
    const approvedGroup = await createVisit({
       code: 'ATI-0002',
@@ -543,7 +561,7 @@ async function main() {
       dates: [today],
       floor: '2nd Floor',
       room: 'Board Room',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    const checkedIn = await createVisit({
@@ -558,7 +576,7 @@ async function main() {
       dates: [today],
       floor: '1st Floor',
       room: 'Conference Room A',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    const partiallyIn = await createVisit({
@@ -588,7 +606,7 @@ async function main() {
       dates: [today],
       floor: '1st Floor',
       room: 'Finance Meeting Room',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    const checkedOut = await createVisit({
@@ -618,7 +636,7 @@ async function main() {
       dates: [tomorrow],
       floor: '3rd Floor',
       room: 'Legal Office',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: admin.id,
    });
    await createVisit({
@@ -663,7 +681,7 @@ async function main() {
       dates: [tomorrow],
       floor: '2nd Floor',
       room: 'Procurement Room',
-      createdById: reception.id,
+      createdById: guard.id,
    });
    await createVisit({
       code: 'ATI-0012',
@@ -677,7 +695,7 @@ async function main() {
       dates: [dayAfter, addDays(today, 3)],
       floor: '2nd Floor',
       room: 'Board Room',
-      createdById: reception.id,
+      createdById: guard.id,
    });
    await createVisit({
       code: 'ATI-0013',
@@ -691,7 +709,7 @@ async function main() {
       dates: [addDays(today, 4)],
       floor: 'Ground Floor',
       room: 'Reception Lobby',
-      createdById: reception.id,
+      createdById: guard.id,
    });
    await createVisit({
       code: 'ATI-0014',
@@ -735,7 +753,7 @@ async function main() {
       dates: [addDays(today, 7)],
       floor: '2nd Floor',
       room: 'Training Room',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    await createVisit({
@@ -750,7 +768,7 @@ async function main() {
       dates: [tomorrow],
       floor: '1st Floor',
       room: 'Finance Meeting Room',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: admin.id,
    });
    await createVisit({
@@ -765,7 +783,7 @@ async function main() {
       dates: [subDays(today, 2)],
       floor: '2nd Floor',
       room: 'Research Office',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    await createVisit({
@@ -780,7 +798,7 @@ async function main() {
       dates: [tomorrow],
       floor: 'Ground Floor',
       room: 'Loading Bay',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
    });
    await createVisit({
@@ -810,7 +828,7 @@ async function main() {
       dates: [addDays(today, 4)],
       floor: 'Basement',
       room: 'Service Entrance',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: admin.id,
    });
    await createVisit({
@@ -825,7 +843,7 @@ async function main() {
       dates: [addDays(today, 5), addDays(today, 6)],
       floor: '1st Floor',
       room: 'Finance Meeting Room',
-      createdById: reception.id,
+      createdById: guard.id,
    });
 
    const twoMonthsAgo = subMonths(today, 2);
@@ -843,7 +861,7 @@ async function main() {
       dates: [addDays(twoMonthsAgo, 4)],
       floor: '1st Floor',
       room: 'Conference Room A',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
       createdAt: new Date(twoMonthsAgo.getTime() + 9 * 60 * 60 * 1000),
    });
@@ -859,7 +877,7 @@ async function main() {
       dates: [addDays(twoMonthsAgo, 11)],
       floor: '2nd Floor',
       room: 'Board Room',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
       createdAt: new Date(twoMonthsAgo.getTime() + 11 * 60 * 60 * 1000),
    });
@@ -891,7 +909,7 @@ async function main() {
       dates: [addDays(oneMonthAgo, 14), addDays(oneMonthAgo, 15)],
       floor: 'Ground Floor',
       room: 'Reception Lobby',
-      createdById: reception.id,
+      createdById: guard.id,
       decidedById: manager.id,
       createdAt: new Date(oneMonthAgo.getTime() + 13 * 60 * 60 * 1000),
    });
@@ -1014,9 +1032,11 @@ async function main() {
       ],
    });
 
-   console.log('Seed complete.');
+   console.log('\nSeeding complete.');
+   console.log(`- Org: ${ORG_NAME}`);
+   console.log('- Roles: GUARD, GUARD_MANAGER, ADMIN, HOST');
    console.log(
-      `Local password for admin, manager, guard1, and reception1: ${DEFAULT_PASSWORD}`,
+      `Local password for admin, manager, guard1, and host1: ${DEFAULT_PASSWORD}`,
    );
    console.log(`Hosts: ${HOSTS.map((host) => host[2]).join(', ')}`);
    console.log(

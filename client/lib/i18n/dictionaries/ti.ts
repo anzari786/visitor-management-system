@@ -289,6 +289,8 @@ export const ti: Dictionary = {
    // ── Users: table, filters, create/edit, actions ───────────────────────
    'role.admin': 'ኣመሓዳሪ',
    'role.guard': 'ሓላዊ',
+   'role.guardManager': 'ኣመሓዳሪ ሓለውቲ',
+   'role.host': 'ኣአንጋዲ',
    'role.reception': 'መቐበሊ',
    'role.manager': 'ኣካያዲ ስራሕ',
    'users.subtitle': 'ኣካውንትታት፣ ተራታትን መእተውን ሰራሕተኛታት ኣመሓድር።',

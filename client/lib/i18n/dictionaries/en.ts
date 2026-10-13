@@ -292,6 +292,8 @@ export const en = {
    // ── Users: table, filters, create/edit, actions ───────────────────────
    'role.admin': 'Administrator',
    'role.guard': 'Guard',
+   'role.guardManager': 'Guard Manager',
+   'role.host': 'Host',
    'role.reception': 'Reception',
    'role.manager': 'Manager',
    'users.subtitle': 'Manage staff accounts, roles, and access.',

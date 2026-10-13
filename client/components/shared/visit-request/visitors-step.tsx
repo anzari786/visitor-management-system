@@ -4,6 +4,14 @@ import { Controller, useFieldArray, type UseFormReturn } from 'react-hook-form';
 import { useState } from 'react';
 import { formatEthiopianPhone } from '@/lib/phone';
 import { NATIONALITY_OPTIONS } from '@/constants/nationalities';
+import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
 import {
    emptyVisitorValues,
    type VisitRequestFormInput,
@@ -100,6 +108,97 @@ function VisitorFields({ form, index }: { form: FormType; index: number }) {
             )}
             <FieldError>{errors?.email?.message}</FieldError>
          </Field>
+
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.subCity`}>
+                  Sub-city
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.subCity`}
+                  placeholder="Enter sub-city"
+                  aria-invalid={!!errors?.subCity}
+                  {...form.register(`visitors.${index}.subCity`)}
+               />
+               <FieldError>{errors?.subCity?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.woreda`}>
+                  Woreda
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.woreda`}
+                  placeholder="Enter woreda"
+                  aria-invalid={!!errors?.woreda}
+                  {...form.register(`visitors.${index}.woreda`)}
+               />
+               <FieldError>{errors?.woreda?.message}</FieldError>
+            </Field>
+         </div>
+
+         <Field>
+            <FieldLabel htmlFor={`visitors.${index}.houseNumber`}>
+               House Number
+            </FieldLabel>
+            <Input
+               id={`visitors.${index}.houseNumber`}
+               placeholder="Enter house number"
+               aria-invalid={!!errors?.houseNumber}
+               {...form.register(`visitors.${index}.houseNumber`)}
+            />
+            <FieldError>{errors?.houseNumber?.message}</FieldError>
+         </Field>
+
+         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.idType`}>
+                  ID Type <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Controller
+                  name={`visitors.${index}.idType`}
+                  control={form.control}
+                  render={({ field }) => (
+                     <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                     >
+                        <SelectTrigger
+                           id={`visitors.${index}.idType`}
+                           className="w-full"
+                           aria-invalid={!!errors?.idType}
+                        >
+                           <SelectValue placeholder="Select ID type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           {ID_TYPE_OPTIONS.map((option) => (
+                              <SelectItem
+                                 key={option.value}
+                                 value={option.value}
+                              >
+                                 {option.label}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                  )}
+               />
+               <FieldError>{errors?.idType?.message}</FieldError>
+            </Field>
+
+            <Field>
+               <FieldLabel htmlFor={`visitors.${index}.idNumber`}>
+                  ID Number <span className="text-destructive">*</span>
+               </FieldLabel>
+               <Input
+                  id={`visitors.${index}.idNumber`}
+                  placeholder="Enter ID number"
+                  aria-invalid={!!errors?.idNumber}
+                  {...form.register(`visitors.${index}.idNumber`)}
+               />
+               <FieldError>{errors?.idNumber?.message}</FieldError>
+            </Field>
+         </div>
 
          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>

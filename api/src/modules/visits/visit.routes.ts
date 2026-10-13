@@ -39,7 +39,7 @@ router.post(
 router.post(
    '/walk-in',
    requireAuth,
-   requireRole('GUARD', 'RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(createWalkInVisitSchema),
    submitWalkInVisit,
 );
@@ -64,7 +64,7 @@ router.post(
 router.post(
    '/:id/register-visitor',
    requireAuth,
-   requireRole('GUARD', 'RECEPTION', 'ADMIN'),
+   requireRole('GUARD', 'ADMIN'),
    validate(registerVisitorAtVisitSchema),
    registerVisitorAtVisit,
 );

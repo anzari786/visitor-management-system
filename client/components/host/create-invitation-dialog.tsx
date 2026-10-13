@@ -132,7 +132,33 @@ export function CreateInvitationDialog({
       shouldFocusError: true,
    });
 
-   const knowsVisitorInfo = form.watch('knowsVisitorInfo');
+   useEffect(() => {
+      if (!open) return;
+
+      const loadHostDefaults = async () => {
+         try {
+            const { data: meResponse } = await authService.getMe();
+            const employee = meResponse.data.employee;
+
+            if (employee?.defaultFloor) {
+               form.setValue(
+                  'floor',
+                  employee.defaultFloor as FloorOption,
+               );
+            }
+
+            if (employee?.defaultRoom) {
+               form.setValue('room', employee.defaultRoom);
+            }
+         } catch {
+            // Keep the location fields empty if the host defaults cannot be loaded.
+         }
+      };
+
+      loadHostDefaults();
+   }, [open, form]);
+
+      const knowsVisitorInfo = form.watch('knowsVisitorInfo');
    const scheduleType = form.watch('scheduleType');
    const visitorCount = form.watch('visitorCount');
    const startDate = form.watch('startDate');

@@ -17,4 +17,3 @@ export function useDepartments(activeOnly?: boolean) {
       },
    });
 }
-

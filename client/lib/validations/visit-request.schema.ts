@@ -2,6 +2,8 @@ import {
    VISIT_PURPOSE_OPTIONS,
    type VisitPurposeValue,
 } from '@/constants/visit-request';
+import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import type { IdTypeValue } from '@/types/visit.types';
 import { startOfDay } from 'date-fns';
 import { z } from 'zod';
 import { isValidEthiopianPhone } from '../phone';
@@ -26,6 +28,38 @@ export const visitorSchema = z.object({
       .refine((val) => isValidEthiopianPhone(val), {
          message: 'validation.phoneInvalid',
       }),
+   subCity: z
+      .string()
+      .max(100, 'Sub-city must be 100 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
+   woreda: z
+      .string()
+      .max(100, 'Woreda must be 100 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
+   houseNumber: z
+      .string()
+      .max(50, 'House number must be 50 characters or fewer')
+      .optional()
+      .transform((val) => {
+         const trimmed = val?.trim();
+         return trimmed ? trimmed : undefined;
+      }),
+   idType: z.enum(
+      ID_TYPE_OPTIONS.map((o) => o.value) as [IdTypeValue, ...IdTypeValue[]],
+      { message: 'ID type is required' },
+   ),
+   idNumber: z
+      .string()
+      .min(1, 'ID number is required')
+      .max(50, 'ID number must be 50 characters or fewer'),
    nationality: z.string().min(1, 'validation.nationalityRequired'),
    organization: z
       .string()
@@ -47,15 +81,25 @@ export const emptyVisitorValues: {
    lastName: string;
    email: string;
    phone: string;
+   idType: IdTypeValue;
+   idNumber: string;
    nationality: string;
    organization: string;
+   subCity: string;
+   woreda: string;
+   houseNumber: string;
 } = {
    firstName: '',
    lastName: '',
    email: '',
    phone: '+251 ',
+   idType: ID_TYPE_OPTIONS[0].value,
+   idNumber: '',
    nationality: 'ET',
    organization: '',
+   subCity: '',
+   woreda: '',
+   houseNumber: '',
 };
 
 const visitDetailsFieldsSchema = z.object({

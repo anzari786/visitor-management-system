@@ -182,14 +182,14 @@ export function UserActionsMenu({
                               <DropdownMenuRadioItem value="GUARD">
                                  {t('role.guard')}
                               </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="RECEPTION">
-                                 {t('role.reception')}
+                              <DropdownMenuRadioItem value="GUARD_MANAGER">
+                                 {t('role.guardManager')}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem value="ADMIN">
                                  {t('role.admin')}
                               </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem value="MANAGER">
-                                 {t('role.manager')}
+                              <DropdownMenuRadioItem value="HOST">
+                                 {t('role.host')}
                               </DropdownMenuRadioItem>
                            </DropdownMenuRadioGroup>
                         </DropdownMenuGroup>

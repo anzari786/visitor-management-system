@@ -410,14 +410,14 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                                        <SelectItem value="GUARD">
                                           {t('role.guard')}
                                        </SelectItem>
-                                       <SelectItem value="RECEPTION">
-                                          {t('role.reception')}
+                                       <SelectItem value="GUARD_MANAGER">
+                                          {t('role.guardManager')}
                                        </SelectItem>
                                        <SelectItem value="ADMIN">
                                           {t('role.admin')}
                                        </SelectItem>
-                                       <SelectItem value="MANAGER">
-                                          {t('role.manager')}
+                                       <SelectItem value="HOST">
+                                          {t('role.host')}
                                        </SelectItem>
                                     </SelectContent>
                                  </Select>
@@ -428,6 +428,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                            )}
                         </Field>
                      </div>
+
 
                      <div className="space-y-4">
                         <SectionHeading
@@ -462,6 +463,7 @@ export function EditUser({ open, onOpenChange, user }: EditUserProps) {
                      </div>
                   </FieldGroup>
                </div>
+
 
                <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
                   <Button

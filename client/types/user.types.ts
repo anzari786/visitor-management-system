@@ -24,6 +24,8 @@ export type User = {
       email: string;
       departmentName: string;
       position?: string;
+      defaultFloor?: string;
+      defaultRoom?: string;
    };
 };
 

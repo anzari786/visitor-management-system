@@ -206,7 +206,9 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
          lastName: '',
          email: '',
          username: '',
-         role: 'RECEPTION',
+         phone: '+251 ',
+         role: 'GUARD',
+         password: '',
       },
    });
 
@@ -346,14 +348,14 @@ const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
                                  <SelectItem value="GUARD">
                                     {t('role.guard')}
                                  </SelectItem>
-                                 <SelectItem value="RECEPTION">
-                                    {t('role.reception')}
+                                 <SelectItem value="GUARD_MANAGER">
+                                    {t('role.guardManager')}
                                  </SelectItem>
                                  <SelectItem value="ADMIN">
                                     {t('role.admin')}
                                  </SelectItem>
-                                 <SelectItem value="MANAGER">
-                                    {t('role.manager')}
+                                 <SelectItem value="HOST">
+                                    {t('role.host')}
                                  </SelectItem>
                               </SelectContent>
                            </Select>

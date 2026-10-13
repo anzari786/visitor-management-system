@@ -738,4 +738,3 @@ export const formatUserSummary = (user: UserSummary) => ({
    createdAt: user.createdAt,
 
 });
-

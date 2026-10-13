@@ -60,7 +60,7 @@ type VisitNotifyShape = {
    days?: Array<{ date: Date | string }>;
 };
 
-const STAFF_ROLES: RoleName[] = ['GUARD', 'RECEPTION', 'ADMIN', 'MANAGER'];
+const STAFF_ROLES: RoleName[] = ['GUARD', 'GUARD_MANAGER', 'ADMIN'];
 
 const fullName = (person: VisitPerson) =>
    `${person.firstName} ${person.lastName}`.trim();

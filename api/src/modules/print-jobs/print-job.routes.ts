@@ -21,7 +21,7 @@ import {
 
 const router = Router();
 
-const deskStaff = requireRole('GUARD', 'RECEPTION', 'ADMIN');
+const deskStaff = requireRole('GUARD', 'ADMIN');
 
 // ── Print Agent endpoints (Bearer token) ───────────────────────────────────
 

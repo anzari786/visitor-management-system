@@ -47,6 +47,9 @@ const visitorInputSchema = z.object({
       (value) => (value === '' ? undefined : value),
       z.string().trim().min(1).max(150).optional(),
    ),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
    idType: identificationTypeSchema.optional(),
    idNumber: z.string().trim().min(1).max(50).optional(),
 });
@@ -58,6 +61,9 @@ const hostInvitationVisitorSchema = z.object({
    email: z.string().trim().email().optional(),
    nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
    idType: identificationTypeSchema.optional(),
    idNumber: z.string().trim().min(1).max(50).optional(),
 });
@@ -186,6 +192,11 @@ const registerVisitorBodySchema = z.object({
    email: z.string().trim().email().optional(),
    nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
+   subCity: z.string().trim().min(1).max(100).optional(),
+   woreda: z.string().trim().min(1).max(100).optional(),
+   houseNumber: z.string().trim().min(1).max(50).optional(),
+   idType: identificationTypeSchema.optional(),
+   idNumber: z.string().trim().min(1).max(50).optional(),
 });
 
 /** Public self-service visitor request — same shape as the walk-in path. */

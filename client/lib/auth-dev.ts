@@ -5,7 +5,7 @@ export const DEV_USER: User = {
    firstName: 'Dev',
    lastName: 'Admin',
    username: 'dev.admin',
-   role: 'ADMIN',
+   role: 'ADMIN', // Change this to another UserRole when testing a different role
    isActive: true,
    createdAt: new Date().toISOString(),
    checkIns: 0,

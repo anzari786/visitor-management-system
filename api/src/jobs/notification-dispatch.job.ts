@@ -99,11 +99,7 @@ const processQueuedNotificationJob = async (
 ): Promise<void> => {
    const notification = await persistNotification(job.input);
 
-   try {
-      await processQueuedEmailNotification(notification.id, job.input);
-   } catch (error) {
-      throw error;
-   }
+   await processQueuedEmailNotification(notification.id, job.input);
 };
 
 export const processQueuedNotifications = async (): Promise<void> => {

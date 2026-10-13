@@ -1,14 +1,14 @@
 import {
    Prisma,
    type RoleName,
-   type VisitDurationType,
    type VisitPurpose,
-   type VisitorGroupType,
+   type VisitSource,
    type VisitStatus,
 } from '../../generated/prisma/client.js';
 import { prisma } from '../../config/prisma.js';
 import {
    BadRequestError,
+   ConflictError,
    ForbiddenError,
    NotFoundError,
 } from '../../lib/errors.js';
@@ -22,23 +22,35 @@ import {
    notifyVisitRejected,
    notifyVisitRescheduled,
    notifyVisitSubmitted,
+   notifyVisitorRegistered,
 } from '../../services/visit-notifications.service.js';
 import {
    findOrCreateVisitor,
    resolveVisitorForRegistration,
 } from '../visitors/visitor.service.js';
-import { createVisitInvitation } from './visit-invitation.service.js';
 import { visitDetailSelect, visitSummarySelect } from './visit.types.js';
+import { visitorSelect } from '../visitors/visitor.types.js';
 import type {
    ApproveVisitInput,
    CreateVisitInput,
    CreateVisitMeta,
    CreateVisitResult,
    RescheduleVisitInput,
+   RegisterVisitorInput,
+   RegistrationResult,
    ScheduleDateInput,
    VisitDetail,
    VisitSummary,
+   VisitTransactionClient,
 } from './visit.types.js';
+
+const REGISTRATION_ELIGIBLE_STATUSES = new Set([
+   'APPROVED',
+   'RESCHEDULED',
+   'PARTIALLY_CHECKED_IN',
+   'CHECKED_IN',
+   'PARTIALLY_CHECKED_OUT',
+]);
 
 const HOST_DECISION_ROLES: RoleName[] = ['GUARD_MANAGER', 'ADMIN'];
 const HOST_MODIFY_ROLES: RoleName[] = [
@@ -46,6 +58,8 @@ const HOST_MODIFY_ROLES: RoleName[] = [
    'ADMIN',
    'GUARD',
 ];
+
+const MAX_VISIT_CODE_ATTEMPTS = 4;
 
 const PURPOSE_VALUES = new Set<VisitPurpose>([
    'MEETING',
@@ -66,8 +80,8 @@ const toVisitPurpose = (purpose: string): VisitPurpose => {
 
 const formatHhMm = (value?: Date): string => {
    if (!value) return '09:00';
-   const hours = String(value.getHours()).padStart(2, '0');
-   const minutes = String(value.getMinutes()).padStart(2, '0');
+   const hours = String(value.getUTCHours()).padStart(2, '0');
+   const minutes = String(value.getUTCMinutes()).padStart(2, '0');
    return `${hours}:${minutes}`;
 };
 
@@ -77,7 +91,7 @@ const uniqueDates = (scheduleDates: ScheduleDateInput[]): Date[] => {
 
    for (const schedule of scheduleDates) {
       const day = new Date(schedule.date);
-      day.setHours(0, 0, 0, 0);
+      day.setUTCHours(0, 0, 0, 0);
       const key = day.toISOString().slice(0, 10);
       if (!seen.has(key)) {
          seen.add(key);
@@ -95,15 +109,49 @@ const createVisitWithUniqueCode = async (
       statusHistory?: Prisma.VisitStatusHistoryUncheckedCreateNestedManyWithoutVisitInput;
    },
 ): Promise<VisitDetail> => {
-   const visitCode = await generateVisitCode();
+   for (let attempt = 0; attempt < MAX_VISIT_CODE_ATTEMPTS; attempt += 1) {
+      const visitCode = await generateVisitCode();
 
-   return prisma.visit.create({
-      data: {
-         ...data,
-         visitCode,
-      },
-      select: visitDetailSelect,
-   });
+      try {
+         return await prisma.visit.create({
+            data: {
+               ...data,
+               visitCode,
+            },
+            select: visitDetailSelect,
+         });
+      } catch (error) {
+         const target =
+            error instanceof Prisma.PrismaClientKnownRequestError
+               ? error.meta?.target
+               : undefined;
+         const isVisitCodeCollision =
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002' &&
+            (String(target).includes('visitCode') ||
+               error.message.includes('visits_visitCode_key'));
+
+         if (!isVisitCodeCollision) {
+            throw error;
+         }
+
+         if (attempt === MAX_VISIT_CODE_ATTEMPTS - 1) {
+            console.error('Unable to allocate a unique visit code', {
+               attempts: MAX_VISIT_CODE_ATTEMPTS,
+               errorCode: error.code,
+            });
+            throw new ConflictError(
+               'Unable to allocate a unique visit code. Please try again.',
+               'VISIT_CODE_GENERATION_FAILED',
+            );
+         }
+      }
+   }
+
+   throw new ConflictError(
+      'Unable to allocate a unique visit code. Please try again.',
+      'VISIT_CODE_GENERATION_FAILED',
+   );
 };
 
 const assertTransition = (current: VisitStatus, allowed: VisitStatus[]) => {
@@ -172,6 +220,219 @@ const seedExpectedAttendances = async (visitId: number) => {
    });
 };
 
+export const seedAttendancesForParticipant = async (
+   participantId: number,
+   visitId: number,
+   db: VisitTransactionClient = prisma,
+) => {
+   const days = await db.visitDay.findMany({
+      where: { visitId },
+      select: { id: true },
+   });
+
+   if (!days.length) return;
+
+   await db.visitAttendance.createMany({
+      data: days.map((day) => ({
+         participantId,
+         visitDayId: day.id,
+         status: 'EXPECTED' as const,
+      })),
+      skipDuplicates: true,
+   });
+};
+
+const assertVisitEligibleForRegistration = (visit: {
+   status: string;
+   source: string;
+}) => {
+   if (!REGISTRATION_ELIGIBLE_STATUSES.has(visit.status)) {
+      throw new BadRequestError(
+         `Visit is not open for registration (status: ${visit.status})`,
+         'VISIT_NOT_ELIGIBLE',
+      );
+   }
+
+   if (visit.source !== 'HOST_INVITATION') {
+      throw new BadRequestError(
+         'Only host invitations support visitor registration',
+         'INVALID_VISIT_SOURCE',
+      );
+   }
+};
+
+const resolveRegisteredVisitor = async (
+   input: RegisterVisitorInput,
+   db: VisitTransactionClient,
+) => {
+   const firstName = input.firstName.trim();
+   const lastName = input.lastName.trim();
+   const email = input.email?.trim() || undefined;
+   const phone = input.phone.trim();
+   const organization = input.organization?.trim() || undefined;
+
+   const existing = await db.visitor.findFirst({
+      where: {
+         OR: [
+            ...(email ? [{ email }] : []),
+            ...(phone ? [{ phone }] : []),
+            { firstName, lastName },
+         ],
+      },
+      select: visitorSelect,
+   });
+
+   if (!existing) {
+      return db.visitor.create({
+         data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            nationality: input.nationality?.trim() || undefined,
+            organization,
+         },
+         select: visitorSelect,
+      });
+   }
+
+   const hasMissingInformation =
+      !existing.email || !existing.phone || !existing.organization;
+
+   if (!hasMissingInformation) return existing;
+
+   return db.visitor.update({
+      where: { id: existing.id },
+      data: {
+         firstName,
+         lastName,
+         email: email ?? existing.email,
+         phone: phone || existing.phone,
+         nationality: input.nationality?.trim() || existing.nationality,
+         organization: organization ?? existing.organization,
+      },
+      select: visitorSelect,
+   });
+};
+
+export const registerVisitorForVisit = async (
+   visitId: number,
+   input: RegisterVisitorInput,
+): Promise<RegistrationResult> => {
+   const result = await prisma.$transaction(
+      async (tx) => {
+         await tx.$executeRaw`SELECT id FROM visits WHERE id = ${visitId} FOR UPDATE`;
+
+         const visit = await tx.visit.findUnique({
+            where: { id: visitId },
+            select: {
+               id: true,
+               status: true,
+               source: true,
+               expectedVisitorCount: true,
+               _count: { select: { participants: true } },
+            },
+         });
+
+         if (!visit) throw new NotFoundError('Visit not found');
+         assertVisitEligibleForRegistration(visit);
+
+         if (input.visitParticipantId) {
+            const participant = await tx.visitParticipant.findFirst({
+               where: { id: input.visitParticipantId, visitId },
+               select: {
+                  id: true,
+                  visitor: { select: visitorSelect },
+               },
+            });
+
+            if (!participant) {
+               throw new NotFoundError(
+                  'Invitation visitor participant not found',
+               );
+            }
+
+            const visitor = await tx.visitor.update({
+               where: { id: participant.visitor.id },
+               data: {
+                  firstName: input.firstName.trim(),
+                  lastName: input.lastName.trim(),
+                  phone: input.phone.trim(),
+                  email: input.email?.trim() || participant.visitor.email,
+                  nationality:
+                     input.nationality?.trim() ||
+                     participant.visitor.nationality,
+                  organization:
+                     input.organization?.trim() ||
+                     participant.visitor.organization,
+               },
+               select: visitorSelect,
+            });
+
+            await seedAttendancesForParticipant(participant.id, visitId, tx);
+            return {
+               participantId: participant.id,
+               visitorId: visitor.id,
+               visitId,
+               visitor,
+            };
+         }
+
+         if (visit._count.participants >= visit.expectedVisitorCount) {
+            throw new ConflictError(
+               'Registration capacity has been reached for this visit',
+               'REGISTRATION_FULL',
+            );
+         }
+
+         const visitor = await resolveRegisteredVisitor(input, tx);
+         const existingParticipant = await tx.visitParticipant.findUnique({
+            where: { visitId_visitorId: { visitId, visitorId: visitor.id } },
+         });
+
+         if (existingParticipant) {
+            await seedAttendancesForParticipant(
+               existingParticipant.id,
+               visitId,
+               tx,
+            );
+            return {
+               participantId: existingParticipant.id,
+               visitorId: visitor.id,
+               visitId,
+               visitor,
+            };
+         }
+
+         const participant = await tx.visitParticipant.create({
+            data: { visitId, visitorId: visitor.id },
+         });
+         await seedAttendancesForParticipant(participant.id, visitId, tx);
+
+         return {
+            participantId: participant.id,
+            visitorId: visitor.id,
+            visitId,
+            visitor,
+         };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+   );
+
+   const visit = await prisma.visit.findUnique({
+      where: { id: visitId },
+      select: visitDetailSelect,
+   });
+   if (visit) {
+      await notifyVisitorRegistered(visit, {
+         firstName: input.firstName,
+         lastName: input.lastName,
+      });
+   }
+
+   return result;
+};
+
 const resolveVisitorRecords = async (
    visitors: CreateVisitInput['visitors'],
 ) => {
@@ -183,6 +444,7 @@ const resolveVisitorRecords = async (
                lastName: visitor.lastName,
                phone: visitor.phone,
                email: visitor.email,
+               nationality: visitor.nationality,
                organization: visitor.organization,
                subCity: visitor.subCity,
                woreda: visitor.woreda,
@@ -197,6 +459,7 @@ const resolveVisitorRecords = async (
             lastName: visitor.lastName,
             phone: visitor.phone,
             email: visitor.email,
+            nationality: visitor.nationality,
             organization: visitor.organization,
             subCity: visitor.subCity,
             woreda: visitor.woreda,
@@ -309,13 +572,7 @@ export const createVisit = async (
       await seedExpectedAttendances(visit.id);
    }
 
-   let registrationInvitation;
-
-   if (isHostInvitation) {
-      if (isUnknownVisitorInvitation) {
-         registrationInvitation = await createVisitInvitation(visit.id);
-      }
-   } else {
+   if (!isHostInvitation) {
       await notifyVisitSubmitted(visit);
    }
 
@@ -327,26 +584,27 @@ export const createVisit = async (
 
    return {
       visit: fullVisit,
-      registrationInvitation,
    };
 };
 
 interface ListVisitsFilters extends PaginationParams {
-   status?: VisitStatus;
-   hostEmployeeId?: number;
-   durationType?: VisitDurationType;
-   groupType?: VisitorGroupType;
+   status?: VisitStatus | VisitStatus[];
+   source?: VisitSource | VisitSource[];
    search?: string;
-   dateFrom?: Date;
-   dateTo?: Date;
 }
 
 export const listVisits = async (filters: ListVisitsFilters) => {
    const where: Prisma.VisitWhereInput = {
-      ...(filters.status && { status: filters.status }),
-      ...(filters.hostEmployeeId && { hostEmployeeId: filters.hostEmployeeId }),
-      ...(filters.durationType && { durationType: filters.durationType }),
-      ...(filters.groupType && { groupType: filters.groupType }),
+      ...(filters.status && {
+         status: Array.isArray(filters.status)
+            ? { in: filters.status }
+            : filters.status,
+      }),
+      ...(filters.source && {
+         source: Array.isArray(filters.source)
+            ? { in: filters.source }
+            : filters.source,
+      }),
       ...(filters.search && {
          OR: [
             { visitCode: { contains: filters.search } },
@@ -357,24 +615,12 @@ export const listVisits = async (filters: ListVisitsFilters) => {
                         OR: [
                            { firstName: { contains: filters.search } },
                            { lastName: { contains: filters.search } },
-                           { phone: { contains: filters.search } },
-                           { email: { contains: filters.search } },
                         ],
                      },
                   },
                },
             },
          ],
-      }),
-      ...((filters.dateFrom || filters.dateTo) && {
-         days: {
-            some: {
-               date: {
-                  ...(filters.dateFrom && { gte: filters.dateFrom }),
-                  ...(filters.dateTo && { lte: filters.dateTo }),
-               },
-            },
-         },
       }),
    };
 
@@ -403,6 +649,26 @@ export const getVisitById = async (id: number): Promise<VisitDetail> => {
    if (!visit) {
       throw new NotFoundError('Visit not found');
    }
+
+   return visit;
+};
+
+export const resendVisitApprovalEmail = async (
+   id: number,
+   actorId: number,
+   actorRoles: RoleName[],
+): Promise<VisitDetail> => {
+   const visit = await getVisitById(id);
+
+   await assertVisitActorAccess(
+      visit.hostEmployee?.id ?? null,
+      actorId,
+      actorRoles,
+      HOST_MODIFY_ROLES,
+   );
+
+   assertTransition(visit.status, ['PENDING_APPROVAL']);
+   await notifyVisitSubmitted(visit);
 
    return visit;
 };
@@ -623,12 +889,6 @@ export const formatVisitDetail = (visit: VisitDetail) => {
       organization: visit.organization ?? undefined,
       registeredCount,
       remainingSlots: Math.max(0, visit.expectedVisitorCount - registeredCount),
-      registration: visit.invitation
-         ? {
-              expiresAt: visit.invitation.expiresAt ?? undefined,
-              isRevoked: !!visit.invitation.revokedAt,
-           }
-         : undefined,
       host: visit.hostEmployee
          ? {
               id: String(visit.hostEmployee.id),
@@ -707,6 +967,27 @@ export const formatVisitSummary = (visit: VisitSummary) => ({
       (participant) =>
          `${participant.visitor.firstName} ${participant.visitor.lastName}`,
    ),
+   visitorDetails: visit.participants.map((participant) => ({
+      participantId: String(participant.id),
+      firstName: participant.visitor.firstName,
+      lastName: participant.visitor.lastName,
+      phone: participant.visitor.phone ?? undefined,
+      email: participant.visitor.email ?? undefined,
+      nationality: participant.visitor.nationality ?? undefined,
+      organization: participant.visitor.organization ?? undefined,
+      attendances: participant.attendances.map((attendance) => ({
+         id: String(attendance.id),
+         status: attendance.status,
+         checkInAt: attendance.checkInAt ?? undefined,
+         checkOutAt: attendance.checkOutAt ?? undefined,
+         visitDayId: String(attendance.visitDay.id),
+         date: attendance.visitDay.date,
+      })),
+   })),
    scheduleDates: visit.days.map((day) => day.date),
+   scheduleDays: visit.days.map((day) => ({
+      id: String(day.id),
+      date: day.date,
+   })),
    createdAt: visit.createdAt,
 });

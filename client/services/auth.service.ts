@@ -6,42 +6,48 @@ import type {
    LoginPayload,
    UpdateProfilePayload,
    ChangePasswordPayload,
-   ForceChangePasswordPayload,
+   CompletePasswordSetupPayload,
    CheckUsernameData,
 } from '@/types/auth.types';
 
 import type { User } from '@/types/user.types';
 
+const BASE = '/v1/auth';
+
 export const authService = {
    login(payload: LoginPayload) {
-      return api.post<ApiResponse<LoginData>>('/auth/login', payload);
+      return api.post<ApiResponse<LoginData>>(`${BASE}/login`, payload);
+   },
+
+   developmentSsoLogin() {
+      return api.post<ApiResponse<LoginData>>(`${BASE}/dev-sso-login`);
    },
 
    logout() {
-      return api.post<ApiResponse<null>>('/auth/logout');
+      return api.post<ApiResponse<null>>(`${BASE}/logout`);
    },
 
    getMe() {
-      return api.get<ApiResponse<User>>('/auth/me');
+      return api.get<ApiResponse<User>>(`${BASE}/me`);
    },
 
    updateProfile(payload: UpdateProfilePayload) {
-      return api.patch<ApiResponse<User>>('/auth/me', payload);
+      return api.patch<ApiResponse<User>>(`${BASE}/me`, payload);
    },
 
    changePassword(payload: ChangePasswordPayload) {
-      return api.post<ApiResponse<null>>('/auth/change-password', payload);
+      return api.post<ApiResponse<null>>(`${BASE}/change-password`, payload);
    },
 
-   forceChangePassword(payload: ForceChangePasswordPayload) {
-      return api.post<ApiResponse<User>>(
-         '/auth/force-change-password',
+   completePasswordSetup(payload: CompletePasswordSetupPayload) {
+      return api.post<ApiResponse<null>>(
+         `${BASE}/password/setup/complete`,
          payload,
       );
    },
 
    checkUsername(username: string) {
-      return api.get<ApiResponse<CheckUsernameData>>('/auth/check-username', {
+      return api.get<ApiResponse<CheckUsernameData>>(`${BASE}/check-username`, {
          params: { username },
       });
    },

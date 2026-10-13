@@ -30,7 +30,6 @@ export const authUserSelect = {
 
    isActive: true,
 
-   mustChangePassword: true,
 
    lastLoginAt: true,
 
@@ -104,7 +103,6 @@ export const localCredentialSelect = {
 
    passwordHash: true,
 
-   mustChangePassword: true,
 
    isActive: true,
 

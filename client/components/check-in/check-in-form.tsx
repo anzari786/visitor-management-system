@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '../reui/alert';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 const STEP_FIELDS: (keyof CheckInFormValues)[][] = [
    ['fullName', 'phone', 'idType', 'idNumber', 'host', 'departmentId'],
@@ -67,6 +68,7 @@ const STEP_TITLES = [
 ];
 
 export default function VisitorCheckInForm() {
+   const { t } = useTranslation();
    const [currentStep, setCurrentStep] = useState(0);
    const [direction, setDirection] = useState<number>();
    const [typedDigits, setTypedDigits] = useState('');
@@ -127,7 +129,7 @@ export default function VisitorCheckInForm() {
          });
          setCheckInResult(data);
          setShowSuccessDialog(true);
-         toast.success('Visitor checked in successfully');
+         toast.success(t('deskCheckIn.toast.success'));
       } catch (error) {
          const message =
             (error as import('axios').AxiosError<{ message: string }>)?.response
@@ -177,7 +179,7 @@ export default function VisitorCheckInForm() {
                      </FieldLabel>
                      <Input
                         id="fullName"
-                        placeholder="e.g. Abebe Girma"
+                        placeholder={t('deskCheckIn.namePlaceholder')}
                         aria-invalid={!!form.formState.errors.fullName}
                         {...form.register('fullName')}
                      />
@@ -187,7 +189,7 @@ export default function VisitorCheckInForm() {
                   </Field>
 
                   <Field>
-                     <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
+                     <FieldLabel htmlFor="phone">{t('common.phoneNumber')}</FieldLabel>
                      <Controller
                         name="phone"
                         control={form.control}
@@ -195,7 +197,7 @@ export default function VisitorCheckInForm() {
                            <Input
                               id="phone"
                               type="tel"
-                              placeholder="+251 9XX XXX XXX"
+                              placeholder={t('deskCheckIn.phonePlaceholder')}
                               aria-invalid={!!form.formState.errors.phone}
                               value={field.value ?? ''}
                               onChange={(e) =>
@@ -231,7 +233,7 @@ export default function VisitorCheckInForm() {
                                        !!form.formState.errors.idType
                                     }
                                  >
-                                    <SelectValue placeholder="Select ID type" />
+                                    <SelectValue placeholder={t('checkIn.selectIdType')} />
                                  </SelectTrigger>
                                  <SelectContent>
                                     {ID_TYPE_OPTIONS.map((opt) => (
@@ -257,7 +259,7 @@ export default function VisitorCheckInForm() {
                         </FieldLabel>
                         <Input
                            id="idNumber"
-                           placeholder="e.g. ETH-1234567890"
+                           placeholder={t('deskCheckIn.idPlaceholder')}
                            aria-invalid={!!form.formState.errors.idNumber}
                            {...form.register('idNumber')}
                         />
@@ -273,7 +275,7 @@ export default function VisitorCheckInForm() {
                      </FieldLabel>
                      <Input
                         id="host"
-                        placeholder="Name of the person being visited"
+                        placeholder={t('deskCheckIn.hostPlaceholder')}
                         aria-invalid={!!form.formState.errors.host}
                         {...form.register('host')}
                      />
@@ -283,7 +285,7 @@ export default function VisitorCheckInForm() {
                   </Field>
 
                   <Field>
-                     <FieldLabel htmlFor="department">Department</FieldLabel>
+                     <FieldLabel htmlFor="department">{t('common.department')}</FieldLabel>
                      <Controller
                         name="departmentId"
                         control={form.control}
@@ -293,7 +295,7 @@ export default function VisitorCheckInForm() {
                               onValueChange={field.onChange}
                            >
                               <SelectTrigger id="department" className="w-full">
-                                 <SelectValue placeholder="Select department" />
+                                 <SelectValue placeholder={t('export.selectDepartment')} />
                               </SelectTrigger>
                               <SelectContent>
                                  {departments
@@ -321,7 +323,7 @@ export default function VisitorCheckInForm() {
             return (
                <div className="space-y-6 py-4">
                   <Field>
-                     <FieldLabel htmlFor="badgeNumber">Badge Number</FieldLabel>
+                     <FieldLabel htmlFor="badgeNumber">{t('deskCheckIn.badgeNumber')}</FieldLabel>
                      <Controller
                         name="badgeNumber"
                         control={form.control}
@@ -371,7 +373,7 @@ export default function VisitorCheckInForm() {
                      {isBadgeComplete && checkingBadge && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                            <Loader2 className="size-4 animate-spin" />
-                           Checking badge availability…
+                           {t('deskCheckIn.checkingBadge')}
                         </div>
                      )}
 
@@ -379,10 +381,9 @@ export default function VisitorCheckInForm() {
                      {isBadgeAvailable && !checkingBadge && (
                         <Alert variant="success">
                            <CircleCheckIcon />
-                           <AlertTitle>Badge Available</AlertTitle>
+                           <AlertTitle>{t('deskCheckIn.badgeAvailable')}</AlertTitle>
                            <AlertDescription>
-                              This badge is available and can be assigned to the
-                              visitor.
+                              {t('deskCheckIn.badgeAvailableHint')}
                            </AlertDescription>
                         </Alert>
                      )}
@@ -391,7 +392,7 @@ export default function VisitorCheckInForm() {
                      {isBadgeUnavailable && !checkingBadge && (
                         <Alert variant="destructive">
                            <CircleAlertIcon />
-                           <AlertTitle>Badge Unavailable</AlertTitle>
+                           <AlertTitle>{t('deskCheckIn.badgeUnavailable')}</AlertTitle>
                            <AlertDescription>
                               Badge {badgeNumber} is currently assigned to{' '}
                               <span className="font-medium">
@@ -412,7 +413,7 @@ export default function VisitorCheckInForm() {
                      {/* Prompt — badge not yet complete */}
                      {!isBadgeComplete && (
                         <p className="text-xs text-muted-foreground">
-                           Enter the 3-digit badge number to check availability.
+                           {t('deskCheckIn.badgeEnterHint')}
                         </p>
                      )}
                   </Field>
@@ -522,7 +523,7 @@ export default function VisitorCheckInForm() {
                            disabled={currentStep === 0 || isSubmitting}
                         >
                            <ChevronLeft className="h-4 w-4" />
-                           Back
+                           {t('common.back')}
                         </Button>
                         <Button
                            type="button"

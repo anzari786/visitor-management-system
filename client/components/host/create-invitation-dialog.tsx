@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { startOfDay } from 'date-fns';
-import { Check, Copy, Loader2, Send } from 'lucide-react';
+import { addHours, format, startOfDay } from 'date-fns';
+import { isAxiosError } from 'axios';
+import { CheckCircle2Icon, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { VISIT_PURPOSE_OPTIONS } from '@/constants/visit-purpose';
 import type { FloorOption } from '@/constants/visit-location';
@@ -18,16 +19,18 @@ import {
 } from '@/lib/validations/host-invitation.schema';
 import { mapHostInvitationToApi } from '@/lib/map-host-invitation';
 import { authService } from '@/services/auth.service';
+import type { HostInvitationCreated } from '@/services/host.service';
+import type { ApiErrorResponse } from '@/types/api.types';
 import {
-   visitInvitationService,
-   type HostInvitationCreated,
-} from '@/services/visit-invitation.service';
+   useCreateHostInvitation,
+   useHostDefaultLocation,
+} from '@/hooks/use-host';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NumberInput } from '@/components/ui/number-input';
 import { DatePickerField } from '@/components/shared/date-picker-field';
 import { VisitLocationFields } from '@/components/shared/visit-location-fields';
-import { InvitationVisitorsFields } from './invitation-visitors-fields';
+import { InvitationVisitorsFields } from '@/components/common/invitation-visitors-fields';
 import {
    Dialog,
    DialogContent,
@@ -50,6 +53,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslation } from '@/lib/i18n';
 
 type CreateInvitationDialogProps = {
    open: boolean;
@@ -58,6 +62,34 @@ type CreateInvitationDialogProps = {
 
 const scrollAreaClass =
    'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
+
+function addTwoHours(time: string) {
+   const [hours, minutes] = time.split(':').map(Number);
+   const date = new Date();
+   date.setHours(hours, minutes, 0, 0);
+   return format(addHours(date, 2), 'HH:mm');
+}
+
+function getDefaultScheduleTimes() {
+   const start = new Date();
+
+   return {
+      startTime: format(start, 'HH:mm'),
+      endTime: addTwoHours(format(start, 'HH:mm')),
+   };
+}
+
+function getDefaultInvitationValues(
+   defaultFloor?: string | null,
+   defaultRoom?: string | null,
+) {
+   return {
+      ...hostInvitationDefaultValues,
+      ...getDefaultScheduleTimes(),
+      floor: (defaultFloor as FloorOption | null) ?? undefined,
+      room: defaultRoom ?? '',
+   };
+}
 
 function SectionHeading({
    title,
@@ -74,19 +106,16 @@ function SectionHeading({
    );
 }
 
-function normalizeOrganization(value?: string) {
-   const trimmed = value?.trim();
-   return trimmed ? trimmed : undefined;
-}
-
 export function CreateInvitationDialog({
    open,
    onOpenChange,
 }: CreateInvitationDialogProps) {
+   const { t } = useTranslation();
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [createdInvitation, setCreatedInvitation] =
       useState<HostInvitationCreated | null>(null);
-   const [copiedLink, setCopiedLink] = useState(false);
+   const createInvitation = useCreateHostInvitation();
+   const defaultLocationQuery = useHostDefaultLocation(open);
 
    const form = useForm<
       HostInvitationFormInput,
@@ -94,7 +123,10 @@ export function CreateInvitationDialog({
       HostInvitationFormValues
    >({
       resolver: zodResolver(hostInvitationSchema),
-      defaultValues: hostInvitationDefaultValues,
+      defaultValues: getDefaultInvitationValues(
+         defaultLocationQuery.data?.defaultFloor,
+         defaultLocationQuery.data?.defaultRoom,
+      ),
       mode: 'onSubmit',
       reValidateMode: 'onChange',
       shouldFocusError: true,
@@ -131,11 +163,43 @@ export function CreateInvitationDialog({
    const visitorCount = form.watch('visitorCount');
    const startDate = form.watch('startDate');
 
+   useEffect(() => {
+      if (!open) return;
+
+      const defaultFloor = defaultLocationQuery.data
+         ?.defaultFloor as FloorOption | null | undefined;
+      const defaultRoom = defaultLocationQuery.data?.defaultRoom;
+
+      if (
+         defaultFloor &&
+         !form.getValues('floor') &&
+         !form.getFieldState('floor').isDirty
+      ) {
+         form.setValue('floor', defaultFloor, {
+            shouldDirty: false,
+         });
+      }
+      if (
+         defaultRoom &&
+         !form.getValues('room') &&
+         !form.getFieldState('room').isDirty
+      ) {
+         form.setValue('room', defaultRoom, { shouldDirty: false });
+      }
+   }, [defaultLocationQuery.data, form, open]);
+
    const handleOpenChange = (nextOpen: boolean) => {
+      const defaultValues = getDefaultInvitationValues(
+         defaultLocationQuery.data?.defaultFloor,
+         defaultLocationQuery.data?.defaultRoom,
+      );
+
+      if (nextOpen) {
+         form.reset(defaultValues);
+      }
       if (!nextOpen) {
-         form.reset(hostInvitationDefaultValues);
+         form.reset(defaultValues);
          setCreatedInvitation(null);
-         setCopiedLink(false);
       }
       onOpenChange(nextOpen);
    };
@@ -146,17 +210,23 @@ export function CreateInvitationDialog({
 
       if (knows === 'yes') {
          form.clearErrors(['visitorCount', 'visitorOrganization']);
-         form.setValue('visitorCount', 1);
-         form.setValue('visitorOrganization', '');
+         form.setValue('visitorCount', 1, { shouldDirty: true });
+         form.setValue('visitorOrganization', '', { shouldDirty: true });
+         const visitors = form.getValues('visitors');
          if (!visitors?.length) {
-            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+            form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+               shouldDirty: true,
+            });
          }
       } else {
          form.clearErrors(['visitors']);
-         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }]);
+         form.setValue('visitors', [{ ...emptyInvitationVisitorValues }], {
+            shouldDirty: true,
+         });
          form.setValue(
             'visitorCount',
-            Math.max(1, form.getValues('visitorCount') ?? 1),
+            Math.max(1, Number(form.getValues('visitorCount') ?? 1)),
+            { shouldDirty: true },
          );
       }
    };
@@ -179,9 +249,9 @@ export function CreateInvitationDialog({
                ? {
                     ...values,
                     visitors: [],
-                    visitorOrganization: normalizeOrganization(
-                       values.visitorOrganization,
-                    ),
+                    visitorOrganization: values.visitorOrganization?.trim()
+                       ? values.visitorOrganization.trim()
+                       : undefined,
                     visitorCount: values.visitorCount ?? 1,
                  }
                : {
@@ -202,146 +272,75 @@ export function CreateInvitationDialog({
             );
          }
 
-         const apiPayload = mapHostInvitationToApi(
-            payload,
-            Number(employeeId),
+         const apiPayload = mapHostInvitationToApi(payload, Number(employeeId));
+         const created = await createInvitation.mutateAsync(apiPayload);
+
+         setCreatedInvitation(created);
+         toast.success(t('host.invite.toast.createdSimple'));
+         form.reset(
+            getDefaultInvitationValues(
+               defaultLocationQuery.data?.defaultFloor,
+               defaultLocationQuery.data?.defaultRoom,
+            ),
          );
-
-         const { data } = await visitInvitationService.createHostInvitation(
-            apiPayload,
-         );
-         const created = data.data;
-
-         const count =
-            payload.knowsVisitorInfo === 'yes'
-               ? payload.visitors.length
-               : (payload.visitorCount ?? 1);
-
-         const locationSummary = `${payload.floor}, ${payload.room}`;
-
-         if (payload.knowsVisitorInfo === 'no' && created.registration) {
-            setCreatedInvitation(created);
-            toast.success(
-               count > 1
-                  ? 'Group invitation created successfully'
-                  : 'Invitation created successfully',
-               {
-                  description: `Share the registration link with your visitors. Location: ${locationSummary}`,
-               },
-            );
-            return;
-         }
-
-         toast.success(
-            payload.knowsVisitorInfo === 'yes'
-               ? count > 1
-                  ? `Invitations sent to ${count} visitors`
-                  : 'Invitation sent to the visitor'
-               : count > 1
-                 ? 'Group invitation created successfully'
-                 : 'Invitation created successfully',
-            {
-               description: `Visit location: ${locationSummary}`,
-            },
-         );
-         form.reset(hostInvitationDefaultValues);
-         onOpenChange(false);
       } catch (error) {
-         const message =
-            error instanceof Error
-               ? error.message
-               : 'Unable to create invitation. Please try again.';
+         const message = isAxiosError<ApiErrorResponse>(error)
+            ? (error.response?.data?.message ?? error.message)
+            : error instanceof Error
+              ? error.message
+              : 'Unable to create invitation. Please try again.';
          toast.error(message);
       } finally {
          setIsSubmitting(false);
       }
    }, onInvalid);
 
-   const copyRegistrationLink = async () => {
-      const url = createdInvitation?.registration?.registrationUrl;
-      if (!url) return;
-
-      await navigator.clipboard.writeText(url);
-      setCopiedLink(true);
-      toast.success('Registration link copied');
-      setTimeout(() => setCopiedLink(false), 2000);
-   };
-
-   if (createdInvitation?.registration) {
-      const expected = createdInvitation.expectedVisitorCount;
-      const registered = createdInvitation.registeredCount;
-
+   if (createdInvitation) {
       return (
-         <Dialog open={open} onOpenChange={handleOpenChange}>
+         <Dialog
+            open={open && !!createdInvitation}
+            onOpenChange={handleOpenChange}
+         >
             <DialogContent
                aria-describedby={undefined}
-               className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+               className="sm:max-w-sm data-open:zoom-in-50! data-closed:zoom-out-50 duration-300 [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
             >
-               <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-                  <DialogTitle>Invitation Created</DialogTitle>
-               </DialogHeader>
-
-               <div className="space-y-6 px-6 py-5">
-                  <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                     <p className="font-medium text-foreground">
-                        Expected visitors: {expected}
-                     </p>
-                     <p className="text-muted-foreground">
-                        Registered: {registered} / {expected}
-                     </p>
+               <div className="flex flex-col items-center gap-4 py-2 text-center">
+                  <div className="flex size-16 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-500 dark:text-emerald-400">
+                     <CheckCircle2Icon size={32} strokeWidth={1.5} />
                   </div>
-
-                  <div className="space-y-2">
-                     <p className="text-sm font-medium">Registration link</p>
-                     <div className="flex gap-2">
-                        <Input
-                           readOnly
-                           value={createdInvitation.registration.registrationUrl}
-                           className="font-mono text-xs"
-                        />
-                        <Button
-                           type="button"
-                           variant="outline"
-                           size="icon"
-                           className="shrink-0 cursor-pointer"
-                           onClick={copyRegistrationLink}
-                        >
-                           {copiedLink ? (
-                              <Check className="size-4" />
-                           ) : (
-                              <Copy className="size-4" />
-                           )}
-                        </Button>
-                     </div>
-                     <p className="text-xs text-muted-foreground">
-                        Share this link with your visitors so they can register
-                        before arriving.
+                  <DialogHeader className="items-center space-y-1.5">
+                     <DialogTitle className="text-lg">
+                        {t('host.invite.created')}
+                     </DialogTitle>
+                     <p className="text-sm text-muted-foreground">
+                        {t('host.invite.createdBody')}
                      </p>
-                  </div>
-               </div>
-
-               <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+                  </DialogHeader>
                   <Button
                      type="button"
-                     className="cursor-pointer"
+                     className="w-full cursor-pointer hover:bg-primary/80"
                      onClick={() => handleOpenChange(false)}
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
-               </DialogFooter>
+               </div>
             </DialogContent>
          </Dialog>
       );
    }
 
    return (
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog
+         open={open && !createdInvitation}
+         onOpenChange={handleOpenChange}
+      >
          <DialogContent
             aria-describedby={undefined}
             className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
          >
             <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
-               <DialogTitle>Invite Visitors</DialogTitle>
+               <DialogTitle>{t('host.invite.title')}</DialogTitle>
             </DialogHeader>
 
             <form
@@ -352,7 +351,7 @@ export function CreateInvitationDialog({
                <div className={scrollAreaClass}>
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visitor Information"
+                        title={t('selfService.review.visitorInfo')}
                         description={
                            knowsVisitorInfo === 'yes'
                               ? 'Enter contact details for each invited visitor.'
@@ -361,9 +360,7 @@ export function CreateInvitationDialog({
                      />
 
                      <Field>
-                        <FieldLabel>
-                           Do you know the visitor information?
-                        </FieldLabel>
+                        <FieldLabel>{t('host.invite.knowVisitors')}</FieldLabel>
                         <Tabs
                            value={knowsVisitorInfo}
                            onValueChange={handleKnowsVisitorChange}
@@ -373,13 +370,13 @@ export function CreateInvitationDialog({
                                  value="yes"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 Yes, I know them
+                                 {t('host.invite.yesKnow')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="no"
                                  className="cursor-pointer px-2 text-xs sm:px-3 sm:text-sm"
                               >
-                                 No, not yet
+                                 {t('host.invite.notYet')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -391,7 +388,11 @@ export function CreateInvitationDialog({
                      </Field>
 
                      {knowsVisitorInfo === 'yes' ? (
-                        <InvitationVisitorsFields form={form} />
+                        <InvitationVisitorsFields
+                           form={form}
+                           heading={t('host.invite.knownVisitors')}
+                           description={t('host.invite.knownVisitorsHint')}
+                        />
                      ) : (
                         <>
                            <Field>
@@ -407,8 +408,10 @@ export function CreateInvitationDialog({
                                        id="visitorCount"
                                        min={1}
                                        max={50}
-                                       value={field.value ?? 1}
-                                       onChange={field.onChange}
+                                       value={Number(field.value ?? 1)}
+                                       onChange={(nextValue) =>
+                                          field.onChange(Number(nextValue))
+                                       }
                                        aria-invalid={
                                           !!form.formState.errors.visitorCount
                                        }
@@ -417,8 +420,8 @@ export function CreateInvitationDialog({
                               />
                               <FieldDescription>
                                  {(visitorCount ?? 1) === 1
-                                    ? 'Use 1 for a single unknown visitor (e.g. technician or courier).'
-                                    : 'Use 2 or more for a group visit. Names and contact details are not required.'}
+                                    ? 'For a single unknown visitor.'
+                                    : 'For a group of unknown visitors.'}
                               </FieldDescription>
                               <FieldError>
                                  {form.formState.errors.visitorCount?.message}
@@ -426,13 +429,13 @@ export function CreateInvitationDialog({
                            </Field>
 
                            <Field>
-                              <FieldLabel htmlFor="unknownOrganization">
-                                 Organization
+                              <FieldLabel htmlFor="visitorOrganization">
+                                 {t('visitDetails.organization')}
                               </FieldLabel>
                               <Input
-                                 id="unknownOrganization"
+                                 id="visitorOrganization"
                                  autoComplete="off"
-                                 placeholder="Visiting company or organization (optional)"
+                                 placeholder={t('host.invite.orgPlaceholder')}
                                  {...form.register('visitorOrganization')}
                               />
                            </Field>
@@ -442,8 +445,8 @@ export function CreateInvitationDialog({
 
                   <FieldGroup className="gap-4">
                      <SectionHeading
-                        title="Visit Details"
-                        description="Purpose, schedule, and where the visitor should go upon arrival."
+                        title={t('selfService.details.title')}
+                        description={t('host.invite.visitDetailsHint')}
                      />
 
                      <Controller
@@ -466,7 +469,11 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.purpose
                                     }
                                  >
-                                    <SelectValue placeholder="Select visit purpose" />
+                                    <SelectValue
+                                       placeholder={t(
+                                          'host.invite.selectPurpose',
+                                       )}
+                                    />
                                  </SelectTrigger>
                                  <SelectContent>
                                     {VISIT_PURPOSE_OPTIONS.map((opt) => (
@@ -487,7 +494,7 @@ export function CreateInvitationDialog({
                      />
 
                      <Field>
-                        <FieldLabel>Schedule Type</FieldLabel>
+                        <FieldLabel>{t('schedule.type')}</FieldLabel>
                         <Tabs
                            value={scheduleType}
                            onValueChange={(value) =>
@@ -502,13 +509,13 @@ export function CreateInvitationDialog({
                                  value="single_day"
                                  className="cursor-pointer"
                               >
-                                 Single Day
+                                 {t('schedule.singleDay')}
                               </TabsTrigger>
                               <TabsTrigger
                                  value="multi_day"
                                  className="cursor-pointer"
                               >
-                                 Multi-Day
+                                 {t('schedule.multiDay')}
                               </TabsTrigger>
                            </TabsList>
                         </Tabs>
@@ -521,10 +528,10 @@ export function CreateInvitationDialog({
                            render={({ field }) => (
                               <DatePickerField
                                  id="visitDate"
-                                 label="Visit Date"
+                                 label={t('schedule.visitDate')}
                                  value={field.value}
                                  onChange={field.onChange}
-                                 placeholder="Select visit date"
+                                 placeholder={t('schedule.selectVisitDate')}
                                  error={
                                     form.formState.errors.visitDate?.message
                                  }
@@ -542,13 +549,12 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="startDate"
-                                    label="Start Date"
+                                    label={t('schedule.startDate')}
                                     value={field.value}
                                     onChange={(date) => {
                                        field.onChange(date);
                                        if (date) {
-                                          const end =
-                                             form.getValues('endDate');
+                                          const end = form.getValues('endDate');
                                           if (!end || end < date) {
                                              form.setValue('endDate', date, {
                                                 shouldValidate: true,
@@ -556,7 +562,7 @@ export function CreateInvitationDialog({
                                           }
                                        }
                                     }}
-                                    placeholder="Select start date"
+                                    placeholder={t('schedule.selectStartDate')}
                                     error={
                                        form.formState.errors.startDate?.message
                                     }
@@ -572,10 +578,10 @@ export function CreateInvitationDialog({
                               render={({ field }) => (
                                  <DatePickerField
                                     id="endDate"
-                                    label="End Date"
+                                    label={t('schedule.endDate')}
                                     value={field.value}
                                     onChange={field.onChange}
-                                    placeholder="Select end date"
+                                    placeholder={t('schedule.selectEndDate')}
                                     error={
                                        form.formState.errors.endDate?.message
                                     }
@@ -614,7 +620,16 @@ export function CreateInvitationDialog({
                                        !!form.formState.errors.startTime
                                     }
                                     value={field.value}
-                                    onChange={field.onChange}
+                                    onChange={(event) => {
+                                       field.onChange(event);
+                                       if (!form.formState.dirtyFields.endTime) {
+                                          form.setValue(
+                                             'endTime',
+                                             addTwoHours(event.target.value),
+                                             { shouldValidate: true },
+                                          );
+                                       }
+                                    }}
                                     onBlur={field.onBlur}
                                  />
                                  <FieldError>
@@ -653,13 +668,15 @@ export function CreateInvitationDialog({
 
                      <div className="space-y-4">
                         <SectionHeading
-                           title="Visit Location"
-                           description="Tell visitors exactly where to go when they arrive."
+                           title={t('host.invite.visitLocation')}
+                           description={t('host.invite.visitLocationHint')}
                         />
                         <VisitLocationFields
                            form={form}
                            idPrefix="invitation"
                            showDescription={false}
+                           defaultFloor={defaultLocationQuery.data?.defaultFloor}
+                           defaultRoom={defaultLocationQuery.data?.defaultRoom}
                         />
                      </div>
                   </FieldGroup>
@@ -673,7 +690,7 @@ export function CreateInvitationDialog({
                      disabled={isSubmitting}
                      onClick={() => handleOpenChange(false)}
                   >
-                     Cancel
+                     {t('common.cancel')}
                   </Button>
                   <Button
                      type="submit"
@@ -683,12 +700,12 @@ export function CreateInvitationDialog({
                      {isSubmitting ? (
                         <>
                            <Loader2 className="size-4 animate-spin" />
-                           Sending...
+                           {t('host.invite.sending')}
                         </>
                      ) : (
                         <>
                            <Send className="size-4" />
-                           Send Invitation
+                           {t('host.invite.send')}
                         </>
                      )}
                   </Button>

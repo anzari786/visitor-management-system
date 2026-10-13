@@ -3,14 +3,14 @@ import { z } from 'zod';
 export const badgeVerificationSchema = z.object({
    badgeNumber: z
       .string()
-      .length(3, 'Badge number must be exactly 3 digits')
-      .regex(/^\d{3}$/, 'Badge number must contain only digits'),
+      .length(3, 'validation.badgeExactly3')
+      .regex(/^\d{3}$/, 'validation.badgeDigitsOnly'),
 });
 
 export const checkOutNotesSchema = z.object({
    notes: z
       .string()
-      .max(500, 'Notes must be 500 characters or fewer')
+      .max(500, 'validation.notesMax')
       .optional(),
 });
 

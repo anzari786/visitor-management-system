@@ -3,8 +3,7 @@ import type {
    NotificationChannel,
    NotificationType,
 } from '../generated/prisma/client.js';
-import { prisma } from '../config/prisma.js';
-import { sendTemplatedEmail, sendEmail } from './email.service.js';
+import { enqueueNotificationDispatch } from '../jobs/notification-dispatch.job.js';
 
 export interface DispatchNotificationInput {
    type: NotificationType;
@@ -23,56 +22,13 @@ export interface DispatchNotificationInput {
 }
 
 /**
- * Single entry point for dashboard + email notifications.
- *
- * - DASHBOARD: persists an inbox row for `recipientUserId`
- * - EMAIL: persists a delivery/audit row and attempts SMTP send
- *
- * Delivery failures are logged and swallowed so visit workflows continue.
+ * Enqueue notification work for background processing so API requests return
+ * without waiting on dashboard writes or SMTP delivery.
  */
 export const dispatchNotification = async (
    input: DispatchNotificationInput,
 ): Promise<void> => {
-   const notification = await prisma.notification.create({
-      data: {
-         type: input.type,
-         channel: input.channel,
-         title: input.title,
-         message: input.message,
-         subject: input.subject,
-         visitId: input.visitId,
-         recipientUserId: input.recipientUserId,
-         recipientEmail: input.recipientEmail,
-      },
-   });
-
-   if (input.channel !== 'EMAIL' || !input.recipientEmail) {
-      return;
-   }
-
-   try {
-      if (input.react) {
-         await sendTemplatedEmail({
-            to: input.recipientEmail,
-            subject: input.subject ?? input.title ?? 'ATI VMS notification',
-            text: input.message,
-            react: input.react,
-         });
-      } else {
-         await sendEmail({
-            to: input.recipientEmail,
-            subject: input.subject ?? input.title ?? 'ATI VMS notification',
-            text: input.message,
-         });
-      }
-
-      await prisma.notification.update({
-         where: { id: notification.id },
-         data: { sentAt: new Date() },
-      });
-   } catch (error) {
-      console.error(`Failed to send notification ${notification.id}:`, error);
-   }
+   enqueueNotificationDispatch(input);
 };
 
 /** Fan-out helper for several dashboard recipients of the same event. */

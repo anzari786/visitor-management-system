@@ -11,13 +11,13 @@ const floorValues = FLOOR_OPTIONS as unknown as [
 
 export const visitLocationSchema = z.object({
    floor: z.enum(floorValues, {
-      message: 'Please select a floor',
+      message: 'validation.selectFloor',
    }),
    room: z
       .string()
       .trim()
-      .min(1, 'Room is required')
-      .max(100, 'Room must be 100 characters or fewer'),
+      .min(1, 'validation.roomRequired')
+      .max(100, 'validation.roomMax'),
 });
 
 export type VisitLocationInput = z.input<typeof visitLocationSchema>;

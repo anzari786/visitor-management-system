@@ -12,7 +12,7 @@ export const listEmployeesSchema = z.object({
 
 export const searchHostSchema = z.object({
    query: z.object({
-      q: z.string().trim().min(1),
+      q: z.string().trim().min(1).optional(),
       limit: z.coerce.number().int().positive().max(25).optional().default(10),
    }),
 });
@@ -20,6 +20,13 @@ export const searchHostSchema = z.object({
 export const employeeIdParamSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),
+   }),
+});
+
+export const listMyVisitsSchema = z.object({
+   query: z.object({
+      page: z.coerce.number().int().positive().optional().default(1),
+      limit: z.coerce.number().int().positive().max(100).optional().default(20),
    }),
 });
 

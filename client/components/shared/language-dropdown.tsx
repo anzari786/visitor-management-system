@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -9,7 +8,8 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import { LOCALES, LOCALE_META, useTranslation, type Locale } from '@/lib/i18n';
+import { Globe } from 'lucide-react';
 
 type Props = {
    id?: string;
@@ -18,37 +18,8 @@ type Props = {
    align?: 'start' | 'center' | 'end';
 };
 
-type Language = {
-   value: string;
-   label: string;
-   icon: string;
-};
-
-const LANGUAGES: Language[] = [
-   {
-      value: 'english',
-      label: 'English (UK)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-us.svg',
-   },
-   {
-      value: 'chinese',
-      label: '中国人 (Chinese)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-china.svg',
-   },
-   {
-      value: 'french',
-      label: 'français (French)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-france.svg',
-   },
-   {
-      value: 'arabic',
-      label: 'عربي (Arabic)',
-      icon: 'https://images.shadcnspace.com/assets/flags/flag-australia.svg',
-   },
-];
-
 const itemClass =
-   'cursor-pointer gap-2 pl-2 text-sm data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground [&>span]:hidden';
+   'cursor-pointer gap-2 pl-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[state=checked]:bg-accent data-[state=checked]:text-accent-foreground [&>span:first-child]:hidden';
 
 const LanguageDropdown = ({
    id,
@@ -56,51 +27,43 @@ const LanguageDropdown = ({
    defaultOpen,
    align = 'end',
 }: Props) => {
-   const [language, setLanguage] = useState(LANGUAGES[0].value);
-
-   const selectedLanguage =
-      LANGUAGES.find((lang) => lang.value === language) ?? LANGUAGES[0];
+   const { locale, setLocale, t } = useTranslation();
 
    return (
       <DropdownMenu defaultOpen={defaultOpen}>
          <DropdownMenuTrigger asChild>
-            <div
+            <button
                id={id}
+               type="button"
+               aria-label={t('header.language')}
                className={cn(
-                  'rounded-md hover:bg-accent/80 cursor-pointer p-2',
+                  'flex cursor-pointer items-center gap-1.5 rounded-full p-2 hover:bg-accent/80',
                   className,
                )}
             >
-               <Image
-                  src={selectedLanguage.icon}
-                  alt={selectedLanguage.label}
-                  width={19}
-                  height={19}
-                  className="rounded-md"
-               />
-            </div>
+               <Globe size={16} />
+               <span className="text-xs font-semibold uppercase">{locale}</span>
+            </button>
          </DropdownMenuTrigger>
 
-         <DropdownMenuContent className="w-50" align={align}>
+         <DropdownMenuContent
+            className="w-50 max-w-[calc(100vw-1rem)] border-border bg-popover text-popover-foreground"
+            align={align}
+         >
             <DropdownMenuRadioGroup
-               value={language}
-               onValueChange={setLanguage}
+               value={locale}
+               onValueChange={(value) => setLocale(value as Locale)}
                className="flex flex-col gap-2"
             >
-               {LANGUAGES.map(({ value, label, icon }) => (
+               {LOCALES.map((value) => (
                   <DropdownMenuRadioItem
                      key={value}
                      value={value}
                      className={itemClass}
                   >
-                     <Image
-                        src={icon}
-                        alt={label}
-                        width={16}
-                        height={16}
-                        className="rounded-full"
-                     />
-                     {label}
+                     <div className="min-w-0 truncate">
+                        {`${LOCALE_META[value].label} (${LOCALE_META[value].englishLabel})`}
+                     </div>
                   </DropdownMenuRadioItem>
                ))}
             </DropdownMenuRadioGroup>

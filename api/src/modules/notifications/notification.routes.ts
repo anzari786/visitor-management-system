@@ -2,7 +2,6 @@ import { Router } from 'express';
 import {
    getNotifications,
    getUnreadNotificationCount,
-   getNotification,
    patchNotificationRead,
    postMarkAllRead,
 } from './notification.controller.js';
@@ -22,7 +21,6 @@ router.get('/', validate(listNotificationsSchema), getNotifications);
 router.get('/unread-count', getUnreadNotificationCount);
 router.post('/read-all', postMarkAllRead);
 
-router.get('/:id', validate(notificationIdParamSchema), getNotification);
 router.patch(
    '/:id/read',
    validate(notificationIdParamSchema),

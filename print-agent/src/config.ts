@@ -19,11 +19,23 @@ function optionalNumber(name: string, fallback: number): number {
 }
 
 export function loadConfig(): AgentConfig {
+   const printerMode = (process.env.PRINTER_MODE?.trim().toLowerCase() ||
+      'zebra') as AgentConfig['printerMode'];
+   if (printerMode !== 'zebra' && printerMode !== 'mock') {
+      throw new Error(
+         `Invalid PRINTER_MODE: ${process.env.PRINTER_MODE}. Expected "zebra" or "mock".`,
+      );
+   }
+
    return {
+      printerMode,
       vmsApiUrl: required('VMS_API_URL').replace(/\/$/, ''),
       printAgentToken: required('PRINT_AGENT_TOKEN'),
       printAgentId: process.env.PRINT_AGENT_ID?.trim() || 'print-agent-1',
-      zebraPrinterHost: required('ZEBRA_PRINTER_HOST'),
+      zebraPrinterHost:
+         printerMode === 'zebra'
+            ? required('ZEBRA_PRINTER_HOST')
+            : process.env.ZEBRA_PRINTER_HOST?.trim() || '',
       zebraPrinterPort: optionalNumber('ZEBRA_PRINTER_PORT', 9100),
       printerName: process.env.PRINTER_NAME?.trim() || 'Zebra',
       longPollTimeoutMs: optionalNumber('LONG_POLL_TIMEOUT_MS', 30000),

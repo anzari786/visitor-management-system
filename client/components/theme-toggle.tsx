@@ -4,12 +4,14 @@ import { useEffect, useId, useState } from 'react';
 import { motion } from 'motion/react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 type ThemeToggleProps = {
    className?: string;
 };
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
+   const { t } = useTranslation();
    const { resolvedTheme, setTheme } = useTheme();
    const [mounted, setMounted] = useState(false);
    const maskId = useId();
@@ -24,7 +26,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       <button
          type="button"
          onClick={() => setTheme(isDark ? 'light' : 'dark')}
-         aria-label="Toggle theme"
+         aria-label={t('header.toggleTheme')}
          className={cn(
             'rounded-full p-2 text-foreground hover:bg-accent transition-colors cursor-pointer',
             className,

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type ReactElement } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -13,15 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useLogout } from '@/hooks/use-auth';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { useProfileDialogStore } from '@/store/profile-dialog-store';
 import { getUserFullName } from '@/lib/user';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
 import { LogOut, UserCircle } from 'lucide-react';
 import { LogoutConfirmDialog } from './logout-confirm-dialog';
+import { useTranslation } from '@/lib/i18n';
 
 type Props = {
    trigger: ReactElement;
@@ -40,22 +35,17 @@ export default function ProfileDropdown({
    side,
    sideOffset = 8,
 }: Props) {
+   const { t } = useTranslation();
    const [logoutOpen, setLogoutOpen] = useState(false);
    const setProfileOpen = useProfileDialogStore((s) => s.setOpen);
    const user = useAuthStore((state) => state.user);
-   const avatarId = useProfileAvatarStore(
-      (s) =>
-         (user ? s.selections[String(user.id)] : undefined) ??
-         DEFAULT_PROFILE_AVATAR_ID,
-   );
    const { mutate: logout, isPending: loggingOut } = useLogout();
 
-   const fullName = user ? getUserFullName(user) : 'User';
+   const fullName = user ? getUserFullName(user) : t('header.userFallback');
    const initials = user
       ? `${user.firstName[0]}${user.lastName[0]}`
       : 'U';
    const subtitle = user?.username ?? '';
-   const avatarSrc = getProfileAvatarById(avatarId).image;
 
    return (
       <>
@@ -71,9 +61,9 @@ export default function ProfileDropdown({
                <DropdownMenuGroup>
                   <DropdownMenuLabel className="flex items-center gap-2.5 px-2.5 py-2 font-normal">
                      <div className="relative shrink-0">
-                        <Avatar className="size-9">
-                           <AvatarImage src={avatarSrc} alt={fullName} />                           <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
+                        <span className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                           {initials}
+                        </span>
                         <span className="ring-card absolute right-0 bottom-0 size-2 rounded-full bg-green-600 ring-2" />
                      </div>
 
@@ -97,7 +87,7 @@ export default function ProfileDropdown({
                      }}
                   >
                      <UserCircle className="size-4 text-foreground" />
-                     <span>Profile</span>
+                     <span>{t('header.profile')}</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator className="my-1" />
@@ -111,7 +101,7 @@ export default function ProfileDropdown({
                      }}
                   >
                      <LogOut className="size-4" />
-                     <span>Log out</span>
+                     <span>{t('header.logout')}</span>
                   </DropdownMenuItem>
                </DropdownMenuGroup>
             </DropdownMenuContent>

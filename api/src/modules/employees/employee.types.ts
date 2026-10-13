@@ -11,6 +11,8 @@ export const employeeSelect = {
    departmentName: true,
    departmentCode: true,
    position: true,
+   defaultFloor: true,
+   defaultRoom: true,
    isActive: true,
    lastSyncedAt: true,
    createdAt: true,
@@ -28,7 +30,9 @@ export const employeeHostOptionSelect = {
    lastName: true,
    email: true,
    departmentName: true,
+   departmentCode: true,
    position: true,
+   isActive: true,
 } satisfies Prisma.EmployeeSelect;
 
 export type EmployeeHostOption = Prisma.EmployeeGetPayload<{
@@ -46,3 +50,40 @@ export interface EmployeeSyncRecord {
    departmentCode?: string;
    position?: string;
 }
+
+/** Visit shape returned to the Host Portal (pending approvals / upcoming lists). */
+export const hostVisitSelect = {
+   id: true,
+   visitCode: true,
+   status: true,
+   purpose: true,
+   groupType: true,
+   durationType: true,
+   startDate: true,
+   endDate: true,
+   startTime: true,
+   endTime: true,
+   floor: true,
+   room: true,
+   expectedVisitorCount: true,
+   organization: true,
+   decisionAt: true,
+   decisionNote: true,
+   createdAt: true,
+   participants: {
+      select: {
+         visitor: {
+            select: {
+               id: true,
+               firstName: true,
+               lastName: true,
+               organization: true,
+            },
+         },
+      },
+   },
+} satisfies Prisma.VisitSelect;
+
+export type HostVisitWithSelect = Prisma.VisitGetPayload<{
+   select: typeof hostVisitSelect;
+}>;

@@ -11,7 +11,6 @@ export const userDetailSelect = {
    username: true,
    passwordHash: true,
    isActive: true,
-   mustChangePassword: true,
    lastLoginAt: true,
    createdAt: true,
    updatedAt: true,
@@ -37,6 +36,12 @@ export const userDetailSelect = {
       },
       orderBy: { assignedAt: 'asc' },
    },
+   _count: {
+      select: {
+         attendancesCheckedIn: true,
+         attendancesCheckedOut: true,
+      },
+   },
 } satisfies Prisma.UserSelect;
 
 export type UserDetail = Prisma.UserGetPayload<{
@@ -50,6 +55,7 @@ export const userSummarySelect = {
    firstName: true,
    lastName: true,
    email: true,
+   username: true,
    isActive: true,
    passwordHash: true,
    createdAt: true,
@@ -92,6 +98,7 @@ export type CreateUserInput =
 export interface UpdateUserInput {
    firstName?: string;
    lastName?: string;
+   username?: string;
    email?: string | null;
    phone?: string | null;
    isActive?: boolean;

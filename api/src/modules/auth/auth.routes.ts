@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import {
    ssoCallback,
+   developmentSsoLogin,
    localLogin,
    changePassword,
    completePasswordSetupHandler,
    logout,
    getCurrentUser,
+   updateCurrentUser,
 } from './auth.controller.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
@@ -15,6 +17,7 @@ import {
    changePasswordSchema,
    completePasswordSetupSchema,
    meQuerySchema,
+   updateProfileSchema,
 } from './auth.validation.js';
 
 const router = Router();
@@ -34,9 +37,11 @@ router.post(
 );
 
 // Company SSO (including host employees with linked User accounts)
+router.post('/dev-sso-login', developmentSsoLogin);
 router.post('/sso/callback', validate(ssoCallbackSchema), ssoCallback);
 
 router.post('/logout', requireAuth, logout);
+router.patch('/me', requireAuth, validate(updateProfileSchema), updateCurrentUser);
 router.get('/me', requireAuth, validate(meQuerySchema), getCurrentUser);
 
 export default router;

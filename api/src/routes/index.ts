@@ -3,11 +3,11 @@ import { Router } from 'express';
 import authRoutes from '../modules/auth/auth.routes.js';
 
 import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
-import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 
 import userRoutes from '../modules/users/user.routes.js';
 import employeeRoutes from '../modules/employees/employee.routes.js';
+import departmentRoutes from '../modules/departments/department.routes.js';
 import visitorRoutes from '../modules/visitors/visitor.routes.js';
 
 import visitRoutes from '../modules/visits/visit.routes.js';
@@ -23,7 +23,6 @@ router.use('/auth', authRoutes);
 
 // Dashboard & Reports
 router.use('/dashboard', dashboardRoutes);
-router.use('/reports', reportRoutes);
 
 // Administration
 router.use('/users', userRoutes);
@@ -31,6 +30,7 @@ router.use('/settings', settingRoutes);
 
 // Directory
 router.use('/employees', employeeRoutes);
+router.use('/departments', departmentRoutes);
 router.use('/visitors', visitorRoutes);
 
 // Visitor Management

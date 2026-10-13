@@ -4,36 +4,26 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { BellRing, Globe, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '@/store/auth-store';
-import { useProfileAvatarStore } from '@/store/profile-avatar-store';
 import { getNavigationItem } from '@/lib/navigation';
-import {
-   DEFAULT_PROFILE_AVATAR_ID,
-   getProfileAvatarById,
-} from '@/constants/profile-avatars';
 import { AppCommand } from '@/components/layout/app-command';
 import { ThemeToggle } from '@/components/theme-toggle';
 import LanguageDropdown from './dropdown-language';
 import ProfileDropdown from './dropdown-profile';
 import Search from './search';
 import NotificationDropdown from './notification-dropdown';
+import { useTranslation } from '@/lib/i18n';
 
 export default function Header() {
+   const { t } = useTranslation();
    const [commandOpen, setCommandOpen] = useState(false);
    const pathname = usePathname();
    const currentNavItem = getNavigationItem(pathname);
    const Icon = currentNavItem?.icon ?? LayoutGrid;
    const user = useAuthStore((state) => state.user);
-   const avatarId = useProfileAvatarStore(
-      (s) =>
-         (user ? s.selections[String(user.id)] : undefined) ??
-         DEFAULT_PROFILE_AVATAR_ID,
-   );
    const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U';
-   const avatarSrc = getProfileAvatarById(avatarId).image;
 
    return (
       <header className="bg-card sticky top-0 z-50 border-b shrink-0">
@@ -47,7 +37,9 @@ export default function Header() {
                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                   <Icon className="size-4 sm:size-5 text-muted-foreground hidden sm:block shrink-0" />
                   <h1 className="text-sm sm:text-base font-medium truncate">
-                     {currentNavItem?.title ?? 'Visitor Management System'}
+                     {currentNavItem
+                        ? t(currentNavItem.titleKey)
+                        : t('header.appTitle')}
                   </h1>
                </div>
             </div>
@@ -62,6 +54,7 @@ export default function Header() {
                      <button
                         type="button"
                         className="rounded-full p-2 hover:bg-accent relative cursor-pointer"
+                        aria-label={t('header.notifications')}
                      >
                         <BellRing className="size-4" />
                      </button>
@@ -76,6 +69,7 @@ export default function Header() {
                         size="icon"
                         className="focus-visible:ring-0! focus-visible:shadow-none! rounded-full! hover:bg-accent/80! cursor-pointer"
                         suppressHydrationWarning
+                        aria-label={t('header.language')}
                      >
                         <Globe size={16} />
                      </Button>
@@ -90,17 +84,9 @@ export default function Header() {
                         className="size-7 rounded-full cursor-pointer"
                         suppressHydrationWarning
                      >
-                        <Avatar className="size-7 rounded-full">
-                           <AvatarImage
-                              src={avatarSrc}
-                              alt={
-                                 user
-                                    ? `${user.firstName} ${user.lastName}`
-                                    : 'User'
-                              }
-                           />
-                           <AvatarFallback>{initials}</AvatarFallback>
-                        </Avatar>
+                        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                           {initials}
+                        </span>
                      </Button>
                   }
                />

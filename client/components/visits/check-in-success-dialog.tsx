@@ -19,25 +19,29 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 const POLL_MS = 2000;
-const POLL_TIMEOUT_MS = 60_000;
 const TERMINAL: PrintJobStatus[] = ['PRINTED', 'FAILED', 'CANCELLED'];
 
 export type CheckInPrintTarget = {
    attendanceId: string;
    visitorName?: string;
-   /** Seed status before the first poll (useful for mock / optimistic UI). */
+   /** Backend status returned when the check-in queues the print job. */
    initialStatus?: PrintJobStatus;
-   /** When true, advance QUEUED → PRINTING → PRINTED locally (desk mock). */
-   simulate?: boolean;
 };
+
+export type CheckInResult =
+   | { status: 'pending' }
+   | { status: 'success' }
+   | { status: 'error'; message: string };
 
 type CheckInSuccessDialogProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
    visitorLabel: string;
    visitId: string;
+   result?: CheckInResult;
    printTargets?: CheckInPrintTarget[];
    onRetryPrint?: (attendanceId: string) => Promise<BadgePrintJob | void>;
 };
@@ -47,13 +51,7 @@ type TargetState = {
    visitorName?: string;
    status: PrintJobStatus;
    errorMessage?: string;
-   simulate?: boolean;
-   tick: number;
 };
-
-function isPrinting(status: PrintJobStatus) {
-   return status === 'QUEUED' || status === 'PRINTING';
-}
 
 function StatusRow({
    label,
@@ -68,15 +66,15 @@ function StatusRow({
    onRetry?: () => void;
    retrying?: boolean;
 }) {
+   const { t } = useTranslation();
+
    if (status === 'PRINTED') {
       return (
          <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
             <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
             <div className="min-w-0">
-               <p className="font-medium">Badge printed</p>
-               {label ? (
-                  <p className="text-xs opacity-80">{label}</p>
-               ) : null}
+               <p className="font-medium">{t('print.badgePrinted')}</p>
+               {label ? <p className="text-xs opacity-80">{label}</p> : null}
             </div>
          </div>
       );
@@ -88,10 +86,8 @@ function StatusRow({
             <div className="flex items-start gap-2">
                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                <div className="min-w-0 flex-1">
-                  <p className="font-medium">Badge printing failed</p>
-                  {label ? (
-                     <p className="text-xs opacity-80">{label}</p>
-                  ) : null}
+                  <p className="font-medium">{t('print.badgeFailed')}</p>
+                  {label ? <p className="text-xs opacity-80">{label}</p> : null}
                   {errorMessage ? (
                      <p className="mt-1 text-xs opacity-80">{errorMessage}</p>
                   ) : null}
@@ -109,10 +105,10 @@ function StatusRow({
                   {retrying ? (
                      <>
                         <Loader2 className="size-3.5 animate-spin" />
-                        Retrying…
+                        {t('print.retrying')}
                      </>
                   ) : (
-                     'Retry Print'
+                     t('print.retry')
                   )}
                </Button>
             ) : null}
@@ -125,7 +121,7 @@ function StatusRow({
          <Printer className="mt-0.5 size-4 shrink-0" />
          <div className="min-w-0 flex-1">
             <p className="flex items-center gap-2 font-medium">
-               Printing visitor badge…
+               {t('print.printing')}
                <Loader2 className="size-3.5 animate-spin" />
             </p>
             {label ? <p className="text-xs opacity-80">{label}</p> : null}
@@ -139,12 +135,13 @@ export function CheckInSuccessDialog({
    onOpenChange,
    visitorLabel,
    visitId,
+   result = { status: 'success' },
    printTargets = [],
    onRetryPrint,
 }: CheckInSuccessDialogProps) {
+   const { t } = useTranslation();
    const [targets, setTargets] = React.useState<TargetState[]>([]);
    const [retryingId, setRetryingId] = React.useState<string | null>(null);
-   const startedAtRef = React.useRef<number>(0);
    const targetsRef = React.useRef<TargetState[]>([]);
 
    React.useEffect(() => {
@@ -158,13 +155,10 @@ export function CheckInSuccessDialog({
          return;
       }
 
-      startedAtRef.current = Date.now();
       const seeded = printTargets.map((target) => ({
          attendanceId: target.attendanceId,
          visitorName: target.visitorName,
          status: target.initialStatus ?? ('QUEUED' as const),
-         simulate: target.simulate,
-         tick: 0,
       }));
       targetsRef.current = seeded;
       setTargets(seeded);
@@ -175,32 +169,11 @@ export function CheckInSuccessDialog({
 
       const id = window.setInterval(async () => {
          const current = targetsRef.current;
-         if (current.every((t) => TERMINAL.includes(t.status))) return;
-
-         const timedOut = Date.now() - startedAtRef.current > POLL_TIMEOUT_MS;
+         if (current.every((item) => TERMINAL.includes(item.status))) return;
 
          const next = await Promise.all(
             current.map(async (target) => {
                if (TERMINAL.includes(target.status)) return target;
-
-               if (timedOut && isPrinting(target.status)) {
-                  return {
-                     ...target,
-                     status: 'FAILED' as const,
-                     errorMessage: 'Print timed out — try again',
-                  };
-               }
-
-               if (target.simulate || target.attendanceId.startsWith('mock-')) {
-                  const tick = target.tick + 1;
-                  if (tick >= 3) {
-                     return { ...target, tick, status: 'PRINTED' as const };
-                  }
-                  if (tick >= 1) {
-                     return { ...target, tick, status: 'PRINTING' as const };
-                  }
-                  return { ...target, tick };
-               }
 
                try {
                   const { data } = await visitAttendanceService.getPrintStatus(
@@ -223,7 +196,7 @@ export function CheckInSuccessDialog({
       }, POLL_MS);
 
       return () => window.clearInterval(id);
-   }, [open, printTargets]);
+   }, [open, printTargets, t]);
 
    const handleRetry = async (attendanceId: string) => {
       setRetryingId(attendanceId);
@@ -231,16 +204,10 @@ export function CheckInSuccessDialog({
          let job: BadgePrintJob | void;
          if (onRetryPrint) {
             job = await onRetryPrint(attendanceId);
-         } else if (!attendanceId.startsWith('mock-')) {
+         } else {
             const { data } =
                await visitAttendanceService.retryPrint(attendanceId);
             job = data.data;
-         } else {
-            job = {
-               id: `mock-retry-${attendanceId}`,
-               attendanceId,
-               status: 'QUEUED',
-            };
          }
 
          setTargets((prev) =>
@@ -255,13 +222,10 @@ export function CheckInSuccessDialog({
                   : target,
             ),
          );
-         startedAtRef.current = Date.now();
-         toast.success('Badge print queued');
+         toast.success(t('print.queued'));
       } catch (error) {
          toast.error(
-            error instanceof Error
-               ? error.message
-               : 'Unable to retry badge print',
+            error instanceof Error ? error.message : t('print.retryFailed'),
          );
       } finally {
          setRetryingId(null);
@@ -273,31 +237,63 @@ export function CheckInSuccessDialog({
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
-            className="duration-300 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-sm"
+            className="duration-300 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-md"
             showCloseButton={false}
          >
             <div className="flex flex-col items-center gap-4 py-2 text-center">
-               <div className="flex size-16 items-center justify-center rounded-full bg-sky-400/10 text-sky-500">
-                  <CheckCircle2Icon size={32} strokeWidth={1.5} />
+               <div
+                  className={
+                     result.status === 'error'
+                        ? 'flex size-16 items-center justify-center rounded-full bg-amber-400/10 text-amber-500'
+                        : 'flex size-16 items-center justify-center rounded-full bg-sky-400/10 text-sky-500'
+                  }
+               >
+                  {result.status === 'error' ? (
+                     <AlertTriangle size={32} strokeWidth={1.5} />
+                  ) : result.status === 'pending' ? (
+                     <Loader2 size={32} strokeWidth={1.5} className="animate-spin" />
+                  ) : (
+                     <CheckCircle2Icon size={32} strokeWidth={1.5} />
+                  )}
                </div>
                <DialogHeader className="items-center space-y-2">
                   <DialogTitle className="text-lg">
-                     Check-In Successful
+                     {t(
+                        result.status === 'error'
+                           ? 'checkInSuccess.errorTitle'
+                           : result.status === 'pending'
+                             ? 'checkInSuccess.pendingTitle'
+                             : 'checkInSuccess.title',
+                     )}
                   </DialogTitle>
                   <DialogDescription className="text-sm leading-relaxed">
-                     {visitorLabel} has been successfully checked in for visit{' '}
-                     <span className="font-mono text-foreground">
-                        {visitId}
-                     </span>
-                     .
+                     {result.status === 'error'
+                        ? result.message
+                        : result.status === 'pending'
+                          ? t('checkInSuccess.pendingDescription')
+                          : t('checkInSuccess.description', {
+                               name: visitorLabel,
+                               id: visitId,
+                            })}
                   </DialogDescription>
                </DialogHeader>
 
                <div className="w-full space-y-2 text-left">
-                  <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
-                     <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-                     <p className="font-medium">Visitor checked in</p>
-                  </div>
+                  {result.status === 'success' ? (
+                     <div className="flex items-start gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">
+                        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
+                        <p className="font-medium">
+                           {t('checkInSuccess.visitorCheckedIn')}
+                        </p>
+                     </div>
+                  ) : result.status === 'error' ? (
+                     <div className="flex items-start gap-2 rounded-lg border border-amber-200/80 bg-amber-50/70 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        <p className="font-medium">
+                           {t('checkInSuccess.errorDescription')}
+                        </p>
+                     </div>
+                  ) : null}
 
                   {showPrintRows
                      ? targets.map((target) => (
@@ -305,8 +301,7 @@ export function CheckInSuccessDialog({
                              key={target.attendanceId}
                              label={
                                 targets.length > 1
-                                   ? (target.visitorName ??
-                                     target.attendanceId)
+                                   ? (target.visitorName ?? target.attendanceId)
                                    : ''
                              }
                              status={target.status}
@@ -328,7 +323,7 @@ export function CheckInSuccessDialog({
                      type="button"
                      className="w-full cursor-pointer hover:bg-primary/90"
                   >
-                     Done
+                     {t('common.done')}
                   </Button>
                </DialogClose>
             </div>

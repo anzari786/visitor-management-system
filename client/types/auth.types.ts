@@ -21,8 +21,9 @@ export type ChangePasswordPayload = {
    newPassword: string;
 };
 
-export type ForceChangePasswordPayload = {
-   newPassword: string;
+export type CompletePasswordSetupPayload = {
+   token: string;
+   password: string;
 };
 
 export type CheckUsernameData = {

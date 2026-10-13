@@ -17,9 +17,11 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import SpinnerBars from '@/components/shared/spinner-bars';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -34,6 +36,7 @@ export function VisitsTablePagination({
    pageCount,
    isFetching = false,
 }: VisitsTablePaginationProps) {
+   const { t } = useTranslation();
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
@@ -143,17 +146,19 @@ export function VisitsTablePagination({
       <div className="flex flex-col items-center justify-between gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
          <div className="flex w-full flex-col gap-2 sm:w-auto">
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase opacity-70">
-               <span>Results</span>
+               <span>{t('pagination.results')}</span>
                <div className="h-1 w-1 rounded-full bg-border" />
                <span className="tabular-nums text-foreground/80">
                   {total === 0 ? '0' : `${from}–${to}`}
                </span>
-               <span>of</span>
+               <span>{t('pagination.of')}</span>
                <span className="tabular-nums text-foreground/80">{total}</span>
             </div>
 
             <div className="inline-flex items-center gap-2 rounded-2xl border bg-background/80 p-1.5">
-               <span className="px-2 text-xs text-muted-foreground">Show</span>
+               <span className="px-2 text-xs text-muted-foreground">
+                  {t('pagination.show')}
+               </span>
                <Select
                   value={pageSize.toString()}
                   onValueChange={(value) => goToPage(1, Number(value))}
@@ -169,37 +174,43 @@ export function VisitsTablePagination({
                   </SelectContent>
                </Select>
                <span className="pr-2 text-xs text-muted-foreground">
-                  per page
+                  {t('pagination.perPage')}
                </span>
             </div>
          </div>
 
          <div className="flex flex-col items-center gap-3">
-            <Pagination className="mx-0 w-auto">
-               <PaginationContent className="gap-1 rounded-2xl border bg-background/80 p-2">
-                  <PaginationItem>
-                     <PaginationPrevious
-                        text=""
-                        onClick={() => goToPage(page - 1)}
-                        disabled={!canPrev || isFetching}
-                        className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
-                     />
-                  </PaginationItem>
+            {isFetching ? (
+               <div className="flex h-14 items-center justify-center px-6 text-primary">
+                  <SpinnerBars />
+               </div>
+            ) : (
+               <Pagination className="mx-0 w-auto">
+                  <PaginationContent className="gap-1 rounded-2xl border bg-background/80 p-2">
+                     <PaginationItem>
+                        <PaginationPrevious
+                           text=""
+                           onClick={() => goToPage(page - 1)}
+                           disabled={!canPrev || isFetching}
+                           className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
+                        />
+                     </PaginationItem>
 
-                  <div className="mx-2 flex items-center gap-1.5">
-                     {renderPageButtons()}
-                  </div>
+                     <div className="mx-2 flex items-center gap-1.5">
+                        {renderPageButtons()}
+                     </div>
 
-                  <PaginationItem>
-                     <PaginationNext
-                        text=""
-                        onClick={() => goToPage(page + 1)}
-                        disabled={!canNext || isFetching}
-                        className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
-                     />
-                  </PaginationItem>
-               </PaginationContent>
-            </Pagination>
+                     <PaginationItem>
+                        <PaginationNext
+                           text=""
+                           onClick={() => goToPage(page + 1)}
+                           disabled={!canNext || isFetching}
+                           className="group flex h-10 w-10 cursor-pointer justify-center rounded-xl p-0 hover:bg-muted"
+                        />
+                     </PaginationItem>
+                  </PaginationContent>
+               </Pagination>
+            )}
 
             <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase opacity-70">
                <span
@@ -207,7 +218,7 @@ export function VisitsTablePagination({
                      page === 1 ? 'text-primary transition-colors' : undefined
                   }
                >
-                  First
+                  {t('pagination.first')}
                </span>
                <div className="h-1 w-1 rounded-full bg-border" />
                <span
@@ -217,7 +228,7 @@ export function VisitsTablePagination({
                         : undefined
                   }
                >
-                  Last
+                  {t('pagination.last')}
                </span>
             </div>
          </div>

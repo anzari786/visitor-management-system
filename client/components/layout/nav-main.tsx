@@ -22,11 +22,16 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavigationAction } from '@/lib/navigation';
 import { useSettingsDialogStore } from '@/store/settings-dialog-store';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 export type NavItem = {
    label?: string;
+   /** Dictionary key for the section heading. */
+   labelKey?: TranslationKey;
    isSection?: boolean;
    title?: string;
+   /** Dictionary key for the item label. */
+   titleKey?: TranslationKey;
    icon?: LucideIcon;
    href?: string;
    action?: NavigationAction;
@@ -66,6 +71,8 @@ function NavMainItem({
    item: NavItem;
    pathname: string;
 }) {
+   const { t } = useTranslation();
+   const label = item.titleKey ? t(item.titleKey) : item.title;
    const hasChildren = !!item.children?.length;
    const isParentActive = hasActiveDescendant(pathname, item);
    const [isOpen, setIsOpen] = React.useState(isParentActive);
@@ -80,7 +87,7 @@ function NavMainItem({
       return (
          <SidebarGroup className="p-0 pt-5 first:pt-0">
             <SidebarGroupLabel className="p-0 text-xs font-medium uppercase text-sidebar-foreground">
-               {item.label}
+               {item.labelKey ? t(item.labelKey) : item.label}
             </SidebarGroupLabel>
          </SidebarGroup>
       );
@@ -95,7 +102,7 @@ function NavMainItem({
                      <CollapsibleTrigger asChild>
                         <SidebarMenuButton
                            id={`nav-main-trigger-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                           tooltip={item.title}
+                           tooltip={label}
                            isActive={isParentActive}
                            className={cn(
                               'rounded-md text-sm font-medium px-3 py-2 h-9 transition-colors cursor-pointer',
@@ -103,7 +110,7 @@ function NavMainItem({
                            )}
                         >
                            {item.icon && <item.icon size={16} />}
-                           <span>{item.title}</span>
+                           <span>{label}</span>
                            <ChevronRight
                               className={cn(
                                  'ml-auto transition-transform duration-200',
@@ -137,7 +144,7 @@ function NavMainItem({
                <SidebarMenuItem>
                   <SidebarMenuButton
                      id={`nav-main-button-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                     tooltip={item.title}
+                     tooltip={label}
                      className="h-9 cursor-pointer rounded-md px-3 py-2 text-sm font-medium transition-colors"
                      onClick={() => {
                         if (item.action === 'open-settings') {
@@ -146,7 +153,7 @@ function NavMainItem({
                      }}
                   >
                      {item.icon && <item.icon size={16} />}
-                     <span>{item.title}</span>
+                     <span>{label}</span>
                   </SidebarMenuButton>
                </SidebarMenuItem>
             </SidebarMenu>
@@ -163,7 +170,7 @@ function NavMainItem({
                <SidebarMenuItem>
                   <SidebarMenuButton
                      id={`nav-main-button-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                     tooltip={item.title}
+                     tooltip={label}
                      isActive={active}
                      asChild
                      className={cn(
@@ -173,7 +180,7 @@ function NavMainItem({
                   >
                      <Link href={item.href}>
                         {item.icon && <item.icon size={16} />}
-                        <span>{item.title}</span>
+                        <span>{label}</span>
                      </Link>
                   </SidebarMenuButton>
                </SidebarMenuItem>
@@ -192,6 +199,8 @@ function NavMainSubItem({
    item: NavItem;
    pathname: string;
 }) {
+   const { t } = useTranslation();
+   const label = item.titleKey ? t(item.titleKey) : item.title;
    const hasChildren = !!item.children?.length;
    const isItemActive = hasActiveDescendant(pathname, item);
    const [isOpen, setIsOpen] = React.useState(isItemActive);
@@ -212,7 +221,7 @@ function NavMainSubItem({
                      className="rounded-md text-sm font-medium px-3 py-2 h-9 cursor-pointer"
                   >
                      {item.icon && <item.icon size={16} />}
-                     <span>{item.title}</span>
+                     <span>{label}</span>
                      <ChevronRight
                         className={cn(
                            'ml-auto transition-transform duration-200',
@@ -251,7 +260,7 @@ function NavMainSubItem({
                   active && 'bg-muted! text-foreground!',
                )}
             >
-               <Link href={item.href}>{item.title}</Link>
+               <Link href={item.href}>{label}</Link>
             </SidebarMenuSubButton>
          </SidebarMenuSubItem>
       );

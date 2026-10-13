@@ -1,9 +1,7 @@
 import { Button } from '@/components/ui/button';
 import {
    Dialog,
-   DialogClose,
    DialogContent,
-   DialogDescription,
    DialogFooter,
    DialogHeader,
    DialogTitle,
@@ -18,12 +16,14 @@ import {
 import { Input } from '@/components/ui/input';
 import {
    createUserSchema,
+   createSsoUserSchema,
    type CreateUserFormValues,
+   type CreateSsoUserFormValues,
 } from '@/lib/validations/user.schema';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
+import { useTranslation } from '@/lib/i18n';
 import { Controller, useForm } from 'react-hook-form';
-import { Badge } from '../reui/badge';
 import {
    Select,
    SelectContent,
@@ -31,32 +31,192 @@ import {
    SelectTrigger,
    SelectValue,
 } from '../ui/select';
-import { formatEthiopianPhone } from '@/lib/phone';
+import {
+   Check,
+   KeyRound,
+   ShieldCheck,
+   Loader2,
+   LoaderCircleIcon,
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { cn } from '@/lib/utils';
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import {
+   Autocomplete,
+   AutocompleteContent,
+   AutocompleteEmpty,
+   AutocompleteGroup,
+   AutocompleteGroupLabel,
+   AutocompleteInput,
+   AutocompleteItem,
+   AutocompleteList,
+   AutocompleteSeparator,
+   AutocompleteStatus,
+} from '@/components/ui/autocomplete';
+import { visitRequestService } from '@/services/visit-request.service';
+import type { EmployeeSearchResult } from '@/types/self-service.types';
 
 type CreateUserProps = {
    open: boolean;
    onOpenChange: (open: boolean) => void;
-   onSubmit?: (values: CreateUserFormValues) => void | Promise<void>;
+   onSubmit?: (
+      values: CreateUserFormValues | CreateSsoUserFormValues,
+   ) => void | Promise<void>;
 };
 
-const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
+const scrollAreaClass =
+   'flex-1 space-y-8 overflow-y-auto px-6 py-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden';
+
+async function searchEmployees(query: string): Promise<EmployeeSearchResult[]> {
+   const { data } = await visitRequestService.searchEmployees({
+      q: query.trim(),
+      limit: 25,
+   });
+   return data.data;
+}
+
+function groupEmployeesByDepartment(hosts: EmployeeSearchResult[]) {
+   const groups = new Map<string, EmployeeSearchResult[]>();
+   hosts
+      .filter((employee) => employee.isActive)
+      .forEach((employee) => {
+         const group = groups.get(employee.departmentName) ?? [];
+         group.push(employee);
+         groups.set(employee.departmentName, group);
+      });
+   return [...groups.entries()].map(([departmentName, items]) => ({
+      departmentName,
+      items,
+   }));
+}
+
+const CIRCLE_RADIUS = 7;
+const CIRCLE_LENGTH = 2 * Math.PI * CIRCLE_RADIUS;
+const USERNAME_REGEX = /^[a-zA-Z0-9_]*$/;
+
+const getStrokeColorClass = (p: number) => {
+   if (p <= 0) return 'stroke-transparent';
+   if (p <= 0.35) return 'stroke-red-500';
+   if (p <= 0.7) return 'stroke-orange-500';
+   return 'stroke-teal-400';
+};
+
+const AnimatedCheckmarkCircle = ({ progress }: { progress: number }) => {
+   const isComplete = progress >= 1;
+   return (
+      <div className="relative flex items-center justify-center w-5 h-5 select-none">
+         <svg width="20" height="20" className="-rotate-90">
+            <circle
+               cx="10"
+               cy="10"
+               r={CIRCLE_RADIUS}
+               className="stroke-muted-foreground/20"
+               strokeWidth="1.5"
+               fill="transparent"
+            />
+            <motion.circle
+               cx="10"
+               cy="10"
+               r={CIRCLE_RADIUS}
+               className={cn(
+                  'transition-colors duration-300',
+                  getStrokeColorClass(progress),
+               )}
+               strokeWidth="1.5"
+               fill="transparent"
+               strokeDasharray={CIRCLE_LENGTH}
+               initial={{ strokeDashoffset: CIRCLE_LENGTH }}
+               animate={{
+                  strokeDashoffset: CIRCLE_LENGTH - progress * CIRCLE_LENGTH,
+               }}
+               transition={{
+                  duration: 0.35,
+                  ease: 'easeInOut',
+               }}
+            />
+            <motion.circle
+               cx="10"
+               cy="10"
+               r={CIRCLE_RADIUS}
+               className="fill-teal-400"
+               style={{ transformOrigin: 'center' }}
+               initial={{ scale: 0, opacity: 0 }}
+               animate={{
+                  scale: isComplete ? 1 : 0,
+                  opacity: isComplete ? 1 : 0,
+               }}
+               transition={{
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 20,
+                  delay: isComplete ? 0.15 : 0,
+               }}
+            />
+         </svg>
+         <div className="absolute inset-0 flex items-center justify-center">
+            <motion.div
+               initial={{ scale: 0, opacity: 0 }}
+               animate={{
+                  scale: isComplete ? 1 : 0,
+                  opacity: isComplete ? 1 : 0,
+               }}
+               transition={{
+                  type: 'spring',
+                  stiffness: 400,
+                  damping: 15,
+                  delay: isComplete ? 0.28 : 0,
+               }}
+            >
+               <Check className="text-white size-3" strokeWidth={3} />
+            </motion.div>
+         </div>
+      </div>
+   );
+};
+
+function SectionHeading({
+   title,
+   description,
+}: {
+   title: string;
+   description: string;
+}) {
+   return (
+      <div className="space-y-1">
+         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+         <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+   );
+}
+
+const LocalUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
+   const { t } = useTranslation();
    const {
       register,
       handleSubmit,
       control,
       reset,
+      watch,
       formState: { errors, isSubmitting },
    } = useForm<CreateUserFormValues>({
       resolver: zodResolver(createUserSchema),
       defaultValues: {
          firstName: '',
          lastName: '',
+         email: '',
          username: '',
          phone: '+251 ',
          role: 'GUARD',
          password: '',
       },
    });
+
+   const usernameValue = watch('username');
+   const isUsernameCharsValid = USERNAME_REGEX.test(usernameValue || '');
+   const usernameProgress = isUsernameCharsValid
+      ? Math.min((usernameValue || '').length / 3, 1.0)
+      : 0.0;
 
    // Reset form whenever dialog is opened
    React.useEffect(() => {
@@ -71,20 +231,23 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
    });
 
    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-         <DialogContent className="sm:max-w-120 max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-               <DialogTitle>Create User</DialogTitle>
-               <DialogDescription className="sr-only" />
-            </DialogHeader>
-
-            <form onSubmit={handleFormSubmit} className="space-y-4 pt-2">
-               <FieldGroup>
+      <form
+         onSubmit={handleFormSubmit}
+         noValidate
+         className="flex min-h-0 flex-1 flex-col"
+      >
+         <div className={scrollAreaClass}>
+            <FieldGroup className="gap-6">
+               <div className="space-y-4">
+                  <SectionHeading
+                     title={t('users.form.userInformation')}
+                     description={t('users.form.userInformationHint')}
+                  />
                   {/* First / Last name row */}
                   <div className="grid grid-cols-2 gap-3">
                      <Field>
                         <FieldLabel htmlFor="first-name">
-                           First Name
+                           {t('common.firstName')}
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
@@ -99,7 +262,7 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
 
                      <Field>
                         <FieldLabel htmlFor="last-name">
-                           Last Name
+                           {t('common.lastName')}
                            <span className="text-destructive">*</span>
                         </FieldLabel>
                         <Input
@@ -113,62 +276,58 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                      </Field>
                   </div>
 
+                  {/* Email */}
+                  <Field>
+                     <FieldLabel htmlFor="email">
+                        {t('common.email')}
+                        <span className="text-destructive">*</span>
+                     </FieldLabel>
+                     <Input
+                        id="email"
+                        type="email"
+                        placeholder="email@example.com"
+                        aria-invalid={!!errors.email}
+                        {...register('email')}
+                     />
+                     {errors.email && (
+                        <FieldError>{errors.email.message}</FieldError>
+                     )}
+                  </Field>
+
                   {/* Username */}
                   <Field>
                      <FieldLabel htmlFor="username">
-                        Username
+                        {t('users.col.username')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <FieldDescription>
-                        Choose a unique username for the account.
+                        {t('users.form.usernameHint')}
                      </FieldDescription>
-                     <Input
-                        id="username"
-                        type="text"
-                        aria-invalid={!!errors.username}
-                        {...register('username')}
-                     />
+                     <div className="relative">
+                        <Input
+                           id="username"
+                           type="text"
+                           className="bg-transparent pr-16 focus-visible:ring-1"
+                           aria-invalid={!!errors.username}
+                           {...register('username')}
+                        />
+
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                           <AnimatedCheckmarkCircle
+                              progress={usernameProgress}
+                           />
+                        </div>
+                     </div>
 
                      {errors.username && (
                         <FieldError>{errors.username.message}</FieldError>
                      )}
                   </Field>
 
-                  {/* Phone (optional) */}
-                  <Field>
-                     <div className="flex items-center justify-between gap-2">
-                        <FieldLabel htmlFor="phone">Phone</FieldLabel>
-                        <Badge variant="warning-outline" size="sm">
-                           Optional
-                        </Badge>
-                     </div>
-                     <Controller
-                        name="phone"
-                        control={control}
-                        render={({ field }) => (
-                           <Input
-                              id="phone"
-                              type="tel"
-                              placeholder="+251 9XX XXX XXX"
-                              aria-invalid={!!errors.phone}
-                              value={field.value}
-                              onChange={(e) =>
-                                 field.onChange(
-                                    formatEthiopianPhone(e.target.value),
-                                 )
-                              }
-                           />
-                        )}
-                     />
-                     {errors.phone && (
-                        <FieldError>{errors.phone.message}</FieldError>
-                     )}
-                  </Field>
-
                   {/* Role */}
                   <Field>
                      <FieldLabel htmlFor="role">
-                        Role
+                        {t('users.col.role')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Controller
@@ -186,10 +345,18 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                                  <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                 <SelectItem value="GUARD">Guard</SelectItem>
-                                 <SelectItem value="GUARD_MANAGER">Guard Manager</SelectItem>
-                                 <SelectItem value="ADMIN">Admin</SelectItem>
-                                 <SelectItem value="HOST">Host</SelectItem>
+                                 <SelectItem value="GUARD">
+                                    {t('role.guard')}
+                                 </SelectItem>
+                                 <SelectItem value="GUARD_MANAGER">
+                                    {t('role.guardManager')}
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    {t('role.admin')}
+                                 </SelectItem>
+                                 <SelectItem value="HOST">
+                                    {t('role.host')}
+                                 </SelectItem>
                               </SelectContent>
                            </Select>
                         )}
@@ -198,37 +365,429 @@ const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
                         <FieldError>{errors.role.message}</FieldError>
                      )}
                   </Field>
+               </div>
 
-                  {/* Password */}
+               <div className="space-y-4">
+                  <SectionHeading
+                     title={t('users.form.authentication')}
+                     description={t('users.form.authenticationHint')}
+                  />
+                  <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
+                     <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
+                        <KeyRound className="size-4" />
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                           {t('users.form.localAccount')}
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                           {t('users.form.localAccountHint')}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+            </FieldGroup>
+         </div>
+
+         <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+            <Button
+               type="button"
+               variant="outline"
+               className="cursor-pointer"
+               disabled={isSubmitting}
+               onClick={() => onOpenChange(false)}
+            >
+               {t('common.cancel')}
+            </Button>
+            <Button
+               type="submit"
+               className="cursor-pointer gap-2"
+               disabled={isSubmitting}
+            >
+               {isSubmitting ? (
+                  <>
+                     <Loader2 className="size-4 animate-spin" />
+                     {t('users.form.creating')}
+                  </>
+               ) : (
+                  t('users.create')
+               )}
+            </Button>
+         </DialogFooter>
+      </form>
+   );
+};
+
+const SsoUserForm = ({ onOpenChange, onSubmit, open }: CreateUserProps) => {
+   const { t } = useTranslation();
+   const {
+      handleSubmit,
+      control,
+      reset,
+      watch,
+      formState: { errors, isSubmitting },
+   } = useForm<CreateSsoUserFormValues>({
+      resolver: zodResolver(createSsoUserSchema),
+      defaultValues: {
+         employeeId: '',
+         role: 'RECEPTION',
+      },
+   });
+
+   const [autocompleteOpen, setAutocompleteOpen] = React.useState(false);
+   const [inputValue, setInputValue] = React.useState('');
+   const [isLoadingEmployees, setIsLoadingEmployees] = React.useState(false);
+   const [results, setResults] = React.useState<EmployeeSearchResult[]>([]);
+   const [searchError, setSearchError] = React.useState<string | null>(null);
+
+   const selectedEmployeeId = watch('employeeId');
+   const selectedEmployee = React.useMemo(
+      () => results.find((e) => e.id === selectedEmployeeId),
+      [results, selectedEmployeeId],
+   );
+
+   React.useEffect(() => {
+      if (open) {
+         reset();
+         setInputValue('');
+      }
+   }, [open, reset]);
+
+   React.useEffect(() => {
+      setIsLoadingEmployees(true);
+      setSearchError(null);
+      let ignore = false;
+
+      const timer = setTimeout(async () => {
+         try {
+            const data = await searchEmployees(inputValue);
+            if (!ignore) setResults(data);
+         } catch {
+            if (!ignore) {
+               setSearchError(t('users.form.searchFailed'));
+               setResults([]);
+            }
+         } finally {
+            if (!ignore) setIsLoadingEmployees(false);
+         }
+      }, 300);
+
+      return () => {
+         clearTimeout(timer);
+         ignore = true;
+      };
+   }, [inputValue]);
+
+   const grouped = React.useMemo(
+      () => groupEmployeesByDepartment(results),
+      [results],
+   );
+
+   const handleFormSubmit = handleSubmit(async (values) => {
+      await onSubmit?.(values);
+      onOpenChange(false);
+   });
+
+   let status: React.ReactNode = null;
+   if (isLoadingEmployees) {
+      status = (
+         <div className="flex items-center gap-2">
+            <LoaderCircleIcon className="size-4 animate-spin" />
+            {t('users.form.searchingEmployees')}
+         </div>
+      );
+   } else if (searchError) {
+      status = searchError;
+   } else if (inputValue && results.length === 0) {
+      status = t('users.form.noEmployeesFor', { query: inputValue });
+   } else if (results.length > 0) {
+      status = t(
+         results.length === 1
+            ? 'users.form.employeeFound'
+            : 'users.form.employeesFound',
+         { count: results.length },
+      );
+   }
+
+   return (
+      <form
+         onSubmit={handleFormSubmit}
+         noValidate
+         className="flex min-h-0 flex-1 flex-col"
+      >
+         <div className={scrollAreaClass}>
+            <FieldGroup className="gap-6">
+               <div className="space-y-4">
+                  <SectionHeading
+                     title={t('users.form.employeeSelection')}
+                     description={t('users.form.employeeSelectionHint')}
+                  />
+
+                  <Controller
+                     name="employeeId"
+                     control={control}
+                     render={({ field }) => (
+                        <Field>
+                           <FieldLabel htmlFor="employeeId">
+                              {t('users.form.employee')}{' '}
+                              <span className="text-destructive">*</span>
+                           </FieldLabel>
+                           <Autocomplete
+                              open={autocompleteOpen}
+                              onOpenChange={setAutocompleteOpen}
+                              value={field.value ?? null}
+                              onValueChange={(value) => {
+                                 field.onChange(value ?? '');
+                              }}
+                              onInputValueChange={setInputValue}
+                              defaultInputValue={
+                                 results.find((e) => e.id === field.value)
+                                    ? `${results.find((e) => e.id === field.value)?.firstName} ${results.find((e) => e.id === field.value)?.lastName}`
+                                    : ''
+                              }
+                           >
+                              <AutocompleteInput
+                                 id="employeeId"
+                                 placeholder={t('users.form.employeeSearch')}
+                                 autoComplete="off"
+                                 showTrigger
+                                 showClear
+                                 aria-invalid={!!errors.employeeId}
+                                 onFocus={() => setAutocompleteOpen(true)}
+                              />
+                              <AutocompleteContent>
+                                 {status && (
+                                    <AutocompleteStatus>
+                                       {status}
+                                    </AutocompleteStatus>
+                                 )}
+                                 <AutocompleteList>
+                                    {!isLoadingEmployees &&
+                                    results.length === 0 ? (
+                                       <AutocompleteEmpty>
+                                          {t('users.form.noEmployees')}
+                                       </AutocompleteEmpty>
+                                    ) : (
+                                       grouped.map((group, groupIndex) => (
+                                          <AutocompleteGroup
+                                             key={group.departmentName}
+                                          >
+                                             {groupIndex > 0 && (
+                                                <AutocompleteSeparator />
+                                             )}
+                                             <AutocompleteGroupLabel>
+                                                {group.departmentName}
+                                             </AutocompleteGroupLabel>
+                                             {group.items.map((employee) => (
+                                                <AutocompleteItem
+                                                   key={employee.id}
+                                                   value={employee.id}
+                                                   label={`${employee.firstName} ${employee.lastName}`}
+                                                >
+                                                   <div className="min-w-0 flex-1">
+                                                      <p className="truncate text-sm font-medium">
+                                                         {employee.firstName}{' '}
+                                                         {employee.lastName}
+                                                      </p>
+                                                      <p className="truncate text-xs text-muted-foreground">
+                                                         {employee.position ??
+                                                            employee.departmentName}
+                                                      </p>
+                                                   </div>
+                                                </AutocompleteItem>
+                                             ))}
+                                          </AutocompleteGroup>
+                                       ))
+                                    )}
+                                 </AutocompleteList>
+                              </AutocompleteContent>
+                           </Autocomplete>
+                           <FieldError>{errors.employeeId?.message}</FieldError>
+                        </Field>
+                     )}
+                  />
+
+                  {selectedEmployee && (
+                     <div className="rounded-xl border bg-muted/30 p-4 transition-all animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-2 gap-y-3">
+                           <div className="space-y-0.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                 {t('common.fullName')}
+                              </p>
+                              <p className="text-sm font-medium">
+                                 {selectedEmployee.firstName}{' '}
+                                 {selectedEmployee.lastName}
+                              </p>
+                           </div>
+                           <div className="space-y-0.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                 {t('common.email')}
+                              </p>
+                              <p className="text-sm font-medium">
+                                 {selectedEmployee.id}@organization.com
+                              </p>
+                           </div>
+                           <div className="space-y-0.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                 {t('common.department')}
+                              </p>
+                              <p className="text-sm font-medium">
+                                 {selectedEmployee.departmentName}
+                              </p>
+                           </div>
+                           <div className="space-y-0.5">
+                              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                 {t('users.form.jobTitle')}
+                              </p>
+                              <p className="text-sm font-medium">
+                                 {selectedEmployee.position ??
+                                    selectedEmployee.departmentName}
+                              </p>
+                           </div>
+                        </div>
+                     </div>
+                  )}
+
                   <Field>
-                     <FieldLabel htmlFor="password">
-                        Password
+                     <FieldLabel htmlFor="sso-role">
+                        {t('users.col.role')}
                         <span className="text-destructive">*</span>
                      </FieldLabel>
-                     <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        aria-invalid={!!errors.password}
-                        {...register('password')}
+                     <Controller
+                        name="role"
+                        control={control}
+                        render={({ field }) => (
+                           <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                           >
+                              <SelectTrigger
+                                 id="sso-role"
+                                 aria-invalid={!!errors.role}
+                              >
+                                 <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                 <SelectItem value="GUARD">
+                                    {t('role.guard')}
+                                 </SelectItem>
+                                 <SelectItem value="RECEPTION">
+                                    {t('role.reception')}
+                                 </SelectItem>
+                                 <SelectItem value="ADMIN">
+                                    {t('role.admin')}
+                                 </SelectItem>
+                                 <SelectItem value="MANAGER">
+                                    {t('role.manager')}
+                                 </SelectItem>
+                              </SelectContent>
+                           </Select>
+                        )}
                      />
-                     {errors.password && (
-                        <FieldError>{errors.password.message}</FieldError>
+                     {errors.role && (
+                        <FieldError>{errors.role.message}</FieldError>
                      )}
                   </Field>
-               </FieldGroup>
+               </div>
 
-               <DialogFooter>
-                  <DialogClose asChild>
-                     <Button type="button" variant="outline">
-                        Cancel
-                     </Button>
-                  </DialogClose>
-                  <Button type="submit" disabled={isSubmitting}>
-                     {isSubmitting ? 'Creating…' : 'Create User'}
-                  </Button>
-               </DialogFooter>
-            </form>
+               <div className="space-y-4">
+                  <SectionHeading
+                     title={t('users.form.authentication')}
+                     description={t('users.form.authenticationHint')}
+                  />
+                  <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-4">
+                     <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
+                        <ShieldCheck className="size-4" />
+                     </div>
+                     <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                           {t('users.form.sso')}
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                           {t('users.form.ssoHint')}
+                        </p>
+                     </div>
+                  </div>
+               </div>
+            </FieldGroup>
+         </div>
+
+         <DialogFooter className="shrink-0 gap-2 border-t px-6 py-4 sm:justify-end">
+            <Button
+               type="button"
+               variant="outline"
+               className="cursor-pointer"
+               onClick={() => onOpenChange(false)}
+            >
+               {t('common.cancel')}
+            </Button>
+            <Button
+               type="submit"
+               className="cursor-pointer gap-2"
+               disabled={isSubmitting}
+            >
+               {isSubmitting ? (
+                  <>
+                     <Loader2 className="size-4 animate-spin" />
+                     {t('users.form.creating')}
+                  </>
+               ) : (
+                  t('users.create')
+               )}
+            </Button>
+         </DialogFooter>
+      </form>
+   );
+};
+
+const CreateUser = ({ open, onOpenChange, onSubmit }: CreateUserProps) => {
+   const { t } = useTranslation();
+
+   return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+         <DialogContent
+            aria-describedby={undefined}
+            className="flex max-h-[min(90vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+         >
+            <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-5 text-left">
+               <DialogTitle>{t('users.create')}</DialogTitle>
+            </DialogHeader>
+
+            <Tabs defaultValue="local" className="flex min-h-0 flex-1 flex-col">
+               <div className="px-6 pt-5">
+                  <TabsList className="grid w-full grid-cols-2">
+                     <TabsTrigger value="local" className="cursor-pointer">
+                        <KeyRound className="mr-2 size-4" />
+                        {t('users.accountType.local')}
+                     </TabsTrigger>
+                     <TabsTrigger value="sso" className="cursor-pointer">
+                        <ShieldCheck className="mr-2 size-4" />
+                        {t('users.accountType.sso')}
+                     </TabsTrigger>
+                  </TabsList>
+               </div>
+
+               <TabsContent
+                  value="local"
+                  className="flex min-h-0 flex-1 flex-col outline-none"
+               >
+                  <LocalUserForm
+                     open={open}
+                     onOpenChange={onOpenChange}
+                     onSubmit={onSubmit}
+                  />
+               </TabsContent>
+               <TabsContent
+                  value="sso"
+                  className="flex min-h-0 flex-1 flex-col outline-none"
+               >
+                  <SsoUserForm
+                     open={open}
+                     onOpenChange={onOpenChange}
+                     onSubmit={onSubmit}
+                  />
+               </TabsContent>
+            </Tabs>
          </DialogContent>
       </Dialog>
    );

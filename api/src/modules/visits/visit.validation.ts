@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const groupTypeSchema = z.enum(['SINGLE', 'GROUP']);
 const durationTypeSchema = z.enum(['SINGLE_DAY', 'MULTI_DAY']);
+const visitSourceSchema = z.enum(['PUBLIC', 'RECEPTION', 'HOST_INVITATION']);
 
 const identificationTypeSchema = z.enum([
    'NATIONAL_ID',
@@ -24,6 +25,7 @@ const visitStatusSchema = z.enum([
    'PENDING_APPROVAL',
    'APPROVED',
    'REJECTED',
+   'EXPIRED',
    'RESCHEDULED',
    'CANCELLED',
    'PARTIALLY_CHECKED_IN',
@@ -36,13 +38,20 @@ const visitorInputSchema = z.object({
    firstName: z.string().trim().min(1).max(100),
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
-   email: z.string().trim().email().optional(),
-   organization: z.string().trim().min(1).max(150).optional(),
+   email: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().email().optional(),
+   ),
+   nationality: z.string().trim().min(1).max(100).optional(),
+   organization: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().trim().min(1).max(150).optional(),
+   ),
    subCity: z.string().trim().min(1).max(100).optional(),
    woreda: z.string().trim().min(1).max(100).optional(),
    houseNumber: z.string().trim().min(1).max(50).optional(),
-   idType: identificationTypeSchema,
-   idNumber: z.string().trim().min(1).max(50),
+   idType: identificationTypeSchema.optional(),
+   idNumber: z.string().trim().min(1).max(50).optional(),
 });
 
 const hostInvitationVisitorSchema = z.object({
@@ -50,6 +59,7 @@ const hostInvitationVisitorSchema = z.object({
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
+   nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
    subCity: z.string().trim().min(1).max(100).optional(),
    woreda: z.string().trim().min(1).max(100).optional(),
@@ -68,7 +78,10 @@ const visitRequestBodySchema = z
    .object({
       groupType: groupTypeSchema,
       durationType: durationTypeSchema,
-      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
+      purpose: z.union([
+         visitPurposeSchema,
+         z.string().trim().min(1).max(2000),
+      ]),
       hostEmployeeId: z.coerce.number().int().positive(),
       visitors: z.array(visitorInputSchema).min(1).max(50),
       scheduleDates: z.array(scheduleDateInputSchema).min(1).max(31),
@@ -92,7 +105,10 @@ const hostInvitationBodySchema = z
    .object({
       groupType: groupTypeSchema,
       durationType: durationTypeSchema,
-      purpose: z.union([visitPurposeSchema, z.string().trim().min(1).max(2000)]),
+      purpose: z.union([
+         visitPurposeSchema,
+         z.string().trim().min(1).max(2000),
+      ]),
       hostEmployeeId: z.coerce.number().int().positive(),
       visitors: z.array(hostInvitationVisitorSchema).max(50).default([]),
       expectedVisitorCount: z.coerce.number().int().min(1).max(50).optional(),
@@ -138,8 +154,7 @@ const hostInvitationBodySchema = z
          ) {
             ctx.addIssue({
                code: 'custom',
-               message:
-                  'A SINGLE visit must have expectedVisitorCount of 1',
+               message: 'A SINGLE visit must have expectedVisitorCount of 1',
                path: ['expectedVisitorCount'],
             });
          }
@@ -151,8 +166,7 @@ const hostInvitationBodySchema = z
          ) {
             ctx.addIssue({
                code: 'custom',
-               message:
-                  'A GROUP visit must expect at least 2 visitors',
+               message: 'A GROUP visit must expect at least 2 visitors',
                path: ['expectedVisitorCount'],
             });
          }
@@ -171,16 +185,18 @@ const hostInvitationBodySchema = z
    });
 
 const registerVisitorBodySchema = z.object({
+   visitParticipantId: z.coerce.number().int().positive().optional(),
    firstName: z.string().trim().min(1).max(100),
    lastName: z.string().trim().min(1).max(100),
    phone: z.string().trim().min(7).max(20),
    email: z.string().trim().email().optional(),
+   nationality: z.string().trim().min(1).max(100).optional(),
    organization: z.string().trim().min(1).max(150).optional(),
    subCity: z.string().trim().min(1).max(100).optional(),
    woreda: z.string().trim().min(1).max(100).optional(),
    houseNumber: z.string().trim().min(1).max(50).optional(),
-   idType: identificationTypeSchema,
-   idNumber: z.string().trim().min(1).max(50),
+   idType: identificationTypeSchema.optional(),
+   idNumber: z.string().trim().min(1).max(50).optional(),
 });
 
 /** Public self-service visitor request — same shape as the walk-in path. */
@@ -198,19 +214,6 @@ export const createHostInvitationSchema = z.object({
    body: hostInvitationBodySchema,
 });
 
-export const invitationTokenParamSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-});
-
-export const registerViaInvitationSchema = z.object({
-   params: z.object({
-      token: z.string().trim().min(32).max(128),
-   }),
-   body: registerVisitorBodySchema,
-});
-
 export const registerVisitorAtVisitSchema = z.object({
    params: z.object({
       id: z.coerce.number().int().positive(),
@@ -220,13 +223,11 @@ export const registerVisitorAtVisitSchema = z.object({
 
 export const listVisitsSchema = z.object({
    query: z.object({
-      status: visitStatusSchema.optional(),
-      hostEmployeeId: z.coerce.number().int().positive().optional(),
-      durationType: durationTypeSchema.optional(),
-      groupType: groupTypeSchema.optional(),
+      status: z.union([visitStatusSchema, z.array(visitStatusSchema)]).optional(),
+      source: z
+         .union([visitSourceSchema, z.array(visitSourceSchema)])
+         .optional(),
       search: z.string().trim().min(1).optional(),
-      dateFrom: z.coerce.date().optional(),
-      dateTo: z.coerce.date().optional(),
       page: z.coerce.number().int().positive().optional().default(1),
       limit: z.coerce.number().int().positive().max(100).optional().default(20),
    }),

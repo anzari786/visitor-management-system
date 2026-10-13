@@ -1,11 +1,10 @@
 import type { NavItem } from '@/components/layout/nav-main';
+import type { TranslationKey } from '@/lib/i18n';
 import { UserRole } from '@/types/user.types';
 import {
-   Briefcase,
    ClipboardList,
-   Inbox,
    LayoutGrid,
-   LucideIcon,
+   type LucideIcon,
    Settings,
    Users,
 } from 'lucide-react';
@@ -13,7 +12,10 @@ import {
 export type NavigationAction = 'open-settings';
 
 type NavigationItem = {
+   /** English label — kept for stable DOM ids and command-palette matching. */
    title: string;
+   /** Dictionary key used to render the label in the active language. */
+   titleKey: TranslationKey;
    icon: LucideIcon;
    href?: string;
    action?: NavigationAction;
@@ -21,14 +23,21 @@ type NavigationItem = {
    roles: UserRole[];
    isGradient?: boolean;
    isRoot?: boolean;
-   hidden?: boolean; // excluded from sidebar rendering, still resolvable by getNavigationItem
+   hidden?: boolean;
 };
 
 const SIDEBAR_GROUPS = ['Workspace', 'Administration'] as const;
 
+export const GROUP_LABEL_KEYS: Record<NavigationItem['group'], TranslationKey> = {
+   Workspace: 'nav.workspace',
+   Administration: 'nav.administration',
+   Operations: 'nav.operations',
+};
+
 export const navigation: NavigationItem[] = [
    {
       title: 'Dashboard',
+      titleKey: 'nav.dashboard',
       icon: LayoutGrid,
       href: '/dashboard',
       isRoot: true,
@@ -37,27 +46,15 @@ export const navigation: NavigationItem[] = [
    },
    {
       title: 'Visits',
+      titleKey: 'nav.visits',
       icon: ClipboardList,
       href: '/visits',
       group: 'Workspace',
       roles: ['GUARD', 'GUARD_MANAGER', 'ADMIN'],
    },
    {
-      title: 'Visit Requests',
-      icon: Inbox,
-      href: '/visit-requests',
-      group: 'Workspace',
-      roles: ['GUARD', 'GUARD_MANAGER', 'ADMIN'],
-   },
-   {
-      title: 'Departments',
-      icon: Briefcase,
-      href: '/departments',
-      group: 'Administration',
-      roles: ['ADMIN'],
-   },
-   {
       title: 'Users',
+      titleKey: 'nav.users',
       icon: Users,
       href: '/users',
       group: 'Administration',
@@ -65,6 +62,7 @@ export const navigation: NavigationItem[] = [
    },
    {
       title: 'Settings',
+      titleKey: 'nav.settings',
       icon: Settings,
       action: 'open-settings',
       group: 'Administration',
@@ -90,9 +88,10 @@ export function getSidebarNavItems(role: UserRole): NavItem[] {
       if (items.length === 0) return [];
 
       return [
-         { label: group, isSection: true },
+         { label: group, labelKey: GROUP_LABEL_KEYS[group], isSection: true },
          ...items.map((item) => ({
             title: item.title,
+            titleKey: item.titleKey,
             icon: item.icon,
             href: item.href,
             action: item.action,

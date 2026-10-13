@@ -1,0 +1,106 @@
+# Full VMS stack: MySQL + Express API + Next.js client.
+#
+#   docker compose up --build          # no root .env needed
+#   docker compose exec api pnpm prisma db seed
+#
+# Base values come straight from api/.env.example and client/.env.example.
+# The `environment:` blocks below override only what has to differ inside the
+# compose network (database host, service URLs) plus the dev auth bypass.
+#
+# The print agent is intentionally not containerised — it runs on the reception
+# PC that is physically attached to the Zebra printer.
+
+services:
+   db:
+      image: mysql:8.4
+      restart: unless-stopped
+      environment:
+         MYSQL_ROOT_PASSWORD: vms_root_password
+         MYSQL_DATABASE: vms_db
+         MYSQL_USER: vms
+         MYSQL_PASSWORD: vms_password
+      ports:
+         - '3306:3306'
+      volumes:
+         - db-data:/var/lib/mysql
+      healthcheck:
+         test:
+            [
+               'CMD',
+               'mysqladmin',
+               'ping',
+               '-h',
+               '127.0.0.1',
+               '-u',
+               'root',
+               '-pvms_root_password',
+            ]
+         interval: 5s
+         timeout: 5s
+         retries: 20
+         start_period: 30s
+
+   api:
+      build:
+         context: ./api
+      restart: unless-stopped
+      depends_on:
+         db:
+            condition: service_healthy
+      # SMTP, print-agent and token TTL defaults.
+      env_file:
+         - ./api/.env.example
+      environment:
+         # Development mode — required for DEV_BYPASS_AUTH to be honoured.
+         NODE_ENV: development
+         DEV_BYPASS_AUTH: 'true'
+         PORT: 5000
+         CLIENT_URL: http://localhost:3000
+
+         # Point Prisma and the session store at the `db` service.
+         DATABASE_URL: mysql://vms:vms_password@db:3306/vms_db
+         DATABASE_HOST: db
+         DATABASE_PORT: 3306
+         DATABASE_USER: vms
+         DATABASE_PASSWORD: vms_password
+         DATABASE_NAME: vms_db
+
+         SESSION_DB_HOST: db
+         SESSION_DB_PORT: 3306
+         SESSION_DB_USER: vms
+         SESSION_DB_PASSWORD: vms_password
+         SESSION_DB_NAME: vms_db
+         SESSION_SECRET: dev-session-secret-change-me
+      ports:
+         - '5000:5000'
+
+   client:
+      build:
+         context: ./client
+         target: dev
+      restart: unless-stopped
+      depends_on:
+         - api
+      # Dev-bypass flag defaults live here.
+      env_file:
+         - ./client/.env.example
+      environment:
+         NODE_ENV: development
+         # Browser → API (published port on the host).
+         NEXT_PUBLIC_API_URL: http://localhost:5000/api
+         # Server-side rendering → API (compose network).
+         INTERNAL_API_URL: http://api:5000/api
+         # Skip the login screen. Set both to 'false' to require sign-in again.
+         DEV_BYPASS_AUTH: 'true'
+         NEXT_PUBLIC_DEV_BYPASS_AUTH: 'true'
+      volumes:
+         # Live reload from the host; node_modules/.next stay container-only.
+         - ./client:/app
+         - /app/node_modules
+         - /app/.next
+      ports:
+         - '3000:3000'
+
+
+volumes:
+   db-data:

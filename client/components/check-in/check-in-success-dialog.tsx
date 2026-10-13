@@ -11,6 +11,7 @@ import {
 import { CheckIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { CheckInResponse } from '@/types/visit.types';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 type CheckInSuccessDialogProps = {
    open: boolean;
@@ -39,6 +40,7 @@ export function CheckInSuccessDialog({
    onBackToDashboard,
    onRegisterAnother,
 }: CheckInSuccessDialogProps) {
+   const { t } = useTranslation();
    return (
       <AlertDialog open={open} onOpenChange={onOpenChange}>
          <AlertDialogContent className="gap-5 p-6 sm:max-w-sm">
@@ -47,7 +49,7 @@ export function CheckInSuccessDialog({
                   <CheckIcon className="size-4" />
                </AlertDialogMedia>
                <AlertDialogTitle className="text-center text-lg">
-                  Visitor Checked In Successfully
+                  {t('deskCheckIn.success.title')}
                </AlertDialogTitle>
                <AlertDialogDescription className="max-w-xs text-center text-sm">
                   {data?.visitorName} has been successfully checked in and
@@ -79,14 +81,14 @@ export function CheckInSuccessDialog({
                   className="w-full h-8 text-sm"
                   onClick={onBackToDashboard}
                >
-                  Back to Dashboard
+                  {t('deskCheckIn.success.backToDashboard')}
                </Button>
                <AlertDialogCancel
                   variant="default"
                   className="w-full h-8 text-sm"
                   onClick={onRegisterAnother}
                >
-                  Register Another Visitor
+                  {t('deskCheckIn.success.registerAnother')}
                </AlertDialogCancel>
             </AlertDialogFooter>
          </AlertDialogContent>

@@ -9,32 +9,63 @@ import {
    SelectTrigger,
    SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-   MEETING_TYPE_OPTIONS,
-   type MeetingTypeValue,
-} from '@/constants/meeting-types';
-import {
-   MANAGED_VISIT_STATUS_LABELS,
-   VISIT_DEPARTMENTS,
-} from '@/data/mock-visits';
+   VISIT_SOURCE_OPTIONS,
+   type VisitSourceValue,
+} from '@/constants/visit-sources';
+import { VISIT_STATUS_FILTER_OPTIONS } from '@/constants/visit-status';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { ManagedVisitStatus } from '@/types/visit.types';
 import { ScanLine, Search, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
 import { ScanDialog } from './scan-dialog';
 
+type StatusFilterValue =
+   | 'all'
+   | (typeof VISIT_STATUS_FILTER_OPTIONS)[number]['value'];
+
+const STATUS_FILTER_LABELS: Record<
+   Exclude<StatusFilterValue, 'all'>,
+   TranslationKey
+> = {
+   requested: 'status.pending',
+   approved: 'status.approved',
+   rejected: 'status.rejected',
+   expired: 'status.expired',
+   rescheduled: 'status.rescheduled',
+   cancelled: 'status.cancelled',
+   checked_in: 'status.checkedIn',
+   checked_out: 'status.checkedOut',
+};
+
+const STATUS_FILTER_OPTIONS: {
+   value: StatusFilterValue;
+   labelKey: TranslationKey;
+}[] = [
+   { value: 'all', labelKey: 'common.all' },
+   ...VISIT_STATUS_FILTER_OPTIONS.map(({ value }) => ({
+      value,
+      labelKey: STATUS_FILTER_LABELS[value],
+   })),
+];
+
+const TOGGLE_OPTIONS = STATUS_FILTER_OPTIONS.map((opt) => ({
+   key: `status:${opt.value}`,
+   labelKey: opt.labelKey,
+   value: opt.value,
+}));
+
 type VisitsTableFiltersProps = {
    onScanBadge?: () => void;
-   onScanVisitorQr?: () => void;
-   onFindVisit?: () => void;
 };
 
 export function VisitsTableFilters({
    onScanBadge,
-   onScanVisitorQr,
-   onFindVisit,
 }: VisitsTableFiltersProps) {
+   const { t } = useTranslation();
    const router = useRouter();
    const pathname = usePathname();
    const searchParams = useSearchParams();
@@ -42,10 +73,11 @@ export function VisitsTableFilters({
 
    const search = searchParams.get('search') ?? '';
    const statusFilter =
-      (searchParams.get('status') as ManagedVisitStatus | 'all') || 'all';
-   const departmentFilter = searchParams.get('department') || 'all';
-   const meetingTypeFilter =
-      (searchParams.get('meetingType') as MeetingTypeValue | 'all') || 'all';
+      (searchParams.get('status') as StatusFilterValue) || 'all';
+   const visitSourceFilter =
+      (searchParams.get('source') as VisitSourceValue | 'all') || 'all';
+
+   const activeToggleKey = `status:${statusFilter}`;
 
    const [searchInput, setSearchInput] = React.useState(search);
    const debouncedSearch = useDebounce(searchInput, 300);
@@ -87,31 +119,29 @@ export function VisitsTableFilters({
       // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [debouncedSearch]);
 
-   const hasActiveFilters =
-      Boolean(search) ||
-      statusFilter !== 'all' ||
-      departmentFilter !== 'all' ||
-      meetingTypeFilter !== 'all';
+   const hasActiveFilters = Array.from(searchParams.keys()).some(
+      (key) => key !== 'page' && key !== 'pageSize',
+   );
 
    const clearAllFilters = () => {
       setSearchInput('');
-      updateParams({
-         search: null,
-         status: null,
-         department: null,
-         meetingType: null,
-         page: 1,
-      });
+      lastPushedSearch.current = '';
+
+      const params = new URLSearchParams();
+      const pageSize = searchParams.get('pageSize');
+      if (pageSize) params.set('pageSize', pageSize);
+      params.set('page', '1');
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
    };
 
    return (
       <>
          <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-               <div className="relative w-full sm:max-w-xs">
+               <div className="relative w-full sm:max-w-xs p-1">
                   <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                     placeholder="Search visitor or visit ID…"
+                     placeholder={t('visits.filters.searchPlaceholder')}
                      value={searchInput}
                      onChange={(e) => setSearchInput(e.target.value)}
                      className="h-9 bg-background pl-8"
@@ -119,65 +149,75 @@ export function VisitsTableFilters({
                </div>
 
                <Select
-                  value={departmentFilter}
+                  value={visitSourceFilter}
                   onValueChange={(value) =>
-                     updateParams({ department: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[180px]">
-                     <SelectValue placeholder="Department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All departments</SelectItem>
-                     {VISIT_DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                           {dept}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
-
-               <Select
-                  value={statusFilter}
-                  onValueChange={(value) =>
-                     updateParams({ status: value, page: 1 })
+                     updateParams({ source: value, page: 1 })
                   }
                >
                   <SelectTrigger className="h-9 w-full bg-background sm:w-[160px]">
-                     <SelectValue placeholder="Status" />
+                     <div className="flex items-center gap-2">
+                        <SelectValue
+                           placeholder={t('visits.filters.visitSource')}
+                        />
+                     </div>
                   </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All statuses</SelectItem>
-                     {(
-                        Object.keys(
-                           MANAGED_VISIT_STATUS_LABELS,
-                        ) as ManagedVisitStatus[]
-                     ).map((status) => (
-                        <SelectItem key={status} value={status}>
-                           {MANAGED_VISIT_STATUS_LABELS[status]}
-                        </SelectItem>
-                     ))}
+                  <SelectContent
+                     align="start"
+                     className="data-[state=open]:slide-in-from-bottom-8 data-[state=open]:zoom-in-100 duration-400"
+                  >
+                     <SelectItem value="all">
+                        {t('visits.filters.allVisitSources')}
+                     </SelectItem>
+                     {VISIT_SOURCE_OPTIONS.map((source) => {
+                        return (
+                           <SelectItem key={source.value} value={source.value}>
+                              <span className="truncate">
+                                 {t(source.labelKey)}
+                              </span>
+                           </SelectItem>
+                        );
+                     })}
                   </SelectContent>
                </Select>
 
-               <Select
-                  value={meetingTypeFilter}
-                  onValueChange={(value) =>
-                     updateParams({ meetingType: value, page: 1 })
-                  }
-               >
-                  <SelectTrigger className="h-9 w-full bg-background sm:w-[170px]">
-                     <SelectValue placeholder="Meeting type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                     <SelectItem value="all">All meeting types</SelectItem>
-                     {MEETING_TYPE_OPTIONS.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                           {type.label}
-                        </SelectItem>
-                     ))}
-                  </SelectContent>
-               </Select>
+               <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+                  <ToggleGroup
+                     type="single"
+                     value={activeToggleKey}
+                     onValueChange={(val) => {
+                        if (!val) return;
+                        const [, value] = val.split(':');
+                        updateParams({ status: value, page: 1 });
+                     }}
+                     className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto justify-start"
+                  >
+                     {TOGGLE_OPTIONS.map((option) => {
+                        const isActive = activeToggleKey === option.key;
+                        return (
+                           <ToggleGroupItem
+                              key={option.key}
+                              value={option.key}
+                              className="relative px-3.5 py-1.5 h-8.5 rounded-lg! border-0 text-sm font-medium transition-colors bg-muted/90 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer outline-none first:rounded-lg last:rounded-lg data-[state=on]:bg-transparent data-[state=on]:text-primary-foreground"
+                           >
+                              <span className="relative z-10">
+                                 {t(option.labelKey)}
+                              </span>
+                              {isActive && (
+                                 <motion.div
+                                    layoutId="active-status-pill"
+                                    className="absolute inset-0 bg-primary rounded-lg z-0"
+                                    transition={{
+                                       type: 'spring',
+                                       stiffness: 380,
+                                       damping: 30,
+                                    }}
+                                 />
+                              )}
+                           </ToggleGroupItem>
+                        );
+                     })}
+                  </ToggleGroup>
+               </div>
 
                {hasActiveFilters && (
                   <Button
@@ -187,27 +227,25 @@ export function VisitsTableFilters({
                      onClick={clearAllFilters}
                   >
                      <X className="size-3.5" />
-                     Clear
+                     {t('common.clear')}
                   </Button>
                )}
             </div>
 
             <Button
+               className="text-white bg-blue-500 hover:bg-blue-500/80 relative overflow-hidden before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.7)_50%,transparent_75%,transparent_100%)] before:bg-[length:250%_250%,100%_100%] before:bg-[position:200%_0,0_0] before:bg-no-repeat before:transition-[background-position_0s_ease] before:duration-1000 hover:before:bg-[position:-100%_0,0_0] dark:before:bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.5)_50%,transparent_75%,transparent_100%)] cursor-pointer"
                size="sm"
-               className="h-9 gap-2 self-start lg:self-auto"
                onClick={() => setScanOpen(true)}
             >
                <ScanLine className="size-4" />
-               Scan
+               {t('visits.filters.scan')}
             </Button>
          </div>
 
          <ScanDialog
             open={scanOpen}
             onOpenChange={setScanOpen}
-            onFindVisit={onFindVisit}
             onScanBadge={onScanBadge}
-            onScanVisitorQr={onScanVisitorQr}
          />
       </>
    );

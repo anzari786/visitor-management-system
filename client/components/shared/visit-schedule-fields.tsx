@@ -11,6 +11,7 @@ import {
    FieldLabel,
 } from '@/components/ui/field';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useTranslation } from '@/lib/i18n';
 
 type ScheduleFormFields = {
    scheduleType: 'single_day' | 'multi_day';
@@ -42,6 +43,7 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
    form,
    idPrefix = 'schedule',
 }: VisitScheduleFieldsProps<T>) {
+   const { t } = useTranslation();
    const scheduleType = form.watch('scheduleType' as Path<T>) as
       | 'single_day'
       | 'multi_day';
@@ -51,7 +53,7 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
    return (
       <FieldGroup className="gap-4">
          <Field>
-            <FieldLabel>Schedule Type</FieldLabel>
+            <FieldLabel>{t('schedule.type')}</FieldLabel>
             <Tabs
                value={scheduleType}
                onValueChange={(value) =>
@@ -63,10 +65,10 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
             >
                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="single_day" className="cursor-pointer">
-                     Single Day
+                     {t('schedule.singleDay')}
                   </TabsTrigger>
                   <TabsTrigger value="multi_day" className="cursor-pointer">
-                     Multi-Day
+                     {t('schedule.multiDay')}
                   </TabsTrigger>
                </TabsList>
             </Tabs>
@@ -79,10 +81,10 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                render={({ field }) => (
                   <DatePickerField
                      id={`${idPrefix}-visitDate`}
-                     label="Visit Date"
+                     label={t('schedule.visitDate')}
                      value={field.value as Date | undefined}
                      onChange={field.onChange}
-                     placeholder="Select visit date"
+                     placeholder={t('schedule.selectVisitDate')}
                      error={fieldErrorMessage(errors.visitDate)}
                   />
                )}
@@ -95,7 +97,7 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                   render={({ field }) => (
                      <DatePickerField
                         id={`${idPrefix}-startDate`}
-                        label="Start Date"
+                        label={t('schedule.startDate')}
                         value={field.value as Date | undefined}
                         onChange={(date) => {
                            field.onChange(date);
@@ -112,7 +114,7 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                               }
                            }
                         }}
-                        placeholder="Select start date"
+                        placeholder={t('schedule.selectStartDate')}
                         error={fieldErrorMessage(errors.startDate)}
                      />
                   )}
@@ -123,10 +125,10 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                   render={({ field }) => (
                      <DatePickerField
                         id={`${idPrefix}-endDate`}
-                        label="End Date"
+                        label={t('schedule.endDate')}
                         value={field.value as Date | undefined}
                         onChange={field.onChange}
-                        placeholder="Select end date"
+                        placeholder={t('schedule.selectEndDate')}
                         error={fieldErrorMessage(errors.endDate)}
                         disabledDate={(date) => {
                            if (date < startOfDay(new Date())) return true;
@@ -148,7 +150,8 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                render={({ field }) => (
                   <Field>
                      <FieldLabel htmlFor={`${idPrefix}-startTime`}>
-                        Start Time <span className="text-destructive">*</span>
+                        {t('schedule.startTime')}{' '}
+                        <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Input
                         id={`${idPrefix}-startTime`}
@@ -171,7 +174,8 @@ export function VisitScheduleFields<T extends FieldValues & ScheduleFormFields>(
                render={({ field }) => (
                   <Field>
                      <FieldLabel htmlFor={`${idPrefix}-endTime`}>
-                        End Time <span className="text-destructive">*</span>
+                        {t('schedule.endTime')}{' '}
+                        <span className="text-destructive">*</span>
                      </FieldLabel>
                      <Input
                         id={`${idPrefix}-endTime`}

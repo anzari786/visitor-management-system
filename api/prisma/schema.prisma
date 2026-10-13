@@ -40,6 +40,7 @@ enum VisitStatus {
   PENDING_APPROVAL
   APPROVED
   REJECTED
+  EXPIRED
   RESCHEDULED
   CANCELLED
   PARTIALLY_CHECKED_IN
@@ -164,7 +165,6 @@ model User {
   /// Local auth credentials. Never store plaintext passwords.
   username           String?   @unique
   passwordHash       String?
-  mustChangePassword Boolean   @default(false)
   lastLoginAt        DateTime?
 
   isActive  Boolean  @default(true)
@@ -222,13 +222,14 @@ model Employee {
   phone     String?
   position  String?
 
-  /// Default office location used when a host creates an invitation.
+    /// Default office location used when a host creates an invitation.
   defaultFloor String?
   defaultRoom  String?
 
   /// Department comes from HR sync — stored as values, not a separate table.
   departmentName String
   departmentCode String?
+  departmentId   Int?
 
   isActive     Boolean  @default(true)
   lastSyncedAt DateTime @default(now())
@@ -237,11 +238,33 @@ model Employee {
 
   user   User?
   visits Visit[] @relation("VisitHost")
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
 
+  @@index([departmentId])
   @@index([departmentName])
   @@index([isActive])
   @@index([lastName, firstName])
   @@map("employees")
+}
+
+// ── Department (synchronized from the HR / directory feed) ────────────────
+
+model Department {
+  id                   Int        @id @default(autoincrement())
+  externalDepartmentId String     @unique
+  name                 String
+  code                 String?
+  isActive             Boolean    @default(true)
+  lastSyncedAt         DateTime   @default(now())
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  employees Employee[]
+
+  @@index([name])
+  @@index([code])
+  @@index([isActive])
+  @@map("departments")
 }
 
 // ── Visitor ────────────────────────────────────────────────────────────────
@@ -253,12 +276,13 @@ model Visitor {
   lastName     String
   email        String?
   phone        String?
+  nationality  String?
   organization String?
   subCity      String?
   woreda       String?
   houseNumber  String?
 
-  /// Collected on public/reception requests; may be filled at check-in for invitations.
+  /// Collected and verified at check-in for all visit types.
   idType   IdType?
   idNumber String?
 
@@ -324,11 +348,11 @@ model Visit {
 
   days          VisitDay[]
   participants  VisitParticipant[]
-  invitation    VisitInvitation?
   statusHistory VisitStatusHistory[]
   notifications Notification[]
 
   @@index([status])
+  @@index([status, endDate])
   @@index([source])
   @@index([hostEmployeeId])
   @@index([departmentNameSnapshot])
@@ -336,21 +360,6 @@ model Visit {
   @@index([purpose])
   @@index([createdAt])
   @@map("visits")
-}
-
-/// Secure registration link for host invitations with unknown visitors.
-model VisitInvitation {
-  id        Int       @id @default(autoincrement())
-  visitId   Int       @unique
-  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  @@index([expiresAt])
-  @@map("visit_invitations")
 }
 
 /// One calendar day within a (possibly multi-day) visit.

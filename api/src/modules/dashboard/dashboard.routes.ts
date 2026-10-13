@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { requireRole } from '../../middleware/permission.middleware.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
+   exportVisitLog,
    getGrowth,
    getMeetingTypes,
    getStats,
@@ -10,6 +12,7 @@ import {
 import {
    chartRangeSchema,
    dashboardStatsSchema,
+   exportVisitLogSchema,
    visitGrowthSchema,
 } from './dashboard.validation.js';
 
@@ -28,5 +31,13 @@ router.get('/meeting-types', validate(chartRangeSchema), getMeetingTypes);
 
 /** VisitStatus breakdown (includes partial check-in/out). */
 router.get('/visit-statuses', validate(chartRangeSchema), getVisitStatuses);
+
+/** CSV export of visit log data with dashboard filters. */
+router.get(
+   '/export',
+   requireRole('ADMIN'),
+   validate(exportVisitLogSchema),
+   exportVisitLog,
+);
 
 export default router;

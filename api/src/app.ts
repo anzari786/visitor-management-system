@@ -2,15 +2,22 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { sessionMiddleware } from './config/session.js';
+import { env } from './config/env.js';
 import type { NextFunction, Request, Response } from 'express';
 import routes from './routes/index.js';
 import { HttpError } from './lib/errors.js';
 
 const app = express();
 
+// Comma-separated so a deployment can allow more than one front-end origin.
+const allowedOrigins = (env.CLIENT_URL ?? 'http://localhost:3000')
+   .split(',')
+   .map((origin) => origin.trim())
+   .filter(Boolean);
+
 app.use(
    cors({
-      origin: ['http://localhost:3000'],
+      origin: allowedOrigins,
       credentials: true,
    }),
 );

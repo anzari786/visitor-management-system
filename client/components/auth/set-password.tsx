@@ -1,0 +1,223 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import {
+   Card,
+   CardContent,
+   CardDescription,
+   CardHeader,
+   CardTitle,
+} from '@/components/ui/card';
+import {
+   Dialog,
+   DialogContent,
+   DialogDescription,
+   DialogHeader,
+   DialogTitle,
+} from '@/components/ui/dialog';
+import { PasswordInput } from '@/components/profile/password-input';
+import { useCompletePasswordSetup } from '@/hooks/use-auth';
+import {
+   completePasswordSetupSchema,
+   type CompletePasswordSetupFormValues,
+} from '@/lib/validations/auth.schema';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2Icon, Clock3, KeyRound, Link2Off } from 'lucide-react';
+import { AxiosError } from 'axios';
+import { useRouter } from 'next/navigation';
+import { Controller, useForm } from 'react-hook-form';
+import { useState } from 'react';
+import type { ApiErrorResponse } from '@/types/api.types';
+import Image from 'next/image';
+import { useTranslation } from '@/lib/i18n';
+import LanguageDropdown from '@/components/shared/language-dropdown';
+
+type ResultState = 'success' | 'expired' | 'invalid' | null;
+
+type SetPasswordProps = {
+   token: string;
+};
+
+const SetPassword = ({ token }: SetPasswordProps) => {
+   const { t } = useTranslation();
+   const router = useRouter();
+   const setupToken = token.trim() || null;
+   const [resultState, setResultState] = useState<ResultState>(
+      setupToken ? null : 'invalid',
+   );
+   const { mutateAsync: completePasswordSetup, isPending: isSetupPending } =
+      useCompletePasswordSetup();
+   const isPending = isSetupPending;
+
+   const {
+      control,
+      handleSubmit,
+      formState: { errors },
+   } = useForm<CompletePasswordSetupFormValues>({
+      resolver: zodResolver(completePasswordSetupSchema),
+      defaultValues: {
+         newPassword: '',
+         confirmPassword: '',
+      },
+   });
+
+   const onSubmit = handleSubmit(async (values) => {
+      if (!setupToken) {
+         setResultState('invalid');
+         return;
+      }
+
+      try {
+         await completePasswordSetup({
+            token: setupToken,
+            password: values.newPassword,
+         });
+         setResultState('success');
+      } catch (error) {
+         const code =
+            error instanceof AxiosError
+               ? (error.response?.data as ApiErrorResponse | undefined)?.code
+               : undefined;
+         setResultState(code === 'EXPIRED_SETUP_TOKEN' ? 'expired' : 'invalid');
+      }
+   });
+
+   const resultCopy = {
+      success: {
+         title: t('auth.setPassword.successTitle'),
+         description: t('auth.setPassword.successDescription'),
+         icon: CheckCircle2Icon,
+         iconClass: 'bg-teal-400/10 text-teal-400',
+         action: t('auth.setPassword.goToLogin'),
+      },
+      expired: {
+         title: t('auth.setPassword.expiredTitle'),
+         description: t('auth.setPassword.expiredDescription'),
+         icon: Clock3,
+         iconClass: 'bg-amber-400/10 text-amber-500',
+         action: t('auth.setPassword.goToLogin'),
+      },
+      invalid: {
+         title: t('auth.setPassword.invalidTitle'),
+         description: t('auth.setPassword.invalidDescription'),
+         icon: Link2Off,
+         iconClass: 'bg-rose-400/10 text-rose-500',
+         action: t('auth.setPassword.goToLogin'),
+      },
+   } as const;
+   const result = resultState ? resultCopy[resultState] : null;
+   const ResultIcon = result?.icon;
+
+   return (
+      <>
+         <div className="flex items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
+            <Card className="mx-auto w-full max-w-md rounded-4xl border border-border bg-card/85 px-4 py-8 shadow-2xs shadow-primary/10 backdrop-blur-xl sm:px-6 sm:py-10 ">
+               <div className="flex w-full justify-end">
+                  <LanguageDropdown align="end" />
+               </div>
+               <CardHeader className=" px-0 pb-1.5 text-center sm:pb-3">
+                  <Image
+                     src="/logo.png"
+                     alt="ATI Logo"
+                     width={96}
+                     height={96}
+                     priority
+                     className="mx-auto block h-12 w-12 object-contain sm:h-14 sm:w-14"
+                  />
+                  <CardTitle className="text-balance text-xl font-semibold text-foreground sm:text-2xl">
+                     {t('auth.setPassword.title')}
+                  </CardTitle>
+                  <CardDescription className="text-pretty text-sm text-muted-foreground">
+                     {t('auth.setPassword.description')}
+                  </CardDescription>
+               </CardHeader>
+               <CardContent className="px-0">
+                  <form onSubmit={onSubmit} className="grid gap-5 sm:gap-6">
+                     <div className="flex flex-col gap-4">
+                        <Controller
+                           control={control}
+                           name="newPassword"
+                           render={({ field }) => (
+                              <PasswordInput
+                                 id="set-password-new"
+                                 label={t('auth.setPassword.newPassword')}
+                                 placeholder={t(
+                                    'auth.setPassword.newPasswordPlaceholder',
+                                 )}
+                                 autoComplete="new-password"
+                                 showStrength
+                                 error={errors.newPassword?.message}
+                                 {...field}
+                              />
+                           )}
+                        />
+                        <Controller
+                           control={control}
+                           name="confirmPassword"
+                           render={({ field }) => (
+                              <PasswordInput
+                                 id="set-password-confirm"
+                                 label={t('auth.setPassword.confirmPassword')}
+                                 placeholder={t(
+                                    'auth.setPassword.confirmPasswordPlaceholder',
+                                 )}
+                                 autoComplete="new-password"
+                                 error={errors.confirmPassword?.message}
+                                 {...field}
+                              />
+                           )}
+                        />
+                     </div>
+
+                     <Button
+                        type="submit"
+                        className="w-full"
+                        disabled={isPending}
+                     >
+                        {isPending
+                           ? t('auth.setPassword.submitting')
+                           : t('auth.setPassword.submit')}
+                     </Button>
+                  </form>
+               </CardContent>
+            </Card>
+         </div>
+         <Dialog
+            open={resultState !== null}
+            onOpenChange={(open) => !open && setResultState(null)}
+         >
+            <DialogContent
+               className="sm:max-w-xs data-open:zoom-in-50! data-closed:zoom-out-50 duration-300 [[data-slot=dialog-overlay]:has(~_&)]:duration-300"
+               showCloseButton={false}
+            >
+               {result && ResultIcon ? (
+                  <div className="flex flex-col items-center gap-4 py-2 text-center">
+                     <div
+                        className={`flex size-16 items-center justify-center rounded-full ${result.iconClass}`}
+                     >
+                        <ResultIcon size={32} strokeWidth={1.5} />
+                     </div>
+                     <DialogHeader className="items-center">
+                        <DialogTitle className="text-lg">
+                           {result.title}
+                        </DialogTitle>
+                        <DialogDescription>
+                           {result.description}
+                        </DialogDescription>
+                     </DialogHeader>
+                     <Button
+                        type="button"
+                        className="w-full cursor-pointer hover:bg-primary/80"
+                        onClick={() => router.push('/login')}
+                     >
+                        {result.action}
+                     </Button>
+                  </div>
+               ) : null}
+            </DialogContent>
+         </Dialog>
+      </>
+   );
+};
+
+export default SetPassword;

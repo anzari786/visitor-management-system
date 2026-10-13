@@ -52,6 +52,7 @@ export const visitDetailSelect = {
                lastName: true,
                phone: true,
                email: true,
+               nationality: true,
                organization: true,
                subCity: true,
                woreda: true,
@@ -85,13 +86,6 @@ export const visitDetailSelect = {
          },
       },
       orderBy: { createdAt: 'desc' },
-   },
-   invitation: {
-      select: {
-         expiresAt: true,
-         revokedAt: true,
-         createdAt: true,
-      },
    },
 } satisfies Prisma.VisitSelect;
 
@@ -127,13 +121,30 @@ export const visitSummarySelect = {
    },
    participants: {
       select: {
+         id: true,
          visitor: {
-            select: { firstName: true, lastName: true, phone: true },
+            select: {
+               firstName: true,
+               lastName: true,
+               phone: true,
+                  email: true,
+               nationality: true,
+                  organization: true,
+            },
+         },
+         attendances: {
+            select: {
+               id: true,
+               status: true,
+               checkInAt: true,
+               checkOutAt: true,
+               visitDay: { select: { id: true, date: true } },
+            },
          },
       },
    },
    days: {
-      select: { date: true },
+      select: { id: true, date: true },
       orderBy: { date: 'asc' },
    },
 } satisfies Prisma.VisitSelect;
@@ -147,6 +158,7 @@ export interface VisitorInputForVisit {
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    subCity?: string;
    woreda?: string;
@@ -154,6 +166,36 @@ export interface VisitorInputForVisit {
    idType?: IdType;
    idNumber?: string;
 }
+
+export interface RegisterVisitorInput {
+   visitParticipantId?: number;
+   firstName: string;
+   lastName: string;
+   phone: string;
+   email?: string;
+   nationality?: string;
+   organization?: string;
+}
+
+export interface RegistrationResult {
+   participantId: number;
+   visitorId: number;
+   visitId: number;
+   visitor: {
+      id: number;
+      firstName: string;
+      lastName: string;
+      phone: string | null;
+      email: string | null;
+      nationality: string | null;
+      organization: string | null;
+   };
+}
+
+export type VisitTransactionClient = Omit<
+   Prisma.TransactionClient,
+   '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
+>;
 
 export interface ScheduleDateInput {
    date: Date;
@@ -195,9 +237,6 @@ export interface RescheduleVisitInput {
    note?: string;
 }
 
-import type { InvitationCreated } from './visit-registration.types.js';
-
 export interface CreateVisitResult {
    visit: VisitDetail;
-   registrationInvitation?: InvitationCreated;
 }

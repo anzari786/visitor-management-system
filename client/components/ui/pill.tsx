@@ -2,7 +2,6 @@
 
 import { ChevronDownIcon, ChevronUpIcon, MinusIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,21 +21,6 @@ export const Pill = ({
       variant={variant}
       {...(props as any)}
    />
-);
-
-export type PillAvatarProps = ComponentProps<typeof AvatarImage> & {
-   fallback?: string;
-};
-
-export const PillAvatar = ({
-   fallback,
-   className,
-   ...props
-}: PillAvatarProps) => (
-   <Avatar className={cn('-ml-1 h-4 w-4', className)}>
-      <AvatarImage {...(props as any)} />
-      <AvatarFallback>{fallback}</AvatarFallback>
-   </Avatar>
 );
 
 export type PillButtonProps = ComponentProps<typeof Button>;
@@ -143,28 +127,6 @@ export const PillIcon = ({
       size={12}
       {...(props as any)}
    />
-);
-
-export interface PillAvatarGroupProps {
-   children: ReactNode;
-   className?: string;
-}
-
-export const PillAvatarGroup = ({
-   children,
-   className,
-   ...props
-}: PillAvatarGroupProps) => (
-   <div
-      className={cn(
-         '-space-x-1 flex items-center',
-         '[&>*:not(:first-of-type)]:[mask-image:radial-gradient(circle_9px_at_-4px_50%,transparent_99%,white_100%)]',
-         className,
-      )}
-      {...(props as any)}
-   >
-      {children}
-   </div>
 );
 
 // Demo

@@ -9,10 +9,10 @@ export type User = {
    firstName: string;
    lastName: string;
    username: string;
+   email?: string;
    phone?: string;
    role: UserRole;
    isActive: boolean;
-   mustChangePassword: boolean; // true when admin creates/resets the account
    lastLoginAt?: string;
    createdAt: string;
    checkIns: number;
@@ -27,6 +27,25 @@ export type User = {
       defaultFloor?: string;
       defaultRoom?: string;
    };
+};
+
+export type UserApiRecord = {
+   id: string;
+   authProvider: 'LOCAL' | 'SSO';
+   firstName: string;
+   lastName: string;
+   email?: string;
+   phone?: string;
+   username?: string;
+   isActive: boolean;
+   passwordSetupPending?: boolean;
+   checkIns?: number;
+   checkOuts?: number;
+   lastLoginAt?: string;
+   createdAt: string;
+   updatedAt?: string;
+   employee?: User['employee'];
+   roles: UserRole[] | Array<{ name: UserRole }>;
 };
 
 export type UsersParams = {
@@ -45,30 +64,39 @@ export type UsersPaginatedData = {
    pageCount: number;
 };
 
-export type CreateUserPayload = {
-   firstName: string;
-   lastName: string;
-   username: string;
-   phone?: string;
-   role: UserRole;
-   password: string;
-};
+export type CreateUserPayload =
+   | {
+        authProvider: 'LOCAL';
+        firstName: string;
+        lastName: string;
+        email?: string;
+        phone?: string;
+        username: string;
+        roles: UserRole[];
+     }
+   | {
+        authProvider: 'SSO';
+        employeeId: number;
+        roles: UserRole[];
+     };
 
 export type UpdateUserPayload = {
    id: number;
    firstName: string;
    lastName: string;
    username: string;
+   email?: string;
    phone?: string;
    role: UserRole;
 };
 
 export type ResetPasswordData = {
-   tempPassword: string;
+   expiresAt: string;
 };
 
 export type ChangeUserRolePayload = {
    id: number;
+   currentRole?: UserRole;
    role: UserRole;
 };
 

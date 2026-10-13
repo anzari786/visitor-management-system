@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Eye, EyeClosed, X } from 'lucide-react';
 import * as React from 'react';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 type PasswordInputProps = Omit<
    React.ComponentProps<typeof Input>,
@@ -18,18 +19,21 @@ type PasswordInputProps = Omit<
 
 const validations = [
    {
-      text: 'At least 8 characters',
+      textKey: 'password.ruleMinLength',
       test: (password: string) => password.length >= 8,
    },
    {
-      text: 'Contains a number',
+      textKey: 'password.ruleNumber',
       test: (password: string) => /\d/.test(password),
    },
    {
-      text: 'Contains uppercase letter',
+      textKey: 'password.ruleUppercase',
       test: (password: string) => /[A-Z]/.test(password),
    },
-] as const;
+] as const satisfies readonly {
+   textKey: TranslationKey;
+   test: (password: string) => boolean;
+}[];
 
 function getStrengthColor(score: number) {
    if (score === 0) return 'bg-muted';
@@ -38,11 +42,11 @@ function getStrengthColor(score: number) {
    return 'bg-teal-500';
 }
 
-function getStrengthText(score: number) {
-   if (score === 0) return '';
-   if (score === 1) return 'Weak';
-   if (score === 2) return 'Moderate';
-   return 'Strong';
+function getStrengthTextKey(score: number): TranslationKey | null {
+   if (score === 0) return null;
+   if (score === 1) return 'password.strengthWeak';
+   if (score === 2) return 'password.strengthModerate';
+   return 'password.strengthStrong';
 }
 
 function getStrengthTextColor(score: number) {
@@ -61,13 +65,15 @@ export function PasswordInput({
    className,
    ...props
 }: PasswordInputProps) {
+   const { t } = useTranslation();
    const [showPassword, setShowPassword] = React.useState(false);
    const password = typeof value === 'string' ? value : '';
    const results = validations.map((item) => ({
-      text: item.text,
+      textKey: item.textKey,
       valid: item.test(password),
    }));
    const strength = results.filter((item) => item.valid).length;
+   const strengthKey = getStrengthTextKey(strength);
 
    return (
       <div className="w-full space-y-3">
@@ -88,7 +94,11 @@ export function PasswordInput({
                   size="icon"
                   className="absolute top-0 right-0 h-full px-3 hover:bg-transparent"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={t(
+                     showPassword
+                        ? 'password.hidePassword'
+                        : 'password.showPassword',
+                  )}
                >
                   {showPassword ? (
                      <Eye className="size-4 text-muted-foreground" />
@@ -97,7 +107,11 @@ export function PasswordInput({
                   )}
                </Button>
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && (
+               <p className="text-sm text-destructive">
+                  {t(error as TranslationKey)}
+               </p>
+            )}
          </div>
 
          {showStrength && (
@@ -116,10 +130,10 @@ export function PasswordInput({
                   </div>
                   <div className="flex items-center justify-between text-xs font-medium">
                      <span className="text-muted-foreground">
-                        Password must contain
+                        {t('password.mustContain')}
                      </span>
                      <span className={getStrengthTextColor(strength)}>
-                        {getStrengthText(strength)}
+                        {strengthKey ? t(strengthKey) : ''}
                      </span>
                   </div>
                </div>
@@ -127,7 +141,7 @@ export function PasswordInput({
                <div className="space-y-1.5 pt-1">
                   {results.map((validation) => (
                      <div
-                        key={validation.text}
+                        key={validation.textKey}
                         className={cn(
                            'flex items-center gap-2 text-sm transition-colors duration-200',
                            validation.valid
@@ -140,7 +154,9 @@ export function PasswordInput({
                         ) : (
                            <X className="size-3.5" />
                         )}
-                        <span className="text-[13px]">{validation.text}</span>
+                        <span className="text-[13px]">
+                           {t(validation.textKey)}
+                        </span>
                      </div>
                   ))}
                </div>

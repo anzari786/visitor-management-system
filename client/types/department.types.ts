@@ -1,27 +1,10 @@
 export type Department = {
    id: number;
+   externalDepartmentId: string;
    name: string;
-   shortName?: string;
-   color: string;
+   code?: string;
    isActive: boolean;
+   lastSyncedAt: string;
    createdAt: string;
-   totalVisits: number;
-};
-
-export type CreateDepartmentPayload = {
-   name: string;
-   shortName?: string;
-   color: string;
-};
-
-export type ToggleDepartmentStatusPayload = {
-   id: number;
-   isActive: boolean;
-};
-
-export type UpdateDepartmentPayload = {
-   id: number;
-   name: string;
-   shortName?: string;
-   color: string;
+   updatedAt: string;
 };

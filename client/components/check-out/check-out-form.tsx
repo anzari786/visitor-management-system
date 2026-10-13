@@ -34,6 +34,7 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from '../reui/alert';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../ui/input-otp';
 import { useActiveBadge, useCheckOutVisit } from '@/hooks/use-visits';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 const STEP_FIELDS: (keyof CheckOutFormValues)[][] = [
    ['badgeNumber'],
@@ -80,6 +81,7 @@ function buildSummary(data?: BadgeLookupResponse) {
 }
 
 const VisitorCheckOutForm = () => {
+   const { t } = useTranslation();
    const [currentStep, setCurrentStep] = useState(0);
    const [direction, setDirection] = useState<number>();
    const [typedDigits, setTypedDigits] = useState('');
@@ -125,7 +127,7 @@ const VisitorCheckOutForm = () => {
             ...values,
             badgeNumber: Number(values.badgeNumber),
          });
-         toast.success('Visitor checked out successfully');
+         toast.success(t('deskCheckOut.toast.success'));
          handleReset();
       } catch (error) {
          const message =
@@ -224,11 +226,9 @@ const VisitorCheckOutForm = () => {
                      {!isBadgeLoading && isBadgeError && isBadgeComplete && (
                         <Alert variant="destructive">
                            <CircleAlertIcon />
-                           <AlertTitle>Visitor Not Found</AlertTitle>
+                           <AlertTitle>{t('deskCheckOut.notFound')}</AlertTitle>
                            <AlertDescription>
-                              No active visitor is currently assigned to this
-                              badge number. Please verify the badge and try
-                              again.
+                              {t('deskCheckOut.notFoundHint')}
                            </AlertDescription>
                         </Alert>
                      )}
@@ -256,10 +256,10 @@ const VisitorCheckOutForm = () => {
                   </div>
 
                   <Field>
-                     <FieldLabel htmlFor="notes">Notes</FieldLabel>
+                     <FieldLabel htmlFor="notes">{t('common.notes')}</FieldLabel>
                      <Textarea
                         id="notes"
-                        placeholder="Add any checkout notes..."
+                        placeholder={t('deskCheckOut.notesPlaceholder')}
                         className="min-h-25"
                         aria-invalid={!!form.formState.errors.notes}
                         {...form.register('notes')}
@@ -358,7 +358,7 @@ const VisitorCheckOutForm = () => {
                               disabled={currentStep === 0 || isSubmitting}
                            >
                               <ChevronLeft className="h-4 w-4" />
-                              Back
+                              {t('common.back')}
                            </Button>
                            <Button
                               type="button"

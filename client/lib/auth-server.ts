@@ -1,16 +1,14 @@
 import { User } from '@/types/user.types';
 import { cookies } from 'next/headers';
 import { DEV_USER } from '@/lib/auth-dev';
+import { isDevelopmentAuthBypassEnabled } from '@/lib/auth-config';
 
-// Server-only flag (no NEXT_PUBLIC_ prefix) — never exposed to the browser bundle.
-const DEV_BYPASS_AUTH =
-   process.env.NODE_ENV === 'development' &&
-   process.env.DEV_BYPASS_AUTH === 'true';
+// Server-side requests never leave the network, so in Docker they go straight
+// to the API container; the browser keeps using the public NEXT_PUBLIC_API_URL.
+const API_URL = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL;
 
 export async function getServerUser(): Promise<User | null> {
-   if (DEV_BYPASS_AUTH) {
-      return DEV_USER;
-   }
+   if (isDevelopmentAuthBypassEnabled) return DEV_USER;
 
    const cookieStore = await cookies();
 
@@ -19,7 +17,7 @@ export async function getServerUser(): Promise<User | null> {
    if (!sessionCookie) return null;
 
    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+      const res = await fetch(`${API_URL}/auth/me`, {
          headers: {
             Cookie: `vms.sid=${sessionCookie.value}`,
          },

@@ -6,6 +6,7 @@ export const visitorSelect = {
    lastName: true,
    phone: true,
    email: true,
+   nationality: true,
    organization: true,
    subCity: true,
    woreda: true,
@@ -52,6 +53,7 @@ export interface VisitorInput {
    lastName: string;
    phone: string;
    email?: string;
+   nationality?: string;
    organization?: string;
    subCity?: string;
    woreda?: string;

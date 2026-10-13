@@ -11,6 +11,7 @@ import {
    DialogTitle,
 } from '@/components/ui/dialog';
 import type { HostVisitCardData } from './host-visit-card';
+import { useTranslation } from '@/lib/i18n';
 
 type RescheduleConfirmedDialogProps = {
    visit: HostVisitCardData | null;
@@ -31,6 +32,7 @@ export function RescheduleConfirmedDialog({
    open,
    onOpenChange,
 }: RescheduleConfirmedDialogProps) {
+   const { t } = useTranslation();
    return (
       <Dialog open={open} onOpenChange={onOpenChange}>
          <DialogContent
@@ -43,30 +45,26 @@ export function RescheduleConfirmedDialog({
                </div>
 
                <DialogHeader className="items-center">
-                  <DialogTitle>Visit rescheduled</DialogTitle>
+                  <DialogTitle>{t('host.reschedule.title')}</DialogTitle>
                   <DialogDescription>
-                     {visit ? (
-                        <>
-                           <span className="font-medium text-foreground">
-                              {visit.visitorName}
-                           </span>
-                           &apos;s visit has been updated and moved to Upcoming
-                           Visits. The visitor will receive a notification.
-                        </>
-                     ) : (
-                        'The visit has been updated and moved to Upcoming Visits.'
-                     )}
+                     {visit
+                        ? t('host.reschedule.body', {
+                             name: visit.visitorName,
+                          })
+                        : t('host.reschedule.bodyFallback')}
                   </DialogDescription>
                </DialogHeader>
 
                {visit && (
                   <div className="w-full space-y-3 rounded-xl border border-border bg-muted/30 px-4 py-3 text-left">
                      <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                        Updated Schedule
+                        {t('host.reschedule.updated')}
                      </p>
                      <dl className="space-y-2 text-sm">
                         <div className="flex items-start justify-between gap-3">
-                           <dt className="text-muted-foreground">Date</dt>
+                           <dt className="text-muted-foreground">
+                              {t('common.date')}
+                           </dt>
                            <dd className="text-right font-medium text-foreground">
                               {visit.isMultiDay && visit.endDate
                                  ? `${visit.startDate} – ${visit.endDate}`
@@ -74,7 +72,9 @@ export function RescheduleConfirmedDialog({
                            </dd>
                         </div>
                         <div className="flex items-start justify-between gap-3">
-                           <dt className="text-muted-foreground">Time</dt>
+                           <dt className="text-muted-foreground">
+                              {t('common.time')}
+                           </dt>
                            <dd className="text-right font-medium text-foreground">
                               {formatTimeLabel(visit.time)} –{' '}
                               {formatTimeLabel(visit.endTime)}
@@ -82,7 +82,9 @@ export function RescheduleConfirmedDialog({
                         </div>
                         {visit.floor ? (
                            <div className="flex items-start justify-between gap-3">
-                              <dt className="text-muted-foreground">Floor</dt>
+                              <dt className="text-muted-foreground">
+                                 {t('location.floor')}
+                              </dt>
                               <dd className="text-right font-medium text-foreground">
                                  {visit.floor}
                               </dd>
@@ -90,7 +92,9 @@ export function RescheduleConfirmedDialog({
                         ) : null}
                         {visit.room ? (
                            <div className="flex items-start justify-between gap-3">
-                              <dt className="text-muted-foreground">Room</dt>
+                              <dt className="text-muted-foreground">
+                                 {t('location.room')}
+                              </dt>
                               <dd className="text-right font-medium text-foreground">
                                  {visit.room}
                               </dd>
@@ -106,7 +110,7 @@ export function RescheduleConfirmedDialog({
                         type="button"
                         className="flex-1 cursor-pointer hover:bg-primary/80"
                      >
-                        Done
+                        {t('common.done')}
                      </Button>
                   </DialogClose>
                </div>

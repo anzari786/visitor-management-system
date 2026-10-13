@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma.js';
 
-const CODE_PREFIX = 'VMS';
+const CODE_PREFIX = 'ATI';
 const CODE_PAD_WIDTH = 4;
 
 /**

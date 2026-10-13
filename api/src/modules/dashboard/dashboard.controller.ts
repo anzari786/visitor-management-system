@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import {
+   exportVisitLogCsv,
    getDashboardStats,
    getMeetingTypeStats,
    getVisitGrowth,
@@ -8,6 +9,7 @@ import {
 import type {
    ChartRangeQuery,
    DashboardStatsQuery,
+   ExportVisitLogQuery,
    VisitGrowthQuery,
 } from './dashboard.validation.js';
 
@@ -50,3 +52,12 @@ export const getVisitStatuses = async (req: Request, res: Response) => {
       data,
    });
 };
+
+export async function exportVisitLog(req: Request, res: Response) {
+   const query = req.validatedQuery as ExportVisitLogQuery;
+   const { filename, csv } = await exportVisitLogCsv(query);
+
+   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+   res.send(csv);
+}

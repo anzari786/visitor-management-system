@@ -1,6 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
+import { VISIT_SOURCE_OPTIONS } from '@/constants/visit-sources';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -20,8 +21,12 @@ import {
    SheetHeader,
    SheetTitle,
 } from '@/components/ui/sheet';
-import { getMeetingTypeLabel } from '@/constants/meeting-types';
-import { ID_TYPE_OPTIONS } from '@/constants/visit';
+import {
+   ID_TYPE_KEYS,
+   MEETING_TYPE_KEYS,
+   useTranslation,
+   type TranslationKey,
+} from '@/lib/i18n';
 import {
    applyVisitorAttendance,
    canCheckIn,
@@ -38,18 +43,21 @@ import {
 import { cn } from '@/lib/utils';
 import { sendPendingApprovalReminderEmail } from '@/services/visit-notification.service';
 import type { IdType, ManagedVisit, ManagedVisitor } from '@/types/visit.types';
-import { format, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO } from 'date-fns';
 import {
    Building2,
    CalendarDays,
    Clock3,
    FileText,
+   Footprints,
+   Handshake,
    Hash,
    IdCard,
    Loader2,
    LogIn,
    LogOut,
    Mail,
+   MailPlus,
    MapPin,
    Phone,
    Sparkles,
@@ -63,13 +71,26 @@ import type { CheckInConfirmPayload } from './check-in-dialog';
 import { CheckInSuccessDialog } from './check-in-success-dialog';
 import { CheckOutConfirmDialog } from './check-out-confirm-dialog';
 import { CheckOutSuccessDialog } from './check-out-success-dialog';
+import { VisitorInformationDialog } from './visitor-information-dialog';
 import {
    ManagedVisitStatusBadge,
    VisitorAttendanceBadge,
 } from './managed-visit-status-badge';
 import { visitAttendanceService } from '@/services/visit-attendance.service';
-import type { CheckInPrintTarget } from './check-in-success-dialog';
+import type {
+   CheckInPrintTarget,
+   CheckInResult,
+} from './check-in-success-dialog';
 import { AxiosError } from 'axios';
+import { visitQueryKeys } from '@/hooks/use-visits';
+import {
+   useCheckInAttendance,
+   useCheckOutAttendance,
+   useRegisterVisitor,
+} from '@/hooks/use-visits';
+import { useQueryClient } from '@tanstack/react-query';
+import type { VisitorFormValues } from '@/lib/validations/visit-request.schema';
+import { AttendanceStatus } from '@/lib/attendance-status';
 
 type VisitDetailsSheetProps = {
    visit: ManagedVisit | null;
@@ -87,14 +108,20 @@ function formatTimeLabel(time: string) {
    return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
-function formatIdType(idType: IdType) {
-   return (
-      ID_TYPE_OPTIONS.find((option) => option.value === idType)?.label ??
-      idType
-         .split('_')
-         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-         .join(' ')
-   );
+function idTypeKey(idType: IdType): TranslationKey {
+   return ID_TYPE_KEYS[idType] ?? 'idType.other';
+}
+
+export function getVisitTypeIcon(visitType: ManagedVisit['visitType']) {
+   return visitType === 'invitation' ? MailPlus : Footprints;
+}
+
+function getVisitSourceLabel(
+   source: ManagedVisit['source'],
+   t: (key: TranslationKey) => string,
+) {
+   const option = VISIT_SOURCE_OPTIONS.find((item) => item.value === source);
+   return option ? t(option.labelKey) : source;
 }
 
 function DetailRow({
@@ -124,6 +151,8 @@ function DetailRow({
 }
 
 function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
+   const { t } = useTranslation();
+
    return (
       <div className="flex min-w-0 flex-col items-start gap-1">
          <span className="text-sm font-medium text-foreground">
@@ -146,7 +175,11 @@ function VisitorDetails({ visitor }: { visitor: ManagedVisitor }) {
                <span className="inline-flex min-w-0 items-center gap-1.5">
                   <IdCard className="size-3 shrink-0" />
                   <span className="truncate">
-                     {visitor.idType ? formatIdType(visitor.idType) : 'ID'}
+                     {t(
+                        visitor.idType
+                           ? idTypeKey(visitor.idType)
+                           : 'checkIn.idLabel',
+                     )}
                      {visitor.idNumber ? ` · ${visitor.idNumber}` : ''}
                   </span>
                </span>
@@ -163,9 +196,14 @@ export function VisitDetailsSheet({
    onVisitChange,
    initialMode = 'view',
 }: VisitDetailsSheetProps) {
-   const [selectedIds, setSelectedIds] = React.useState<Record<string, boolean>>(
-      {},
-   );
+   const { t } = useTranslation();
+   const queryClient = useQueryClient();
+   const { mutateAsync: registerVisitor } = useRegisterVisitor();
+   const { mutateAsync: checkInAttendance } = useCheckInAttendance();
+   const { mutateAsync: checkOutAttendance } = useCheckOutAttendance();
+   const [selectedIds, setSelectedIds] = React.useState<
+      Record<string, boolean>
+   >({});
    const [checkOutConfirmOpen, setCheckOutConfirmOpen] = React.useState(false);
    const [checkOutSuccessOpen, setCheckOutSuccessOpen] = React.useState(false);
    const [checkInDialogOpen, setCheckInDialogOpen] = React.useState(false);
@@ -174,12 +212,16 @@ export function VisitDetailsSheet({
    const [checkInPrintTargets, setCheckInPrintTargets] = React.useState<
       CheckInPrintTarget[]
    >([]);
+   const [checkInResult, setCheckInResult] = React.useState<CheckInResult>({
+      status: 'success',
+   });
    const [pendingCheckOutIds, setPendingCheckOutIds] = React.useState<string[]>(
       [],
    );
    const [pendingCheckInIds, setPendingCheckInIds] = React.useState<string[]>(
       [],
    );
+   const [visitorInfoOpen, setVisitorInfoOpen] = React.useState(false);
    const [isResending, setIsResending] = React.useState(false);
 
    React.useEffect(() => {
@@ -204,16 +246,19 @@ export function VisitDetailsSheet({
 
       // Open the Check-In stepper when launched in check-in mode (parity with Check Out sheet flow).
       if (initialMode === 'check_in' && canCheckIn(visit)) {
-         const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
-         setPendingCheckInIds(ids);
-         setCheckInDialogOpen(true);
+         if (visit.visitType === 'invitation') {
+            setVisitorInfoOpen(true);
+         } else {
+            const ids = getCheckInEligibleVisitors(visit).map((v) => v.id);
+            setPendingCheckInIds(ids);
+            setCheckInDialogOpen(true);
+         }
       }
    }, [visit?.id, open, initialMode]);
 
    if (!visit) return null;
 
-   const attendanceDay =
-      getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
+   const attendanceDay = getActiveVisitDay(visit) ?? getRelevantVisitDay(visit);
    const displayVisit = syncVisitAttendanceForDay(visit, attendanceDay);
    const windowOpen = isVisitAttendanceWindowOpen(visit);
    const group = isGroupVisit(visit);
@@ -229,10 +274,13 @@ export function VisitDetailsSheet({
       .filter((v) => selectedIds[v.id])
       .map((v) => v.id);
 
+   const startDate = parseISO(visit.startDate);
+   const endDate = visit.endDate ? parseISO(visit.endDate) : null;
+   const isMultiDay = visit.isMultiDay && endDate && !isSameDay(startDate, endDate);
    const dateLabel =
-      visit.isMultiDay && visit.endDate
-         ? `${format(parseISO(visit.startDate), 'MMM d')} – ${format(parseISO(visit.endDate), 'MMM d, yyyy')}`
-         : format(parseISO(visit.startDate), 'MMM d, yyyy');
+      isMultiDay
+         ? `${format(startDate, 'MMM d')} – ${format(endDate, 'MMM d, yyyy')}`
+         : format(startDate, 'MMM d, yyyy');
    const timeLabel = `${formatTimeLabel(visit.startTime)} – ${formatTimeLabel(visit.endTime)}`;
    const locationLabel =
       visit.floor || visit.room
@@ -243,13 +291,13 @@ export function VisitDetailsSheet({
    const attendanceDayLabel = format(parseISO(attendanceDay), 'MMM d');
 
    const checkedInCount = displayVisit.visitors.filter(
-      (v) => v.attendanceStatus === 'checked_in',
+      (v) => v.attendanceStatus === AttendanceStatus.CHECKED_IN,
    ).length;
    const checkedOutCount = displayVisit.visitors.filter(
-      (v) => v.attendanceStatus === 'checked_out',
+      (v) => v.attendanceStatus === AttendanceStatus.CHECKED_OUT,
    ).length;
    const notCheckedInCount = displayVisit.visitors.filter(
-      (v) => v.attendanceStatus === 'pending',
+      (v) => v.attendanceStatus === AttendanceStatus.EXPECTED,
    ).length;
    const isApprovalPending = visit.status === 'requested';
 
@@ -261,13 +309,22 @@ export function VisitDetailsSheet({
       const aEligible = eligibleIdSet.has(a.id) ? 0 : 1;
       const bEligible = eligibleIdSet.has(b.id) ? 0 : 1;
       if (aEligible !== bEligible) return aEligible - bEligible;
-      const order = { pending: 0, checked_in: 1, checked_out: 2 } as const;
+      const order = {
+         [AttendanceStatus.EXPECTED]: 0,
+         [AttendanceStatus.CHECKED_IN]: 1,
+         [AttendanceStatus.CHECKED_OUT]: 2,
+         [AttendanceStatus.NO_SHOW]: 3,
+      } as const;
       return (
          (order[a.attendanceStatus] ?? 3) - (order[b.attendanceStatus] ?? 3)
       );
    });
 
-   const toggleVisitor = (id: string, checked: boolean, selectable: boolean) => {
+   const toggleVisitor = (
+      id: string,
+      checked: boolean,
+      selectable: boolean,
+   ) => {
       if (!selectable) return;
       setSelectedIds((prev) => ({ ...prev, [id]: checked }));
    };
@@ -280,7 +337,12 @@ export function VisitDetailsSheet({
             : checkInEligible.map((v) => v.id);
 
       if (ids.length === 0) {
-         toast.error('Select at least one visitor to check in');
+         toast.error(t('visitDetails.toast.selectCheckIn'));
+         return;
+      }
+
+      if (visit.visitType === 'invitation') {
+         setVisitorInfoOpen(true);
          return;
       }
 
@@ -288,71 +350,127 @@ export function VisitDetailsSheet({
       setCheckInDialogOpen(true);
    };
 
+   const handleVisitorInfoComplete = (visitorData: any[]) => {
+      if (!visit) return;
+
+      const updatedVisitors = visit.visitors.map((v, i) => {
+         const data = visitorData[i];
+         if (!data) return v;
+         return {
+            ...v,
+            name: `${data.firstName} ${data.lastName}`,
+            email: data.email,
+            phone: data.phone,
+            idType: data.idType,
+            idNumber: data.idNumber,
+            nationality: data.nationality,
+            organization: data.organization,
+         };
+      });
+
+      const updatedVisit = { ...visit, visitors: updatedVisitors };
+      onVisitChange(updatedVisit);
+
+      setVisitorInfoOpen(false);
+
+      const ids = getCheckInEligibleVisitors(updatedVisit).map((v) => v.id);
+      setPendingCheckInIds(ids);
+      setCheckInDialogOpen(true);
+   };
+
+   const handleVisitorRegistrationComplete = async (
+      visitorData: Array<VisitorFormValues & { visitParticipantId?: number }>,
+   ) => {
+      if (!visit) return;
+
+      const visitId = visit.backendId ?? Number(visit.id);
+      if (!Number.isInteger(visitId) || visitId <= 0) {
+         throw new Error('The selected visit has no valid backend id.');
+      }
+
+      for (const visitor of visitorData) {
+         await registerVisitor({
+            visitId,
+            visitParticipantId: visitor.visitParticipantId,
+            firstName: visitor.firstName,
+            lastName: visitor.lastName,
+            phone: visitor.phone,
+            email: visitor.email || undefined,
+            nationality: visitor.nationality || undefined,
+            organization: visitor.organization?.trim() || undefined,
+         });
+      }
+   };
+
    const confirmCheckIn = async (payload: CheckInConfirmPayload) => {
       if (!visit) return;
       const ids =
-         payload.visitorIds.length > 0
-            ? payload.visitorIds
-            : pendingCheckInIds;
+         payload.visitorIds.length > 0 ? payload.visitorIds : pendingCheckInIds;
       if (ids.length === 0) return;
 
       const selected = visit.visitors.filter((v) => ids.includes(v.id));
       const printTargets: CheckInPrintTarget[] = [];
-      let usedApi = false;
+      const names = selected.map((v) => v.name);
+
+      setSuccessLabel(
+         names.length === 1
+            ? names[0]!
+            : t('visits.visitorsCount', { count: names.length }),
+      );
+      setCheckInPrintTargets([]);
+      setCheckInResult({ status: 'pending' });
+      setCheckInSuccessOpen(true);
 
       for (const visitor of selected) {
-         if (
-            visitor.visitParticipantId != null &&
-            visitor.visitDayId != null
-         ) {
-            try {
-               const { data } = await visitAttendanceService.checkIn({
-                  visitParticipantId: visitor.visitParticipantId,
-                  visitDayId: visitor.visitDayId,
-               });
-               usedApi = true;
-               printTargets.push({
-                  attendanceId: data.data.id,
-                  visitorName: visitor.name,
-                  initialStatus: data.data.printJob?.status ?? 'QUEUED',
-               });
-            } catch (error) {
-               const message =
-                  error instanceof AxiosError
-                     ? (error.response?.data?.message as string | undefined)
-                     : error instanceof Error
-                       ? error.message
-                       : undefined;
-               toast.error(message ?? `Unable to check in ${visitor.name}`);
-               return;
-            }
-         }
-      }
-
-      const names = selected.map((v) => v.name);
-      const withAttendance = applyVisitorAttendance(visit, ids, 'checked_in');
-      onVisitChange(withAttendance);
-
-      if (!usedApi) {
-         for (const visitor of withAttendance.visitors.filter((v) =>
-            ids.includes(v.id),
-         )) {
-            printTargets.push({
-               attendanceId: visitor.attendanceId ?? `mock-${visitor.id}`,
-               visitorName: visitor.name,
-               initialStatus: 'QUEUED',
-               simulate: true,
+         if (visitor.visitParticipantId == null || visitor.visitDayId == null) {
+            setCheckInResult({
+               status: 'error',
+               message: `Unable to check in ${visitor.name}: missing visit participant or visit day ID`,
             });
+            return;
+         }
+         try {
+            const attendance = await checkInAttendance({
+               visitParticipantId: visitor.visitParticipantId,
+               visitDayId: visitor.visitDayId,
+               retainPersonalId: true,
+            });
+            printTargets.push({
+               attendanceId: attendance.id,
+               visitorName: visitor.name,
+               initialStatus: attendance.printJob?.status ?? 'QUEUED',
+            });
+         } catch (error) {
+            const message =
+               error instanceof AxiosError
+                  ? (error.response?.data?.message as string | undefined)
+                  : error instanceof Error
+                    ? error.message
+                    : undefined;
+            setCheckInPrintTargets(printTargets);
+            setCheckInResult({
+               status: 'error',
+               message: message ?? `Unable to check in ${visitor.name}`,
+            });
+            return;
          }
       }
+
+      const withAttendance = applyVisitorAttendance(
+         visit,
+         ids,
+         AttendanceStatus.CHECKED_IN,
+      );
+      onVisitChange(withAttendance);
+      void queryClient.invalidateQueries({
+         queryKey: visitQueryKeys.lists(),
+      });
+
 
       setSelectedIds({});
       setPendingCheckInIds([]);
-      setSuccessLabel(
-         names.length === 1 ? names[0]! : `${names.length} visitors`,
-      );
       setCheckInPrintTargets(printTargets);
-      setCheckInSuccessOpen(true);
+      setCheckInResult({ status: 'success' });
    };
 
    const handleCheckOut = () => {
@@ -362,7 +480,7 @@ export function VisitDetailsSheet({
             : checkOutEligible.map((v) => v.id);
 
       if (ids.length === 0) {
-         toast.error('Select at least one visitor to check out');
+         toast.error(t('visitDetails.toast.selectCheckOut'));
          return;
       }
 
@@ -370,19 +488,48 @@ export function VisitDetailsSheet({
       setCheckOutConfirmOpen(true);
    };
 
-   const confirmCheckOut = () => {
+   const confirmCheckOut = async () => {
       const ids = pendingCheckOutIds;
       if (ids.length === 0) return;
+
+      const selectedVisitors = visit.visitors.filter((v) => ids.includes(v.id));
+      if (selectedVisitors.some((visitor) => !visitor.attendanceId)) {
+         toast.error(t('visitActions.toast.tryAgain'));
+         return;
+      }
+
+      try {
+         await Promise.all(
+            selectedVisitors.map((visitor) =>
+               checkOutAttendance(visitor.attendanceId!),
+            ),
+         );
+      } catch (error) {
+         const message =
+            error instanceof AxiosError
+               ? (error.response?.data?.message as string | undefined)
+               : error instanceof Error
+                 ? error.message
+                 : undefined;
+         toast.error(message ?? t('visitActions.toast.tryAgain'));
+         return;
+      }
 
       const names = visit.visitors
          .filter((v) => ids.includes(v.id))
          .map((v) => v.name);
-      const updated = applyVisitorAttendance(visit, ids, 'checked_out');
+      const updated = applyVisitorAttendance(
+         visit,
+         ids,
+         AttendanceStatus.CHECKED_OUT,
+      );
       onVisitChange(updated);
       setSelectedIds({});
       setPendingCheckOutIds([]);
       setSuccessLabel(
-         names.length === 1 ? names[0]! : `${names.length} visitors`,
+         names.length === 1
+            ? names[0]!
+            : t('visits.visitorsCount', { count: names.length }),
       );
       setCheckOutSuccessOpen(true);
    };
@@ -403,12 +550,14 @@ export function VisitDetailsSheet({
             visitorName: visit.visitorName,
             visitSummary: `${visit.id} · ${visit.meetingType}`,
          });
-         toast.success('Approval email resent', {
-            description: `Reminder sent for ${visit.visitorName}'s visit request.`,
+         toast.success(t('visitActions.toast.emailResent'), {
+            description: t('visitActions.toast.emailResentBody', {
+               name: visit.visitorName,
+            }),
          });
       } catch {
-         toast.error('Could not resend email', {
-            description: 'Please try again in a moment.',
+         toast.error(t('visitActions.toast.emailFailed'), {
+            description: t('visitActions.toast.tryAgain'),
          });
       } finally {
          setIsResending(false);
@@ -435,7 +584,9 @@ export function VisitDetailsSheet({
                      <SheetDescription className="text-sm text-muted-foreground">
                         {visit.visitorName}
                         {group
-                           ? ` · ${visit.visitorCount} visitors`
+                           ? ` · ${t('visits.visitorsCount', {
+                                count: visit.visitorCount,
+                             })}`
                            : visit.organization
                              ? ` · ${visit.organization}`
                              : ''}
@@ -448,7 +599,7 @@ export function VisitDetailsSheet({
                         className="shrink-0"
                      >
                         <XIcon className="size-5" />
-                        <span className="sr-only">Close</span>
+                        <span className="sr-only">{t('common.close')}</span>
                      </Button>
                   </SheetClose>
                </SheetHeader>
@@ -457,12 +608,12 @@ export function VisitDetailsSheet({
                   <div className="flex flex-col gap-6 p-5 sm:p-6">
                      <section className="space-y-4">
                         <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                           Visit details
+                           {t('visitDetails.heading')}
                         </h3>
                         <div className="space-y-3.5">
                            <DetailRow
                               icon={Hash}
-                              label="Visit ID"
+                              label={t('visitDetails.visitId')}
                               value={
                                  <span className="font-mono text-xs">
                                     {visit.id}
@@ -471,57 +622,70 @@ export function VisitDetailsSheet({
                            />
                            <DetailRow
                               icon={Building2}
-                              label="Organization"
+                              label={t('visitDetails.organization')}
                               value={
-                                 visit.organization ?? 'Individual visitor'
+                                 visit.organization ??
+                                 t('checkIn.individualVisitor')
                               }
                            />
                            <DetailRow
                               icon={Users}
-                              label="Host"
+                              label={t('visits.col.host')}
                               value={visit.host}
                            />
                            <DetailRow
                               icon={Building2}
-                              label="Department"
+                              label={t('common.department')}
                               value={visit.department}
                            />
                            <DetailRow
-                              icon={Sparkles}
-                              label="Meeting type"
+                              icon={getVisitTypeIcon(visit.visitType)}
+                              label={t('visits.col.visitSource')}
                               value={
                                  <Badge
                                     variant="secondary"
                                     className="h-6 rounded-md px-2 font-medium"
                                  >
-                                    {getMeetingTypeLabel(visit.meetingType)}
+                                    {getVisitSourceLabel(visit.source, t)}
                                  </Badge>
                               }
                            />
                            <DetailRow
-                              icon={FileText}
-                              label="Purpose"
-                              value={visit.purpose}
+                              icon={Handshake}
+                              label={t('visits.col.meetingType')}
+                              value={
+                                 <Badge
+                                    variant="secondary"
+                                    className="h-6 rounded-md px-2 font-medium"
+                                 >
+                                    {t(MEETING_TYPE_KEYS[visit.meetingType])}
+                                 </Badge>
+                              }
                            />
                            <DetailRow
                               icon={CalendarDays}
-                              label="Visit date"
+                              label={t('visitDetails.visitDate')}
                               value={dateLabel}
                            />
                            <DetailRow
                               icon={Clock3}
-                              label="Time"
+                              label={t('common.time')}
                               value={timeLabel}
                            />
                            <DetailRow
                               icon={MapPin}
-                              label="Location"
+                              label={t('checkIn.location')}
                               value={locationLabel}
                            />
                            <DetailRow
                               icon={Users}
-                              label="Visitor count"
-                              value={`${visit.visitorCount}${group ? ' guests' : ' guest'}`}
+                              label={t('visitDetails.visitorCount')}
+                              value={t(
+                                 group
+                                    ? 'visitDetails.guests'
+                                    : 'visitDetails.guest',
+                                 { count: visit.visitorCount },
+                              )}
                            />
                         </div>
                      </section>
@@ -532,17 +696,32 @@ export function VisitDetailsSheet({
                         <div className="flex items-center justify-between gap-3 pb-1">
                            <div>
                               <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                                 Visitors ({visit.visitors.length})
+                                 {t('visitDetails.visitorsHeading', {
+                                    count: visit.visitors.length,
+                                 })}
                               </h3>
                               <p className="mt-1 text-xs text-muted-foreground">
                                  {visit.isMultiDay
-                                    ? `${attendanceDayLabel}${windowOpen ? ' · open' : ''} · `
+                                    ? `${attendanceDayLabel}${
+                                         windowOpen
+                                            ? ` · ${t('visitDetails.windowOpen')}`
+                                            : ''
+                                      } · `
                                     : ''}
-                                 {isApprovalPending
-                                    ? `${notCheckedInCount} pending`
-                                    : `${notCheckedInCount} not checked in`}{' '}
-                                 · {checkedInCount} checked in ·{' '}
-                                 {checkedOutCount} checked out
+                                 {t(
+                                    isApprovalPending
+                                       ? 'visitDetails.pendingCount'
+                                       : 'visitDetails.notCheckedIn',
+                                    { count: notCheckedInCount },
+                                 )}{' '}
+                                 ·{' '}
+                                 {t('visitDetails.checkedInCount', {
+                                    count: checkedInCount,
+                                 })}{' '}
+                                 ·{' '}
+                                 {t('visitDetails.checkedOutCount', {
+                                    count: checkedOutCount,
+                                 })}
                               </p>
                            </div>
                            {group && (showCheckIn || showCheckOut) && (
@@ -567,14 +746,14 @@ export function VisitDetailsSheet({
                                     setSelectedIds(next);
                                  }}
                               >
-                                 Select eligible
+                                 {t('visitDetails.selectEligible')}
                               </Button>
                            )}
                         </div>
 
                         {visit.visitors.length === 0 ? (
                            <div className="rounded-lg border border-dashed py-6 text-center text-sm text-muted-foreground">
-                              No visitors on this visit
+                              {t('visitDetails.noVisitors')}
                            </div>
                         ) : (
                            <FieldGroup className="w-full gap-3">
@@ -585,20 +764,20 @@ export function VisitDetailsSheet({
                                        attendanceDay,
                                     );
                                  const canSelectForCheckIn =
-                                    showCheckIn && dayStatus === 'pending';
+                                    showCheckIn &&
+                                    dayStatus === AttendanceStatus.EXPECTED;
                                  const canSelectForCheckOut =
                                     showCheckOut &&
-                                    dayStatus === 'checked_in';
+                                    dayStatus === AttendanceStatus.CHECKED_IN;
                                  const selectable =
-                                    canSelectForCheckIn ||
-                                    canSelectForCheckOut;
+                                    canSelectForCheckIn || canSelectForCheckOut;
                                  const checked = Boolean(
                                     selectedIds[visitor.id],
                                  );
                                  const completed =
-                                    dayStatus === 'checked_out' ||
+                                    dayStatus === AttendanceStatus.CHECKED_OUT ||
                                     (!selectable &&
-                                       dayStatus === 'checked_in' &&
+                                       dayStatus === AttendanceStatus.CHECKED_IN &&
                                        !showCheckOut);
 
                                  return (
@@ -631,16 +810,17 @@ export function VisitDetailsSheet({
                                              />
                                              {selectable && (
                                                 <span className="mt-1 text-[11px] font-normal text-muted-foreground">
-                                                   {canSelectForCheckIn
-                                                      ? 'Eligible for check-in'
-                                                      : 'Eligible for check-out'}
+                                                   {t(
+                                                      canSelectForCheckIn
+                                                         ? 'visitDetails.eligibleCheckIn'
+                                                         : 'visitDetails.eligibleCheckOut',
+                                                   )}
                                                 </span>
                                              )}
                                           </FieldTitle>
                                           <div className="flex shrink-0 flex-col items-end gap-2.5 self-start">
                                              <VisitorAttendanceBadge
                                                 status={dayStatus}
-                                                visitStatus={visit.status}
                                              />
                                              {selectable ? (
                                                 <Checkbox
@@ -682,8 +862,8 @@ export function VisitDetailsSheet({
                               <Mail className="size-4" />
                            )}
                            {isResending
-                              ? 'Sending…'
-                              : 'Resend Approval Email'}
+                              ? t('visitActions.sending')
+                              : t('visitActions.resendEmail')}
                         </Button>
                      )}
                      {showCheckIn && (
@@ -696,12 +876,12 @@ export function VisitDetailsSheet({
                         >
                            <LogIn className="size-4" />
                            {group
-                              ? `Check In${
-                                   selectedCheckInIds.length
-                                      ? ` (${selectedCheckInIds.length})`
-                                      : ` (${checkInEligible.length})`
-                                }`
-                              : 'Check In'}
+                              ? t('visitDetails.checkInCount', {
+                                   count:
+                                      selectedCheckInIds.length ||
+                                      checkInEligible.length,
+                                })
+                              : t('visitActions.checkIn')}
                         </Button>
                      )}
                      {showCheckOut && (
@@ -716,18 +896,26 @@ export function VisitDetailsSheet({
                         >
                            <LogOut className="size-4" />
                            {group
-                              ? `Check Out${
-                                   selectedCheckOutIds.length
-                                      ? ` (${selectedCheckOutIds.length})`
-                                      : ` (${checkOutEligible.length})`
-                                }`
-                              : 'Check Out'}
+                              ? t('visitDetails.checkOutCount', {
+                                   count:
+                                      selectedCheckOutIds.length ||
+                                      checkOutEligible.length,
+                                })
+                              : t('visitActions.checkOut')}
                         </Button>
                      )}
                   </SheetFooter>
                )}
             </SheetContent>
          </Sheet>
+
+         <VisitorInformationDialog
+            open={visitorInfoOpen}
+            onOpenChange={setVisitorInfoOpen}
+            visit={visit}
+            onComplete={handleVisitorInfoComplete}
+            onRegisterComplete={handleVisitorRegistrationComplete}
+         />
 
          <CheckInDialog
             open={checkInDialogOpen}
@@ -742,15 +930,9 @@ export function VisitDetailsSheet({
             onOpenChange={setCheckInSuccessOpen}
             visitorLabel={successLabel || visit.visitorName}
             visitId={visit.id}
+            result={checkInResult}
             printTargets={checkInPrintTargets}
             onRetryPrint={async (attendanceId) => {
-               if (attendanceId.startsWith('mock-')) {
-                  return {
-                     id: `mock-retry-${attendanceId}`,
-                     attendanceId,
-                     status: 'QUEUED',
-                  };
-               }
                const { data } =
                   await visitAttendanceService.retryPrint(attendanceId);
                return data.data;

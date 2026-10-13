@@ -6,17 +6,23 @@ import {
    getEmployeeById,
    syncEmployees,
    formatEmployee,
+   getPendingApprovalVisits,
+   getUpcomingVisits,
+   formatHostVisit,
+   getDefaultLocation,
 } from './employee.service.js';
-import type {
-   listEmployeesSchema,
-   searchHostSchema,
-   employeeIdParamSchema,
-   syncEmployeesSchema,
+import {
+   type listEmployeesSchema,
+   type searchHostSchema,
+   type employeeIdParamSchema,
+   type syncEmployeesSchema,
+   listMyVisitsSchema,
 } from './employee.validation.js';
 
 type ListEmployeesQuery = z.infer<typeof listEmployeesSchema>['query'];
 type SearchHostQuery = z.infer<typeof searchHostSchema>['query'];
 type EmployeeIdParams = z.infer<typeof employeeIdParamSchema>['params'];
+type ListMyVisitsQuery = z.infer<typeof listMyVisitsSchema>['query'];
 type SyncEmployeesBody = z.infer<typeof syncEmployeesSchema>['body'];
 
 export const getEmployees = async (req: Request, res: Response) => {
@@ -51,7 +57,9 @@ export const getHostOptions = async (req: Request, res: Response) => {
          lastName: host.lastName,
          email: host.email,
          departmentName: host.departmentName,
+         departmentCode: host.departmentCode ?? undefined,
          position: host.position ?? undefined,
+         isActive: host.isActive,
       })),
    });
 };
@@ -64,6 +72,50 @@ export const getEmployee = async (req: Request, res: Response) => {
    return res.status(200).json({
       success: true,
       data: formatEmployee(employee),
+   });
+};
+
+export const getMyPendingApprovalVisits = async (
+   req: Request,
+   res: Response,
+) => {
+   const { page, limit } = req.validatedQuery as ListMyVisitsQuery;
+
+   const { visits, meta } = await getPendingApprovalVisits({
+      userId: req.session.userId!,
+      page,
+      limit,
+   });
+
+   return res.status(200).json({
+      success: true,
+      data: visits.map(formatHostVisit),
+      pagination: meta,
+   });
+};
+
+export const getMyUpcomingVisits = async (req: Request, res: Response) => {
+   const { page, limit } = req.validatedQuery as ListMyVisitsQuery;
+
+   const { visits, meta } = await getUpcomingVisits({
+      userId: req.session.userId!,
+      page,
+      limit,
+   });
+
+   return res.status(200).json({
+      success: true,
+      data: visits.map(formatHostVisit),
+      pagination: meta,
+   });
+};
+
+export const getMyDefaultLocation = async (req: Request, res: Response) => {
+   const location = await getDefaultLocation(req.session.userId!);
+
+   return res.status(200).json({
+      success: true,
+      data: location,
    });
 };
 

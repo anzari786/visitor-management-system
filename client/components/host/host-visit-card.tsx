@@ -4,12 +4,13 @@ import type { ReactNode } from 'react';
 import { format, parse } from 'date-fns';
 import { Dot, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { HostVisitCardData } from '@/types/host.types';
+import type { HostVisit } from '@/types/host.types';
+import { useTranslation } from '@/lib/i18n';
 
-export type { HostVisitCardData };
+export type { HostVisit as HostVisitCardData };
 
 type HostVisitCardProps = {
-   visit: HostVisitCardData;
+   visit: HostVisit;
    statusLabel: string;
    statusClassName: string;
    actions?: ReactNode;
@@ -29,11 +30,24 @@ function formatTimeLabel(time: string) {
 
 function MetaDot() {
    return (
-      <Dot
-         className="size-4 shrink-0 text-muted-foreground/70"
-         aria-hidden
-      />
+      <Dot className="size-4 shrink-0 text-muted-foreground/70" aria-hidden />
    );
+}
+
+function getVisitorOrganizationLabel(
+   visitors: HostVisit['visitors'] | undefined,
+): string {
+   const organizations = Array.from(
+      new Set(
+         visitors
+            ?.map((visitor) => visitor.organization?.trim())
+            .filter((organization): organization is string => !!organization) ?? [],
+      ),
+   );
+
+   if (organizations.length === 0) return '';
+   if (organizations.length === 1) return organizations[0];
+   return organizations.join(' • ');
 }
 
 export function HostVisitCard({
@@ -42,6 +56,7 @@ export function HostVisitCard({
    statusClassName,
    actions,
 }: HostVisitCardProps) {
+   const { t } = useTranslation();
    const startDate = parseVisitDate(visit.startDate);
    const dayNumber = format(startDate, 'dd');
    const dayLabel = format(startDate, 'EEE').toUpperCase();
@@ -50,6 +65,11 @@ export function HostVisitCard({
       : visit.startDate;
    const timeLabel = `${formatTimeLabel(visit.time)} – ${formatTimeLabel(visit.endTime)}`;
    const hasLocation = Boolean(visit.floor && visit.room);
+   const organizationName = getVisitorOrganizationLabel(visit.visitors);
+   const individualLabel =
+      (visit.groupSize ?? 1) > 1
+         ? t('host.individualVisitors')
+         : t('host.individualVisitor');
 
    return (
       <article className="rounded-xl border border-border/80 bg-card transition-colors hover:bg-muted/15">
@@ -71,7 +91,7 @@ export function HostVisitCard({
                      </h3>
                      <p className="flex min-w-0 flex-wrap items-center text-xs text-muted-foreground">
                         <span className="truncate font-medium">
-                           {visit.orgName || 'Individual visitor'}
+                           {organizationName || individualLabel}
                         </span>
                         <MetaDot />
                         <span className="truncate">{scheduleLabel}</span>
@@ -90,7 +110,9 @@ export function HostVisitCard({
                               <MetaDot />
                               <span className="inline-flex items-center gap-1">
                                  <Users className="size-3 shrink-0" />
-                                 {visit.groupSize ?? 1} visitors
+                                 {t('host.visitorsCount', {
+                                    count: visit.groupSize ?? 1,
+                                 })}
                               </span>
                            </>
                         )}
